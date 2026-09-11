@@ -16,6 +16,7 @@ import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
+import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -447,6 +448,14 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+MascotMood _moodForStreak(int streak, DateTime now) {
+  if (streak == 0) return MascotMood.worried;
+  final hour = now.hour;
+  if (hour >= 22 || hour < 5) return MascotMood.sleepy;
+  if (streak >= 7) return MascotMood.excited;
+  return MascotMood.happy;
+}
+
 class _StreakHeroWidget extends StatelessWidget {
   const _StreakHeroWidget({
     required this.stats,
@@ -480,7 +489,7 @@ class _StreakHeroWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text('⭐', style: TextStyle(fontSize: 36)),
+                MascotWidget(mood: _moodForStreak(streak, DateTime.now()), size: 48),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(

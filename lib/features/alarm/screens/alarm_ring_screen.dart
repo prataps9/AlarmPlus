@@ -27,6 +27,8 @@ import 'package:alarm_plus/features/alarm/widgets/math_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/widgets/quest_runner_widget.dart';
 import 'package:alarm_plus/shared/widgets/sunrise_gradient.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
+import 'package:alarm_plus/core/services/celebration_event.dart';
+import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class AlarmRingScreen extends StatefulWidget {
   const AlarmRingScreen({super.key});
@@ -138,79 +140,87 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   Future<void> _triggerDismiss(int alarmId) async {
     if (_isDismissing) return;
-    final alarm = AlarmService.findByIntId(alarmId);
+    // Muted for the whole dismiss→celebration-sheet sequence so the global
+    // celebration banner (level-up/badge) doesn't pop up behind or before
+    // this screen's own detailed sheet. Confetti still fires either way.
+    CelebrationBus.mutePresentation = true;
+    try {
+      final alarm = AlarmService.findByIntId(alarmId);
 
-    // Always require a challenge: use alarm's configured type, fall back to math
-    final alarmHasChallenge = alarm != null &&
-        (alarm.questMode || alarm.challengeType != null);
-    final shouldChallenge = alarmHasChallenge || _mathChallengeEnabled;
+      // Always require a challenge: use alarm's configured type, fall back to math
+      final alarmHasChallenge = alarm != null &&
+          (alarm.questMode || alarm.challengeType != null);
+      final shouldChallenge = alarmHasChallenge || _mathChallengeEnabled;
 
-    if (shouldChallenge) {
-      bool passed;
+      if (shouldChallenge) {
+        bool passed;
 
-      if (alarm != null && alarm.questMode) {
-        passed = await _showQuestChallenge(alarm);
-      } else {
-        final resolvedChallenge = alarm != null
-            ? ChallengeService.pickChallenge(alarm)
-            : ChallengeType.math;
-        passed = await _showChallenge(resolvedChallenge);
+        if (alarm != null && alarm.questMode) {
+          passed = await _showQuestChallenge(alarm);
+        } else {
+          final resolvedChallenge = alarm != null
+              ? ChallengeService.pickChallenge(alarm)
+              : ChallengeType.math;
+          passed = await _showChallenge(resolvedChallenge);
+        }
+
+        if (!passed) {
+          setState(() => _dragDx = 0.0);
+          return;
+        }
       }
 
-      if (!passed) {
-        setState(() => _dragDx = 0.0);
-        return;
+      // Auto-play voice memo if present and file still exists
+      final memoPath = alarm?.voiceMemoPath;
+      if (memoPath != null && await File(memoPath).exists()) {
+        try {
+          await VoiceMemoService.playMemo(memoPath);
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          debugPrint('Voice memo playback failed: $e');
+        }
       }
-    }
 
-    // Auto-play voice memo if present and file still exists
-    final memoPath = alarm?.voiceMemoPath;
-    if (memoPath != null && await File(memoPath).exists()) {
-      try {
-        await VoiceMemoService.playMemo(memoPath);
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-      } catch (e) {
-        debugPrint('Voice memo playback failed: $e');
+      _stopGentleWake();
+      setState(() => _isDismissing = true);
+      final reward = await AlarmRingFlow.stopAlarm(alarmId);
+      if (!mounted) return;
+      final dismissMs = DateTime.now().millisecondsSinceEpoch - _dismissStartMs;
+      final mood = await SmartAlarmService.getLatestMoodCheckIn();
+      final now = DateTime.now();
+      final moodToday = mood != null &&
+          mood.at.year == now.year &&
+          mood.at.month == now.month &&
+          mood.at.day == now.day;
+      final wakeScore = SmartAlarmService.calculateWakeScore(
+        dismissSpeedSeconds: dismissMs ~/ 1000,
+        wrongAnswers: _wrongAnswers,
+        snoozeCount: _snoozeCount,
+        moodCheckInDoneToday: moodToday,
+      );
+      final prevBest = await SmartAlarmService.saveWakeScore(wakeScore);
+
+      // Record sleep analytics event
+      final scheduledToday = alarm != null
+          ? DateTime(now.year, now.month, now.day, alarm.time.hour, alarm.time.minute)
+          : now;
+      await SleepAnalyticsService.recordEvent(AlarmRingEvent(
+        alarmId: alarm?.id ?? '',
+        scheduledTime: scheduledToday,
+        actualDismissTime: now,
+        snoozeCount: _snoozeCount,
+        wasMissed: false,
+        wakeScore: wakeScore.total,
+      ));
+
+      if (!mounted) return;
+      await _showCelebrationSheet(reward, wakeScore, prevBest);
+      AlarmRingFlow.completeRingScreenDismiss();
+      if (mounted) {
+        Navigator.of(context).pushNamed(WakeRoutineScreen.routeName);
       }
-    }
-
-    _stopGentleWake();
-    setState(() => _isDismissing = true);
-    final reward = await AlarmRingFlow.stopAlarm(alarmId);
-    if (!mounted) return;
-    final dismissMs = DateTime.now().millisecondsSinceEpoch - _dismissStartMs;
-    final mood = await SmartAlarmService.getLatestMoodCheckIn();
-    final now = DateTime.now();
-    final moodToday = mood != null &&
-        mood.at.year == now.year &&
-        mood.at.month == now.month &&
-        mood.at.day == now.day;
-    final wakeScore = SmartAlarmService.calculateWakeScore(
-      dismissSpeedSeconds: dismissMs ~/ 1000,
-      wrongAnswers: _wrongAnswers,
-      snoozeCount: _snoozeCount,
-      moodCheckInDoneToday: moodToday,
-    );
-    final prevBest = await SmartAlarmService.saveWakeScore(wakeScore);
-
-    // Record sleep analytics event
-    final scheduledToday = alarm != null
-        ? DateTime(now.year, now.month, now.day, alarm.time.hour, alarm.time.minute)
-        : now;
-    await SleepAnalyticsService.recordEvent(AlarmRingEvent(
-      alarmId: alarm?.id ?? '',
-      scheduledTime: scheduledToday,
-      actualDismissTime: now,
-      snoozeCount: _snoozeCount,
-      wasMissed: false,
-      wakeScore: wakeScore.total,
-    ));
-
-    if (!mounted) return;
-    await _showCelebrationSheet(reward, wakeScore, prevBest);
-    AlarmRingFlow.completeRingScreenDismiss();
-    if (mounted) {
-      Navigator.of(context).pushNamed(WakeRoutineScreen.routeName);
+    } finally {
+      CelebrationBus.mutePresentation = false;
     }
   }
 
@@ -425,7 +435,15 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
           children: [
             Container(width: 40, height: 4,
               decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            MascotWidget(
+              mood: (reward != null &&
+                      (reward.newlyUnlockedBadges.isNotEmpty || reward.hitStreakMilestone != null))
+                  ? MascotMood.excited
+                  : MascotMood.happy,
+              size: 72,
+            ),
+            const SizedBox(height: 8),
             if (reward != null) ...[
               Text(_personality.wakeMessage, textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _personality.primaryColor))

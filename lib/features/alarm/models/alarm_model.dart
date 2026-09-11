@@ -60,13 +60,16 @@ class AlarmModel {
     if (repeatDays.length == 7) {
       return 'Daily';
     }
-    final weekdays = {1, 2, 3, 4, 5};
-    final weekends = {6, 7};
+    const weekdays = {1, 2, 3, 4, 5};
+    const weekends = {6, 7};
+    final days = repeatDays.toSet();
 
-    if (repeatDays.toSet() == weekdays) {
+    // Note: Dart's Set.== is identity-based, not content-based, so this
+    // must compare via length + containsAll rather than `days == weekdays`.
+    if (days.length == weekdays.length && days.containsAll(weekdays)) {
       return 'Weekdays';
     }
-    if (repeatDays.toSet() == weekends) {
+    if (days.length == weekends.length && days.containsAll(weekends)) {
       return 'Weekends';
     }
     return 'Custom';

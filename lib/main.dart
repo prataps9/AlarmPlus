@@ -31,6 +31,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -162,6 +163,8 @@ class _AppWithTheme extends ConsumerWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      builder: (context, child) =>
+          CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
       routes: {
           '/': (_) => const SplashScreen(),
           '/app': (_) => const MainScaffold(),

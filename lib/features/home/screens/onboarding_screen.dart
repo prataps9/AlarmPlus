@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -19,22 +20,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _OnboardingPage(
-      emoji: '⏰',
+      mascotMood: MascotMood.worried,
       title: 'Wake Up,\nFor Real',
       body: 'Smart challenges make sure you actually get out of bed — math, memory, shake, barcode and more.',
     ),
     _OnboardingPage(
-      emoji: '🏆',
+      mascotMood: MascotMood.excited,
       title: 'Earn XP\nEvery Morning',
       body: 'Build streaks, level up, and unlock badges the faster you dismiss your alarm.',
     ),
     _OnboardingPage(
-      emoji: '🌙',
+      mascotMood: MascotMood.sleepy,
       title: 'Sleep\nSmarter',
       body: 'Track your sleep diary, set a bedtime schedule, and get weekly insights on how rested you really are.',
     ),
     _OnboardingPage(
-      emoji: '🔔',
+      mascotMood: MascotMood.happy,
       title: 'Needs a Few\nPermissions',
       body: 'Alarm+ needs notifications and exact alarm access so it can reliably wake you up.',
       isPermission: true,
@@ -158,13 +159,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _OnboardingPage extends StatelessWidget {
   const _OnboardingPage({
-    required this.emoji,
+    required this.mascotMood,
     required this.title,
     required this.body,
     this.isPermission = false,
   });
 
-  final String emoji;
+  final MascotMood mascotMood;
   final String title;
   final String body;
   final bool isPermission;
@@ -176,7 +177,7 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 72)),
+          MascotWidget(mood: mascotMood, size: 88),
           const SizedBox(height: 28),
           Text(
             title,

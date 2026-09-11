@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -7,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
 
@@ -298,6 +300,13 @@ class SmartAlarmService {
 
   static const List<int> _streakMilestones = [7, 14, 30, 60, 100];
 
+  static final _celebrationController = StreamController<CelebrationEvent>.broadcast();
+
+  /// Broadcasts a [CelebrationEvent] whenever a level-up, badge unlock, or
+  /// streak milestone happens, so UI (see [CelebrationOverlayHost]) can react
+  /// with a confetti burst / banner regardless of which call site triggered it.
+  static Stream<CelebrationEvent> get celebrationEvents => _celebrationController.stream;
+
   static const List<Map<String, String>> _missionPool = [
     {'id': 'm1', 'title': 'Drink a glass of water', 'icon': '💧'},
     {'id': 'm2', 'title': '5 deep breaths', 'icon': '🌬️'},
@@ -323,6 +332,11 @@ class SmartAlarmService {
     final current = prefs.getInt(_xpKey) ?? 0;
     final next = (current + amount).clamp(0, 999999);
     await prefs.setInt(_xpKey, next);
+    final levelBefore = levelFromXp(current);
+    final levelAfter = levelFromXp(next);
+    if (levelAfter > levelBefore) {
+      _celebrationController.add(CelebrationEvent.levelUp(levelAfter));
+    }
     return next;
   }
 
@@ -399,6 +413,9 @@ class SmartAlarmService {
 
     if (newlyUnlocked.isNotEmpty) {
       await prefs.setString(_badgesKey, jsonEncode(existingSet.toList()));
+      for (final id in newlyUnlocked) {
+        _celebrationController.add(CelebrationEvent.badgeUnlocked(id));
+      }
     }
     return newlyUnlocked;
   }
@@ -412,6 +429,9 @@ class SmartAlarmService {
       _badgesKey,
       jsonEncode([...existing, 'night_owl']),
     );
+    // This badge unlocks from alarm scheduling, outside the dismiss/ring
+    // flow, so the global celebration stream is its only UI surface.
+    _celebrationController.add(CelebrationEvent.badgeUnlocked('night_owl'));
   }
 
   // ─── Dismiss / Snooze / Missed ───────────────────────────────────────────────
@@ -449,6 +469,7 @@ class SmartAlarmService {
       await prefs.setInt(_streakFreezesKey, (prefs.getInt(_streakFreezesKey) ?? 0) + 1);
       final seen = [...milestonesSeen, newStreak];
       await prefs.setString(_streakMilestonesSeenKey, jsonEncode(seen));
+      _celebrationController.add(CelebrationEvent.streakMilestone(newStreak));
     }
 
     // Record dismiss history for calendar heatmap

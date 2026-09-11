@@ -12,6 +12,7 @@ import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
+import 'package:alarm_plus/core/services/widget_sync_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -196,6 +197,7 @@ class AlarmRingFlow {
     final hadSnooze = _snoozedIds.remove(alarmId);
     final snoozeCount = _snoozeSessionCount.remove(alarmId) ?? 0;
     final reward = await SmartAlarmService.recordDismissed(hadSnooze: hadSnooze, snoozeCount: snoozeCount);
+    unawaited(WidgetSyncService.refresh());
 
     _missedRecoveryTimers[alarmId]?.cancel();
     _missedRecoveryTimers.remove(alarmId);

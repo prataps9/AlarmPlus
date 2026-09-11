@@ -17,6 +17,7 @@ import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/core/services/widget_sync_service.dart';
 
 const _nativeRingtoneKeyPrefix = 'alarm.native_ringtone';
 
@@ -123,6 +124,7 @@ class AlarmService {
       if (persist) {
         await saveAlarm(alarm.copyWith(isEnabled: true));
       }
+      unawaited(WidgetSyncService.refresh());
       return;
     }
 
@@ -234,15 +236,18 @@ class AlarmService {
     if (persist) {
       await saveAlarm(alarm.copyWith(isEnabled: true));
     }
+    unawaited(WidgetSyncService.refresh());
   }
 
   static Future<void> cancelAlarm(String id) async {
     await _cancelScheduledArtifacts(id);
+    unawaited(WidgetSyncService.refresh());
   }
 
   static Future<void> deleteAlarm(String id) async {
     await _cancelScheduledArtifacts(id);
     await StorageService.deleteAlarm(id);
+    unawaited(WidgetSyncService.refresh());
   }
 
   static Future<void> restoreEnabledAlarms() async {

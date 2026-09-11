@@ -28,7 +28,9 @@ import 'package:alarm_plus/features/alarm/widgets/quest_runner_widget.dart';
 import 'package:alarm_plus/shared/widgets/sunrise_gradient.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
+import 'package:alarm_plus/core/services/share_service.dart';
 import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
+import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
 
 class AlarmRingScreen extends StatefulWidget {
   const AlarmRingScreen({super.key});
@@ -530,6 +532,31 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   ).animate().slideX(begin: 0.3, duration: 300.ms, curve: Curves.easeOut).fadeIn(duration: 250.ms),
                 )),
               ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => ShareService.shareCard(
+                    context,
+                    card: ShareCardWidget(
+                      data: ShareCardData(
+                        streak: reward.stats.currentStreak,
+                        xp: reward.totalXp,
+                        levelLabel: SmartAlarmService.levelLabel(reward.totalXp),
+                        wakeScoreTotal: wakeScore.total,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.ios_share_rounded, size: 18),
+                  label: const Text('Share My Streak'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    foregroundColor: const Color(0xFF22C55E),
+                    side: const BorderSide(color: Color(0xFF22C55E), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: 18),
             Text('"$affirmation"', textAlign: TextAlign.center,

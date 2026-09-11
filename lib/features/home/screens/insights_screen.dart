@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
+import 'package:alarm_plus/core/services/share_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
 import 'package:alarm_plus/shared/widgets/streak_calendar.dart';
 import 'package:alarm_plus/shared/widgets/wake_report_widget.dart';
 
@@ -138,28 +140,67 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              FutureBuilder<AlarmStats>(
-                future: SmartAlarmService.getStats(),
+              FutureBuilder<(AlarmStats, int, int)>(
+                future: Future.wait([
+                  SmartAlarmService.getStats(),
+                  SmartAlarmService.getXp(),
+                  SmartAlarmService.getBestWakeScore(),
+                ]).then((r) => (r[0] as AlarmStats, r[1] as int, r[2] as int)),
                 builder: (context, snapshot) {
-                  final stats = snapshot.data;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 18,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Text(
-                      stats == null
-                          ? 'Loading wake behavior metrics...'
-                          : 'Streak ${stats.currentStreak} days · Best ${stats.bestStreak} · Snooze ${stats.snoozeCount} · Missed ${stats.missedCount}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                  final data = snapshot.data;
+                  final stats = data?.$1;
+                  final xp = data?.$2 ?? 0;
+                  final bestScore = data?.$3;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 18,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          stats == null
+                              ? 'Loading wake behavior metrics...'
+                              : 'Streak ${stats.currentStreak} days · Best ${stats.bestStreak} · Snooze ${stats.snoozeCount} · Missed ${stats.missedCount}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (stats != null) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => ShareService.shareCard(
+                              context,
+                              card: ShareCardWidget(
+                                data: ShareCardData(
+                                  streak: stats.currentStreak,
+                                  xp: xp,
+                                  levelLabel: SmartAlarmService.levelLabel(xp),
+                                  wakeScoreTotal: bestScore,
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.ios_share_rounded, size: 18),
+                            label: const Text('Share My Progress'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 48),
+                              foregroundColor: const Color(0xFF22C55E),
+                              side: const BorderSide(color: Color(0xFF22C55E), width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   );
                 },
               ),

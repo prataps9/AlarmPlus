@@ -31,6 +31,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
 
@@ -40,6 +41,7 @@ Future<void> main() async {
   await AlarmService.init();
   await AlarmService.restoreEnabledAlarms();
   await WidgetSyncService.refresh();
+  await StreakReminderService.refresh();
   await AlarmRingFlow.bindNativeAlarmEvents();
   await NapService.checkMissedNap();
   await LocationAlarmService.startMonitoring();

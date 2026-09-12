@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibration/vibration.dart';
@@ -23,6 +24,7 @@ class CelebrationOverlayHost extends StatefulWidget {
 
 class _CelebrationOverlayHostState extends State<CelebrationOverlayHost> {
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
+  final _player = AudioPlayer();
   StreamSubscription<CelebrationEvent>? _subscription;
   String? _bannerText;
   Timer? _bannerTimer;
@@ -63,15 +65,20 @@ class _CelebrationOverlayHostState extends State<CelebrationOverlayHost> {
     } catch (_) {
       // Vibration is best-effort feedback; ignore platforms without it.
     }
-    // No dedicated "success" sound asset exists yet (assets/sounds/ only has
-    // ambient loops) — this is a placeholder until one is added.
-    SystemSound.play(SystemSoundType.click);
+    try {
+      await _player.play(AssetSource('sounds/celebration.wav'));
+    } catch (_) {
+      // Fall back to a system click if the asset can't be played for some
+      // reason (e.g. audio session unavailable on this platform/device).
+      SystemSound.play(SystemSoundType.click);
+    }
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
     _bannerTimer?.cancel();
+    _player.dispose();
     super.dispose();
   }
 

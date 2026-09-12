@@ -70,9 +70,21 @@ app — Alarm+ does not call any external AI service.
 
 ## Building a release Android APK
 
-Release builds require a real signing key. Copy
-`android/key.properties.example` to `android/key.properties`, fill in your
-keystore details, and run:
+Release builds require a real signing key. Generate one (once) with:
+
+```bash
+./android/generate_release_key.sh
+```
+
+This creates `android/app/upload-keystore.jks` and `android/key.properties`
+interactively — it prompts you for passwords rather than generating any
+secrets on its own, and both output files are already gitignored. Back up
+the `.jks` file somewhere safe: losing it means you can never publish an
+update to an app already live under that key. (`android/key.properties.example`
+documents the file format if you'd rather set it up by hand, e.g. from an
+existing keystore.)
+
+Then build:
 
 ```bash
 flutter build apk --release

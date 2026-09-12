@@ -183,6 +183,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                               card: ShareCardWidget(
                                 data: ShareCardData(
                                   streak: stats.currentStreak,
+                                  bestStreak: stats.bestStreak,
                                   xp: xp,
                                   levelLabel: SmartAlarmService.levelLabel(xp),
                                   wakeScoreTotal: bestScore,

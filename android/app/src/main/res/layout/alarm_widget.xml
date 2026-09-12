@@ -10,14 +10,44 @@
     android:background="@drawable/alarm_widget_background"
     android:padding="16dp">
 
-    <TextView
-        android:id="@+id/alarm_widget_streak"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="#0F172A"
-        tools:text="🔥🔥 12" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/alarm_widget_flame_icon"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_flame"
+            tools:tint="#F97316" />
+
+        <TextView
+            android:id="@+id/alarm_widget_streak"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            tools:text="12" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/alarm_widget_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ALARM+"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:textColor="#22C55E" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/alarm_widget_streak_label"
@@ -25,6 +55,7 @@
         android:layout_height="wrap_content"
         android:textSize="12sp"
         android:textColor="#94A3B8"
+        android:layout_marginTop="2dp"
         android:layout_marginBottom="10dp"
         tools:text="day streak" />
 

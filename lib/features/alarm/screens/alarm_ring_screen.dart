@@ -541,6 +541,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     card: ShareCardWidget(
                       data: ShareCardData(
                         streak: reward.stats.currentStreak,
+                        bestStreak: reward.stats.bestStreak,
                         xp: reward.totalXp,
                         levelLabel: SmartAlarmService.levelLabel(reward.totalXp),
                         wakeScoreTotal: wakeScore.total,

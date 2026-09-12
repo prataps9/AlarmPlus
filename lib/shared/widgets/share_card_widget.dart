@@ -9,12 +9,14 @@ import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 class ShareCardData {
   const ShareCardData({
     required this.streak,
+    required this.bestStreak,
     required this.xp,
     required this.levelLabel,
     this.wakeScoreTotal,
   });
 
   final int streak;
+  final int bestStreak;
   final int xp;
   final String levelLabel;
   final int? wakeScoreTotal;
@@ -37,6 +39,8 @@ class ShareCardWidget extends StatelessWidget {
     if (data.streak >= 3) return '🔥';
     return '⭐';
   }
+
+  bool get _isNewBest => data.streak > 0 && data.streak >= data.bestStreak;
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +78,16 @@ class ShareCardWidget extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
+                  if (_isNewBest) ...[
+                    const SizedBox(height: 16),
+                    const _NewBestBadge(),
+                  ],
                   const SizedBox(height: 28),
                   _StatPill(label: data.levelLabel, value: '${data.xp} XP'),
+                  if (!_isNewBest && data.bestStreak > 0) ...[
+                    const SizedBox(height: 16),
+                    _StatPill(label: 'Best Streak', value: '${data.bestStreak} days'),
+                  ],
                   if (data.wakeScoreTotal != null) ...[
                     const SizedBox(height: 16),
                     _StatPill(label: 'Wake Score', value: '${data.wakeScoreTotal}/100'),
@@ -108,6 +120,32 @@ class ShareCardWidget extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewBestBadge extends StatelessWidget {
+  const _NewBestBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '🏆 NEW PERSONAL BEST',
+        style: GoogleFonts.spaceGrotesk(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+          color: const Color(0xFF0F172A),
         ),
       ),
     );

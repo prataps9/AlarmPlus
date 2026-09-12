@@ -8,5 +8,8 @@ enum ChallengeType {
   wordScramble,
   stepCounter,
   eyeOpen,
+  squatReps,
+  photoProof,
+  voiceRepeat,
   random,
 }

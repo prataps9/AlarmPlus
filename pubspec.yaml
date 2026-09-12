@@ -70,6 +70,7 @@ dependencies:
   http: ^1.4.0
   share_plus: ^11.0.0
   home_widget: ^0.7.0
+  speech_to_text: ^7.0.0
 
 dependency_overrides:
   vector_math: ">=2.2.0 <3.0.0"

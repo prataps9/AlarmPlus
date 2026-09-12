@@ -18,6 +18,8 @@ class AlarmModel {
     this.challengeType,
     this.voiceMemoPath,
     this.stepGoal = 20,
+    this.squatReps = 10,
+    this.photoProofHashes,
     this.savedQrCode,
     this.questMode = false,
     this.questSteps,
@@ -39,6 +41,12 @@ class AlarmModel {
   final ChallengeType? challengeType;
   final String? voiceMemoPath;
   final int stepGoal;
+
+  /// Target repetitions for the squat challenge.
+  final int squatReps;
+
+  /// Comma-joined hex dHashes of the registered photo-proof scene.
+  final String? photoProofHashes;
   final String? savedQrCode;
   final bool questMode;
   final List<ChallengeType>? questSteps;
@@ -117,6 +125,8 @@ class AlarmModel {
       'challengeType': challengeType?.name,
       'voiceMemoPath': voiceMemoPath,
       'stepGoal': stepGoal,
+      'squatReps': squatReps,
+      'photoProofHashes': photoProofHashes,
       'savedQrCode': savedQrCode,
       'questMode': questMode,
       'questSteps': questSteps?.map((e) => e.name).toList(),
@@ -164,6 +174,8 @@ class AlarmModel {
       challengeType: challengeType,
       voiceMemoPath: map['voiceMemoPath'] as String?,
       stepGoal: (map['stepGoal'] as int?) ?? 20,
+      squatReps: (map['squatReps'] as int?) ?? 10,
+      photoProofHashes: map['photoProofHashes'] as String?,
       savedQrCode: map['savedQrCode'] as String?,
       questMode: (map['questMode'] as bool?) ?? false,
       questSteps: (map['questSteps'] as List<dynamic>?)
@@ -192,6 +204,8 @@ class AlarmModel {
     Object? challengeType = _sentinel,
     Object? voiceMemoPath = _sentinel,
     int? stepGoal,
+    int? squatReps,
+    Object? photoProofHashes = _sentinel,
     Object? savedQrCode = _sentinel,
     bool? questMode,
     Object? questSteps = _sentinel,
@@ -213,6 +227,10 @@ class AlarmModel {
       challengeType: challengeType == _sentinel ? this.challengeType : challengeType as ChallengeType?,
       voiceMemoPath: voiceMemoPath == _sentinel ? this.voiceMemoPath : voiceMemoPath as String?,
       stepGoal: stepGoal ?? this.stepGoal,
+      squatReps: squatReps ?? this.squatReps,
+      photoProofHashes: identical(photoProofHashes, _sentinel)
+          ? this.photoProofHashes
+          : photoProofHashes as String?,
       savedQrCode: savedQrCode == _sentinel ? this.savedQrCode : savedQrCode as String?,
       questMode: questMode ?? this.questMode,
       questSteps: questSteps == _sentinel ? this.questSteps : questSteps as List<ChallengeType>?,

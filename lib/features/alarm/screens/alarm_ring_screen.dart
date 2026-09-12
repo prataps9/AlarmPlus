@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:volume_controller/volume_controller.dart';
 
+import 'package:alarm_plus/features/alarm/challenges/photo_hash.dart';
+import 'package:alarm_plus/features/alarm/challenges/photo_proof_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/squat_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/voice_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/barcode_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/eye_open_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/memory_challenge_widget.dart';
@@ -254,6 +258,21 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         return _showStepCounterChallenge();
       case ChallengeType.eyeOpen:
         return _showEyeOpenChallenge();
+      case ChallengeType.squatReps:
+        return _showOverlayChallenge(
+          (onPass, onFail) => SquatChallengeWidget(
+            onPassed: onPass,
+            onFailed: onFail,
+            targetReps: AlarmService.findByIntId(_alarmId)?.squatReps ?? 10,
+          ),
+        );
+      case ChallengeType.photoProof:
+        return _showPhotoProofChallenge();
+      case ChallengeType.voiceRepeat:
+        return _showOverlayChallenge(
+          (onPass, onFail) =>
+              VoiceChallengeWidget(onPassed: onPass, onFailed: onFail),
+        );
       case ChallengeType.random:
         return _showChallenge(ChallengeService.randomChallenge());
     }
@@ -347,6 +366,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         child: QuestRunnerWidget(
           quest: quest,
           stepGoal: alarm.stepGoal,
+          squatReps: alarm.squatReps,
           lockedQrCode: alarm.savedQrCode,
           onCompleted: () => Navigator.pop(ctx, true),
           onFailed: () => Navigator.pop(ctx, false),
@@ -391,6 +411,33 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       ),
     );
     return result ?? false;
+  }
+
+  Future<bool> _showPhotoProofChallenge() async {
+    final alarm = AlarmService.findByIntId(_alarmId);
+    final references = PhotoHash.decode(alarm?.photoProofHashes);
+
+    // Nothing registered — don't show a challenge that can never pass.
+    if (references.isEmpty) return _showMathChallenge();
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: PhotoProofChallengeWidget(
+          referenceHashes: references,
+          onPassed: () => Navigator.pop(ctx, true),
+          onUnmatched: () => Navigator.pop(ctx, false),
+        ),
+      ),
+    );
+
+    // Couldn't find the scene (bad light, moved furniture): fall back to math
+    // rather than leaving the alarm ringing with no way out.
+    if (result == true) return true;
+    return _showMathChallenge();
   }
 
   Future<void> _showCelebrationSheet(DismissReward? reward, WakeScore wakeScore, int prevBest) async {

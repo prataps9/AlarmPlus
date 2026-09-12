@@ -5,7 +5,9 @@ import 'package:alarm_plus/features/alarm/challenges/barcode_challenge_widget.da
 import 'package:alarm_plus/features/alarm/challenges/eye_open_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/memory_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/shake_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/squat_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/step_counter_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/voice_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/trivia_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/typing_challenge_widget.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
@@ -19,6 +21,7 @@ class QuestRunnerWidget extends StatefulWidget {
     super.key,
     required this.quest,
     required this.stepGoal,
+    required this.squatReps,
     required this.lockedQrCode,
     required this.onCompleted,
     required this.onFailed,
@@ -26,6 +29,7 @@ class QuestRunnerWidget extends StatefulWidget {
 
   final WakeQuest quest;
   final int stepGoal;
+  final int squatReps;
   final String? lockedQrCode;
   final VoidCallback onCompleted;
   final VoidCallback onFailed;
@@ -171,6 +175,26 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
             onFailed: _onStepFailed,
           ),
         );
+      case ChallengeType.squatReps:
+        return SquatChallengeWidget(
+          targetReps: widget.squatReps,
+          onPassed: _onStepPassed,
+          onFailed: _onStepFailed,
+        );
+      case ChallengeType.voiceRepeat:
+        return VoiceChallengeWidget(
+          onPassed: _onStepPassed,
+          onFailed: _onStepFailed,
+        );
+      case ChallengeType.photoProof:
+        // Photo proof needs a registered scene, which quest steps don't carry;
+        // it isn't offered in the builder, but the switch must be total.
+        return MathChallengeWidget(
+          difficulty: MathDifficulty.medium,
+          isBossMode: false,
+          onCompleted: (_, __, ___) => _onStepPassed(),
+          onFailed: _onStepFailed,
+        );
       case ChallengeType.random:
         return _buildCurrentChallenge(ChallengeService.randomChallenge());
     }
@@ -265,6 +289,12 @@ class _QuestStepBar extends StatelessWidget {
         return Icons.directions_walk_rounded;
       case ChallengeType.eyeOpen:
         return Icons.remove_red_eye_rounded;
+      case ChallengeType.squatReps:
+        return Icons.fitness_center_rounded;
+      case ChallengeType.photoProof:
+        return Icons.photo_camera_rounded;
+      case ChallengeType.voiceRepeat:
+        return Icons.record_voice_over_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
     }

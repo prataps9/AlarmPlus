@@ -18,17 +18,7 @@ class QuestBuilderScreen extends StatefulWidget {
 class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
   late List<ChallengeType> _steps;
 
-  static const _pickable = [
-    ChallengeType.shakeToWake,
-    ChallengeType.stepCounter,
-    ChallengeType.math,
-    ChallengeType.memoryPattern,
-    ChallengeType.typing,
-    ChallengeType.trivia,
-    ChallengeType.wordScramble,
-    ChallengeType.barcodeScan,
-    ChallengeType.eyeOpen,
-  ];
+  static const _pickable = ChallengeService.questPickable;
 
   @override
   void initState() {
@@ -250,6 +240,12 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
         return Icons.directions_walk_rounded;
       case ChallengeType.eyeOpen:
         return Icons.remove_red_eye_rounded;
+      case ChallengeType.squatReps:
+        return Icons.fitness_center_rounded;
+      case ChallengeType.photoProof:
+        return Icons.photo_camera_rounded;
+      case ChallengeType.voiceRepeat:
+        return Icons.record_voice_over_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
     }

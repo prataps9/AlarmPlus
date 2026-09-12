@@ -14,15 +14,32 @@ class ChallengeService {
     return type;
   }
 
+  /// Types that "Random" may choose. Excludes anything needing setup ahead of
+  /// time (a registered QR code or photo) or hardware that may be absent.
+  static const pickable = [
+    ChallengeType.math,
+    ChallengeType.memoryPattern,
+    ChallengeType.shakeToWake,
+    ChallengeType.typing,
+    ChallengeType.trivia,
+    ChallengeType.wordScramble,
+    ChallengeType.voiceRepeat,
+  ];
+
+  /// Types offered when building a multi-step quest. Broader than [pickable]
+  /// because the user is choosing each step deliberately.
+  static const questPickable = [
+    ChallengeType.math,
+    ChallengeType.memoryPattern,
+    ChallengeType.shakeToWake,
+    ChallengeType.typing,
+    ChallengeType.trivia,
+    ChallengeType.wordScramble,
+    ChallengeType.squatReps,
+    ChallengeType.voiceRepeat,
+  ];
+
   static ChallengeType randomChallenge() {
-    const pickable = [
-      ChallengeType.math,
-      ChallengeType.memoryPattern,
-      ChallengeType.shakeToWake,
-      ChallengeType.typing,
-      ChallengeType.trivia,
-      ChallengeType.wordScramble,
-    ];
     return pickable[_rng.nextInt(pickable.length)];
   }
 
@@ -46,6 +63,12 @@ class ChallengeService {
         return 'Step Counter';
       case ChallengeType.eyeOpen:
         return 'Eyes Open';
+      case ChallengeType.squatReps:
+        return 'Squats';
+      case ChallengeType.photoProof:
+        return 'Photo Proof';
+      case ChallengeType.voiceRepeat:
+        return 'Read Aloud';
       case ChallengeType.random:
         return 'Random';
     }

@@ -207,6 +207,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   List<ChallengeType> _questSteps = [];
   String? _savedQrCode;
   int _stepGoal = 20;
+  int _squatReps = 10;
   bool _wakeUpCheck = false;
   int _wakeUpCheckMinutes = 10;
   bool _hardcoreMode = false;
@@ -249,6 +250,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _questSteps = List.of(alarm.questSteps ?? const []);
     _savedQrCode = alarm.savedQrCode;
     _stepGoal = alarm.stepGoal;
+    _squatReps = alarm.squatReps;
     _wakeUpCheck = alarm.wakeUpCheckEnabled;
     _wakeUpCheckMinutes = alarm.wakeUpCheckMinutes;
     _hardcoreMode = alarm.hardcoreMode;
@@ -739,6 +741,33 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 ),
               ],
 
+              if (_challengeType == ChallengeType.squatReps) ...[
+                const SizedBox(height: Spacing.lg),
+                Row(children: [
+                  Icon(
+                    Icons.fitness_center_rounded,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: Spacing.sm),
+                  Text(
+                    'Squats to dismiss: $_squatReps',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ]),
+                Slider(
+                  value: _squatReps.toDouble(),
+                  min: 3,
+                  max: 30,
+                  divisions: 27,
+                  label: '$_squatReps squats',
+                  onChanged: (v) => setState(() => _squatReps = v.round()),
+                ),
+              ],
+
               const SizedBox(height: 24),
               // Voice Memo
               VoiceMemoRecorder(
@@ -1098,6 +1127,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             challengeType: _challengeType,
             voiceMemoPath: _voiceMemoPath,
             stepGoal: _stepGoal,
+            squatReps: _squatReps,
             savedQrCode: _savedQrCode,
             questMode: _questMode,
             questSteps: _questMode ? _questSteps : null,
@@ -1120,6 +1150,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           challengeType: _challengeType,
           voiceMemoPath: _voiceMemoPath,
           stepGoal: _stepGoal,
+          squatReps: _squatReps,
           savedQrCode: _savedQrCode,
           questMode: _questMode,
           questSteps: _questMode ? _questSteps : null,

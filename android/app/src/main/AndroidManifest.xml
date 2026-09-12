@@ -8,7 +8,9 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_ALARM" />
+    <!-- The ring service loops a ringtone, so Android 14+ classifies it as
+         mediaPlayback. There is no "alarm" foreground-service type. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -47,7 +49,7 @@
         </activity>
         <service
             android:name=".AlarmForegroundService"
-            android:foregroundServiceType="shortService"
+            android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
         <receiver
             android:name=".AlarmWidgetProvider"

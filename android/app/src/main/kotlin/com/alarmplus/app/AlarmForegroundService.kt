@@ -9,6 +9,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -38,6 +41,7 @@ class AlarmForegroundService : Service() {
     private var actionReceiver: BroadcastReceiver? = null
     private var alarmId: Int = 0
     private var ringtone: Ringtone? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -96,7 +100,11 @@ class AlarmForegroundService : Service() {
         try {
             val uri = Uri.parse(uriString)
             ringtone = RingtoneManager.getRingtone(applicationContext, uri)
+            // Route to the alarm stream, so the ringtone follows alarm volume
+            // rather than media volume — a muted phone must still wake you.
+            ringtone?.audioAttributes = alarmAudioAttributes()
             ringtone?.isLooping = true
+            requestAlarmAudioFocus()
             ringtone?.play()
         } catch (_: Exception) {}
     }
@@ -104,6 +112,51 @@ class AlarmForegroundService : Service() {
     private fun stopNativeRingtone() {
         try { ringtone?.stop() } catch (_: Exception) {}
         ringtone = null
+        abandonAlarmAudioFocus()
+    }
+
+    // ── Audio focus ─────────────────────────────────────────────────────────
+
+    private fun alarmAudioAttributes(): AudioAttributes =
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+    /** Ducks/pauses whatever else is playing so the alarm is actually audible. */
+    private fun requestAlarmAudioFocus() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val request = AudioFocusRequest.Builder(
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+                )
+                    .setAudioAttributes(alarmAudioAttributes())
+                    .build()
+                audioFocusRequest = request
+                am.requestAudioFocus(request)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    null,
+                    AudioManager.STREAM_ALARM,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun abandonAlarmAudioFocus() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+                audioFocusRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(null)
+            }
+        } catch (_: Exception) {}
     }
 
     // ── Notification ────────────────────────────────────────────────────────
@@ -120,13 +173,10 @@ class AlarmForegroundService : Service() {
             )
             putExtra(EXTRA_ALARM_ID, alarmId)
         }
-        val fsFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or
-                PendingIntent.FLAG_NO_CREATE.inv()  // ensure creation
-        else
+        val fullScreenPi = PendingIntent.getActivity(
+            this, 0, fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-
-        val fullScreenPi = PendingIntent.getActivity(this, 0, fullScreenIntent, fsFlags)
+        )
 
         // Snooze action
         val snoozePi = PendingIntent.getBroadcast(

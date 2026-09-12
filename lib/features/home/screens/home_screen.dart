@@ -15,7 +15,10 @@ import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
+import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
+import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
+import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -80,48 +83,30 @@ class HomeScreen extends ConsumerWidget {
                 final completed = missions.where((m) => (m as dynamic).isCompleted == true).length;
                 final total = missions.length;
                 if (total == 0) return const SizedBox.shrink();
-                return GestureDetector(
-                  onTap: () => Navigator.of(context).pushNamed(MorningMissionsScreen.routeName),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🌅', style: TextStyle(fontSize: 24)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Morning Missions',
-                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                              Text('$completed/$total completed · +${completed * 15} XP earned',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
-                            ],
+                return ShortcutCard(
+                  emoji: '🌅',
+                  title: 'Morning Missions',
+                  subtitle:
+                      '$completed/$total completed · +${completed * 15} XP earned',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < total; i++)
+                        Container(
+                          width: 10,
+                          height: 10,
+                          margin: const EdgeInsets.only(left: Spacing.xs),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i < completed
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outlineVariant,
                           ),
                         ),
-                        Row(
-                          children: List.generate(total, (i) => Container(
-                            width: 10, height: 10,
-                            margin: const EdgeInsets.only(left: 4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: i < completed
-                                  ? const Color(0xFF111111)
-                                  : const Color(0xFFE0E0E0),
-                            ),
-                          )),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right_rounded, color: Color(0xFFAAAAAA), size: 20),
-                      ],
-                    ),
+                    ],
                   ),
+                  onTap: () => Navigator.of(context)
+                      .pushNamed(MorningMissionsScreen.routeName),
                 );
               },
             ),
@@ -136,9 +121,11 @@ class HomeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE0E0E0)),
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(Radii.xl),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x08000000),
@@ -194,165 +181,60 @@ class HomeScreen extends ConsumerWidget {
             FutureBuilder<int>(
               future: SleepAnalyticsService.weeklyScore(),
               builder: (context, snap) {
-                final score = snap.data ?? 0;
-                final label = SleepAnalyticsService.scoreLabel(score);
-                return GestureDetector(
-                  onTap: () => Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('😴', style: TextStyle(fontSize: 24)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Sleep Insights',
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                              Text(
-                                snap.hasData
-                                    ? 'Weekly score $score · $label'
-                                    : 'Tap to view your sleep trends',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                              ),
-                            ],
-                          ),
+                final score = snap.data;
+                return ShortcutCard(
+                  emoji: '\u{1F634}',
+                  title: 'Sleep Insights',
+                  subtitle: score != null
+                      ? 'Weekly score $score \u00b7 ${SleepAnalyticsService.scoreLabel(score)}'
+                      : 'Tap to view your sleep trends',
+                  trailing: score == null
+                      ? null
+                      : Text(
+                          '$score',
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                        if (snap.hasData)
-                          Text(
-                            '$score',
-                            style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF111111)),
-                          ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right_rounded, color: Color(0xFFAAAAAA), size: 20),
-                      ],
-                    ),
-                  ),
+                  onTap: () => Navigator.of(context)
+                      .pushNamed(SleepInsightsScreen.routeName),
                 );
               },
             ),
-            // Nap Timer card
             FutureBuilder<bool>(
               future: NapService.isNapActive(),
               builder: (context, napSnap) {
                 final napActive = napSnap.data ?? false;
-                return GestureDetector(
-                  onTap: () => Navigator.of(context).pushNamed(NapTimerScreen.routeName),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('💤', style: TextStyle(fontSize: 24)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Nap Timer',
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                              Text(
-                                napActive
-                                    ? 'Nap in progress · tap to manage'
-                                    : '20 · 45 · 90 min presets',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: Color(0xFFAAAAAA), size: 20),
-                      ],
-                    ),
-                  ),
+                return ShortcutCard(
+                  emoji: '\u{1F4A4}',
+                  title: 'Nap Timer',
+                  subtitle: napActive
+                      ? 'Nap in progress \u00b7 tap to manage'
+                      : '20 \u00b7 45 \u00b7 90 min presets',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(NapTimerScreen.routeName),
                 );
               },
             ),
-            // Sleep Diary card
-            GestureDetector(
-              onTap: () => Navigator.of(context).pushNamed('/sleep-diary'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: const Row(
-                  children: [
-                    Text('📓', style: TextStyle(fontSize: 24)),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Sleep Diary',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                          Text('Log last night\'s sleep',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF666666))),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: Color(0xFFAAAAAA), size: 20),
-                  ],
-                ),
-              ),
+            ShortcutCard(
+              emoji: '\u{1F4D3}',
+              title: 'Sleep Diary',
+              subtitle: "Log last night's sleep",
+              onTap: () => Navigator.of(context)
+                  .pushNamed(SleepDiaryScreen.routeName),
             ),
-            // Bedtime / Wind Down card
             FutureBuilder<BedtimeSchedule?>(
               future: BedtimeService.load(),
               builder: (context, snap) {
                 final schedule = snap.data;
-                return GestureDetector(
-                  onTap: () => Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🌙', style: TextStyle(fontSize: 24)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Wind Down',
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                              Text(
-                                schedule != null && schedule.isEnabled
-                                    ? 'Bedtime ${BedtimeService.nextBedtimeLabel(schedule)} · ${schedule.windDownMinutes}min wind-down'
-                                    : 'Set up your bedtime routine',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: Color(0xFFAAAAAA), size: 20),
-                      ],
-                    ),
-                  ),
+                final active = schedule != null && schedule.isEnabled;
+                return ShortcutCard(
+                  emoji: '\u{1F319}',
+                  title: 'Wind Down',
+                  subtitle: active
+                      ? 'Bedtime ${BedtimeService.nextBedtimeLabel(schedule)} '
+                          '\u00b7 ${schedule.windDownMinutes}min wind-down'
+                      : 'Set up your bedtime routine',
+                  onTap: () => Navigator.of(context)
+                      .pushNamed(BedtimeSetupScreen.routeName),
                 );
               },
             ),
@@ -378,7 +260,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: const Icon(Icons.timer_outlined),
                     label: const Text('Start Focus'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF111111),
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -481,9 +363,9 @@ class _StreakHeroWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE0E0E0)),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: Column(
           children: [
@@ -501,33 +383,33 @@ class _StreakHeroWidget extends StatelessWidget {
                         children: [
                           Text(
                             '$streak',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF111111),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
+                          Text(
                             'day streak',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF666666),
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                       Text(label,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF666666))),
+                            color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: progress,
-                          backgroundColor: const Color(0xFFE0E0E0),
+                          backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                               Color(0xFF111111)),
                           minHeight: 6,
@@ -535,12 +417,12 @@ class _StreakHeroWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text('$xp XP · $toNext to next level',
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFF666666))),
+                        style: TextStyle(
+                            fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFFAAAAAA)),
+                Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ],
             ),
             const SizedBox(height: 12),
@@ -551,14 +433,14 @@ class _StreakHeroWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('$streak / $nextMilestone days to milestone',
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFF666666))),
+                        style: TextStyle(
+                            fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 4),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: milestoneProgress.clamp(0.0, 1.0),
-                          backgroundColor: const Color(0xFFE0E0E0),
+                          backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                               Color(0xFF111111)),
                           minHeight: 4,
@@ -579,13 +461,13 @@ class _StreakHeroWidget extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFFEEEEEE),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                       ),
                       child: Text('×$freezes freeze',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF111111))),
+                            color: Theme.of(context).colorScheme.onSurface)),
                     );
                   },
                 ),
@@ -625,8 +507,8 @@ class _TimelineTile extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFF111111),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.onSurface,
               shape: BoxShape.circle,
             ),
           ),
@@ -639,7 +521,7 @@ class _TimelineTile extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF111111),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),

@@ -768,10 +768,13 @@ class SmartAlarmService {
     );
   }
 
+  /// Pass [coach] when the caller has already built the snapshot, so it isn't
+  /// recomputed (it re-reads the sleep profile, mood and every alarm).
   static Future<PremiumSleepSnapshot> buildPremiumSleepSnapshot(
-    List<AlarmModel> alarms,
-  ) async {
-    final coach = await buildSleepCoachSnapshot(alarms);
+    List<AlarmModel> alarms, {
+    SleepCoachSnapshot? coach,
+  }) async {
+    coach ??= await buildSleepCoachSnapshot(alarms);
     final mood = await getLatestMoodCheckIn();
     final weekdayWake = _averageWakeMinutes(alarms, const [1, 2, 3, 4, 5]);
     final weekendWake = _averageWakeMinutes(alarms, const [6, 7]);

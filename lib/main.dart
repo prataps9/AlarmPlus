@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/alarm/screens/quest_builder_screen.dart';
 import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
@@ -65,107 +66,13 @@ class _AppWithTheme extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeDarkProvider);
-    final baseTextTheme = GoogleFonts.dmSansTextTheme();
-
-    final lightTheme = ThemeData(
-      scaffoldBackgroundColor: Colors.white,
-      colorScheme: const ColorScheme.light(
-        surface: Colors.white,
-        primary: Color(0xFF22C55E),
-        secondary: Color(0xFF94A3B8),
-      ),
-      textTheme: baseTextTheme.copyWith(
-        headlineLarge: GoogleFonts.spaceGrotesk(
-          fontSize: 44,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF0F172A),
-        ),
-        headlineMedium: GoogleFonts.spaceGrotesk(
-          fontSize: 34,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF0F172A),
-        ),
-        titleLarge: GoogleFonts.spaceGrotesk(
-          fontSize: 30,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF0F172A),
-        ),
-        bodyLarge: GoogleFonts.dmSans(
-          fontSize: 20,
-          fontWeight: FontWeight.w500,
-          color: const Color(0xFF0F172A),
-        ),
-        bodyMedium: GoogleFonts.dmSans(
-          fontSize: 16,
-          color: const Color(0xFF334155),
-        ),
-        bodySmall: GoogleFonts.dmSans(
-          fontSize: 13,
-          letterSpacing: 1.1,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF94A3B8),
-        ),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-      ),
-    );
-
-    final darkTheme = ThemeData(
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
-      colorScheme: const ColorScheme.dark(
-        surface: Color(0xFF1E293B),
-        primary: Color(0xFF22C55E),
-        secondary: Color(0xFF94A3B8),
-      ),
-      textTheme: baseTextTheme.copyWith(
-        headlineLarge: GoogleFonts.spaceGrotesk(
-          fontSize: 44,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        headlineMedium: GoogleFonts.spaceGrotesk(
-          fontSize: 34,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        titleLarge: GoogleFonts.spaceGrotesk(
-          fontSize: 30,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
-        bodyLarge: GoogleFonts.dmSans(
-          fontSize: 20,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
-        ),
-        bodyMedium: GoogleFonts.dmSans(
-          fontSize: 16,
-          color: const Color(0xFFCBD5E1),
-        ),
-        bodySmall: GoogleFonts.dmSans(
-          fontSize: 13,
-          letterSpacing: 1.1,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF94A3B8),
-        ),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0F172A),
-        elevation: 0,
-        surfaceTintColor: Color(0xFF0F172A),
-      ),
-    );
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
       title: 'Alarm+',
       debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       builder: (context, child) =>
           CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),

@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
-// Colors
+import 'package:alarm_plus/core/theme/app_tokens.dart';
+
+/// Fixed colors that ignore the active brightness.
+///
+/// Prefer `Theme.of(context).colorScheme` or `context.semantics` — anything
+/// reading these will not adapt to dark mode.
+@Deprecated('Use ColorScheme roles or AppSemantics instead; see core/theme/')
 class AppColors {
-  static const Color primary = Color(0xFF0F172A);
-  static const Color secondary = Color(0xFF22C55E);
-  static const Color slate600 = Color(0xFF475569);
-  static const Color slate700 = Color(0xFF334155);
-  static const Color slate200 = Color(0xFFE2E8F0);
-  static const Color slate300 = Color(0xFFCBD5E1);
-  static const Color slate400 = Color(0xFF94A3B8);
-  static const Color slate100 = Color(0xFFF1F5F9);
-  static const Color slate50 = Color(0xFFF8FAFC);
+  static const Color primary = Palette.slate900;
+  static const Color secondary = Palette.green500;
+  static const Color slate600 = Palette.slate600;
+  static const Color slate700 = Palette.slate700;
+  static const Color slate200 = Palette.slate200;
+  static const Color slate300 = Palette.slate300;
+  static const Color slate400 = Palette.slate400;
+  static const Color slate100 = Palette.slate100;
+  static const Color slate50 = Palette.slate50;
 }
 
 // Durations
@@ -39,24 +45,26 @@ class AlarmDefaults {
   static const int defaultMinute = 30;
 }
 
-// UI dimensions
+/// Superseded by [Spacing] and [Radii] in core/theme/app_tokens.dart.
+@Deprecated('Use Spacing and Radii from core/theme/app_tokens.dart')
 class AppDimensions {
-  static const double paddingSmall = 8;
-  static const double paddingMedium = 12;
-  static const double paddingLarge = 16;
-  static const double paddingXLarge = 22;
-  static const double paddingXXLarge = 24;
-  
-  static const double radiusSmall = 8;
-  static const double radiusMedium = 12;
-  static const double radiusLarge = 28;
-  
+  static const double paddingSmall = Spacing.sm;
+  static const double paddingMedium = Spacing.md;
+  static const double paddingLarge = Spacing.lg;
+  static const double paddingXLarge = Spacing.xl;
+  static const double paddingXXLarge = Spacing.xxl;
+
+  static const double radiusSmall = Radii.sm;
+  static const double radiusMedium = Radii.md;
+  static const double radiusLarge = Radii.xl;
+
   static const double iconSizeMedium = 30;
 }
 
-// Text styles
+/// Superseded by [Tracking] in core/theme/app_tokens.dart.
+@Deprecated('Use Tracking from core/theme/app_tokens.dart')
 class AppTextStyles {
-  static const double letterSpacingTitle = 3;
+  static const double letterSpacingTitle = Tracking.eyebrow;
   static const double letterSpacingLabel = 1;
 }
 

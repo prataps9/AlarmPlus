@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:alarm_plus/core/theme/app_theme.dart';
+import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/alarm/screens/quest_builder_screen.dart';
 import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
@@ -105,6 +105,12 @@ class _AppWithTheme extends ConsumerWidget {
 class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key});
 
+  static const _destinations = [
+    (icon: Icons.alarm_rounded, label: 'ALARMS'),
+    (icon: Icons.insights_rounded, label: 'INSIGHTS'),
+    (icon: Icons.settings_rounded, label: 'SETTINGS'),
+  ];
+
   static bool _isDesktop(BuildContext context) {
     if (kIsWeb) return false;
     final platform = defaultTargetPlatform;
@@ -114,20 +120,27 @@ class MainScaffold extends ConsumerWidget {
     return isDesktopPlatform || MediaQuery.of(context).size.width >= 720;
   }
 
+  void _onTabSelected(WidgetRef ref, int index) {
+    if (ref.read(currentTabIndexProvider) == index) return;
+    HapticFeedback.selectionClick();
+    ref.read(currentTabIndexProvider.notifier).state = index;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTabIndex = ref.watch(currentTabIndexProvider);
-    final isDark = ref.watch(themeDarkProvider);
 
-    final pages = <Widget>[
-      const HomeScreen(),
-      const InsightsScreen(),
-      const SettingsScreen(),
-    ];
-
-    final surfaceColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final selectedColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final unselectedColor = const Color(0xFF94A3B8);
+    // IndexedStack keeps each tab alive across switches. Previously the tabs
+    // were indexed out of a list, so every switch rebuilt the screen from
+    // scratch and re-ran its data loads.
+    final body = IndexedStack(
+      index: currentTabIndex,
+      children: const [
+        HomeScreen(),
+        InsightsScreen(),
+        SettingsScreen(),
+      ],
+    );
 
     if (_isDesktop(context)) {
       return Scaffold(
@@ -135,100 +148,41 @@ class MainScaffold extends ConsumerWidget {
           children: [
             NavigationRail(
               selectedIndex: currentTabIndex,
-              onDestinationSelected: (index) {
-                ref.read(currentTabIndexProvider.notifier).state = index;
-              },
-              backgroundColor: surfaceColor,
-              selectedIconTheme: IconThemeData(color: selectedColor),
-              unselectedIconTheme: IconThemeData(color: unselectedColor),
-              selectedLabelTextStyle: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                fontSize: 11,
-                color: selectedColor,
-              ),
-              unselectedLabelTextStyle: GoogleFonts.dmSans(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                fontSize: 11,
-                color: unselectedColor,
-              ),
+              onDestinationSelected: (index) => _onTabSelected(ref, index),
               labelType: NavigationRailLabelType.all,
               leading: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 20, 0, 24),
+                padding: const EdgeInsets.fromLTRB(0, Spacing.xl, 0, Spacing.xxl),
                 child: Text(
                   'Alarm+',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: selectedColor,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.alarm_rounded),
-                  label: Text('ALARMS'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.insights_rounded),
-                  label: Text('INSIGHTS'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.settings_rounded),
-                  label: Text('SETTINGS'),
-                ),
+              destinations: [
+                for (final d in _destinations)
+                  NavigationRailDestination(
+                    icon: Icon(d.icon),
+                    label: Text(d.label),
+                  ),
               ],
             ),
             const VerticalDivider(width: 1, thickness: 1),
-            Expanded(
-              child: pages[currentTabIndex].animate().fadeIn(
-                duration: 280.ms,
-                curve: Curves.easeOut,
-              ),
-            ),
+            Expanded(child: body),
           ],
         ),
       );
     }
 
     return Scaffold(
-      body: pages[currentTabIndex].animate().fadeIn(
-        duration: 280.ms,
-        curve: Curves.easeOut,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentTabIndex,
-        onTap: (index) {
-          ref.read(currentTabIndexProvider.notifier).state = index;
-        },
-        selectedItemColor: selectedColor,
-        unselectedItemColor: unselectedColor,
-        selectedLabelStyle: GoogleFonts.dmSans(
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1,
-          fontSize: 12,
-        ),
-        unselectedLabelStyle: GoogleFonts.dmSans(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1,
-          fontSize: 12,
-        ),
-        backgroundColor: surfaceColor,
-        elevation: 8,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.alarm_rounded),
-            label: 'ALARMS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.insights_rounded),
-            label: 'INSIGHTS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
-            label: 'SETTINGS',
-          ),
+      body: body,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: currentTabIndex,
+        onDestinationSelected: (index) => _onTabSelected(ref, index),
+        destinations: [
+          for (final d in _destinations)
+            NavigationDestination(
+              icon: Icon(d.icon),
+              label: d.label,
+            ),
         ],
       ),
     );

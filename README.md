@@ -93,3 +93,34 @@ flutter build apk --release
 Without `android/key.properties`, release builds fall back to the debug
 signing key (with a Gradle warning) — fine for local testing, but not
 suitable for distribution.
+
+## Continuous integration & releases
+
+Two workflows live in `.github/workflows/`:
+
+- **`ci.yml`** — runs `flutter analyze` + `flutter test` on every push to
+  `main` and every pull request. Doesn't build or publish anything.
+- **`release.yml`** — cuts an actual release. It triggers on a pushed tag
+  matching `vX.Y.Z`, or can be run manually from the Actions tab. It
+  analyzes, tests, builds a release APK + AAB, and publishes them to a
+  GitHub Release named after that version.
+
+To cut a release:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+By default the CI build is signed with the debug key (same fallback as a
+local build without `android/key.properties`) — fine for internal testing,
+but not for the Play Store. To get a properly signed release out of CI,
+add these repo secrets (Settings → Secrets and variables → Actions), taken
+from a keystore generated via `./android/generate_release_key.sh`:
+
+- `ANDROID_KEYSTORE_BASE64` — `base64 -i android/app/upload-keystore.jks`
+- `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` —
+  the same values written into `android/key.properties`
+
+Once all four are set, `release.yml` picks them up automatically and
+produces a real, Play-Store-ready signed build.

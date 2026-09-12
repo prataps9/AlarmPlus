@@ -104,7 +104,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     children: [
                       TileLayer(
                         urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.alarm_plus',
+                        userAgentPackageName: 'com.alarmplus.app',
                       ),
                       if (_pinned != null) ...[
                         CircleLayer(

@@ -1,9 +1,14 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:alarm_plus/core/theme/app_tokens.dart';
+import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_personality.dart';
+import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
+import 'package:alarm_plus/shared/widgets/skeleton.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/challenge_service.dart';
@@ -22,64 +27,159 @@ class AlarmsScreen extends ConsumerWidget {
     final alarmsAsync = ref.watch(alarmsListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'YOUR ALARMS',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            letterSpacing: 3,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Alarms')),
       body: alarmsAsync.when(
-        data: (alarms) => ListView(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
-          children: [
-            ...alarms.map(
-              (alarm) => AlarmCard(
+        data: (alarms) {
+          if (alarms.isEmpty) return _EmptyAlarms(ref: ref);
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(
+              Spacing.xl,
+              Spacing.sm,
+              Spacing.xl,
+              // Clears the FAB.
+              Spacing.xxxl * 2.5,
+            ),
+            itemCount: alarms.length,
+            itemBuilder: (context, index) {
+              final alarm = alarms[index];
+              return AlarmCard(
                 key: ValueKey(alarm.id),
                 alarm: alarm,
+                onTap: () => _showAlarmSheet(context, ref, initial: alarm),
                 onToggle: (enabled) {
                   ref
                       .read(alarmsMapProvider.notifier)
                       .toggleAlarm(alarm.id, enabled);
                 },
                 onDelete: () {
-                  ref
-                      .read(alarmsMapProvider.notifier)
-                      .cancelAlarm(alarm.id);
+                  ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
                 },
-              ),
-            ),
-          ],
+              );
+            },
+          );
+        },
+        loading: () => const _AlarmsSkeleton(),
+        error: (err, stack) => _AlarmsError(
+          onRetry: () => ref.invalidate(alarmsListProvider),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddAlarmSheet(context, ref),
-        backgroundColor: const Color(0xFFF4F4F6),
-        foregroundColor: Colors.black,
-        elevation: 2,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 30),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAlarmSheet(context, ref),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New alarm'),
       ),
     );
   }
 
-  void _showAddAlarmSheet(BuildContext context, WidgetRef ref) {
+  static void _showAlarmSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    AlarmModel? initial,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _AddAlarmSheet(ref: ref),
+      builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+    );
+  }
+}
+
+class _EmptyAlarms extends StatelessWidget {
+  const _EmptyAlarms({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.xxxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MascotWidget(mood: MascotMood.sleepy, size: 140),
+            const SizedBox(height: Spacing.xl),
+            Text('No alarms yet', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'Set one and start building your wake-up streak.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: Spacing.xl),
+            FilledButton.icon(
+              onPressed: () => AlarmsScreen._showAlarmSheet(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Set your first alarm'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AlarmsSkeleton extends StatelessWidget {
+  const _AlarmsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        Spacing.xl,
+        Spacing.sm,
+        Spacing.xl,
+        Spacing.xxl,
+      ),
+      children: const [
+        Skeleton(height: 132, radius: Radii.xl),
+        SizedBox(height: Spacing.md),
+        Skeleton(height: 132, radius: Radii.xl),
+        SizedBox(height: Spacing.md),
+        Skeleton(height: 132, radius: Radii.xl),
+      ],
+    );
+  }
+}
+
+class _AlarmsError extends StatelessWidget {
+  const _AlarmsError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.xxxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MascotWidget(mood: MascotMood.worried, size: 120),
+            const SizedBox(height: Spacing.xl),
+            Text("Couldn't load your alarms", style: theme.textTheme.titleLarge),
+            const SizedBox(height: Spacing.xl),
+            FilledButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _AddAlarmSheet extends ConsumerStatefulWidget {
-  const _AddAlarmSheet({required this.ref});
+  const _AddAlarmSheet({required this.ref, this.initial});
+
   final WidgetRef ref;
+
+  /// When set, the sheet edits this alarm instead of creating a new one.
+  final AlarmModel? initial;
 
   @override
   ConsumerState<_AddAlarmSheet> createState() => _AddAlarmSheetState();
@@ -114,10 +214,44 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   DayTypeProfile _profile = DayTypeProfile.workday;
   double _sleepGoalHours = 7.5;
 
+  bool get _isEditing => widget.initial != null;
+
   @override
   void initState() {
     super.initState();
+    _hydrateFromInitial();
     _loadTeenSleepProfile();
+  }
+
+  /// Pre-fills every control from the alarm being edited.
+  void _hydrateFromInitial() {
+    final alarm = widget.initial;
+    if (alarm == null) return;
+
+    final hour24 = alarm.time.hour;
+    _isAm = hour24 < 12;
+    _hour = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    _minute = alarm.time.minute;
+
+    _labelController.text = alarm.label;
+    _setAlarm = alarm.isEnabled;
+    _tag = alarm.tag;
+    _sound = alarm.sound;
+    _personality = alarm.personality;
+    _repeatDays
+      ..clear()
+      ..addAll(alarm.repeatDays);
+    _gentleWake = alarm.gentleWake;
+    _gentleWakeDuration = alarm.gentleWakeDurationSeconds;
+    _challengeType = alarm.challengeType;
+    _voiceMemoPath = alarm.voiceMemoPath;
+    _questMode = alarm.questMode;
+    _questSteps = List.of(alarm.questSteps ?? const []);
+    _savedQrCode = alarm.savedQrCode;
+    _stepGoal = alarm.stepGoal;
+    _wakeUpCheck = alarm.wakeUpCheckEnabled;
+    _wakeUpCheckMinutes = alarm.wakeUpCheckMinutes;
+    _hardcoreMode = alarm.hardcoreMode;
   }
 
   @override
@@ -456,11 +590,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               Text('Wake Challenge', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 10),
               DropdownButtonFormField<ChallengeType?>(
-                value: _challengeType,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                ),
+                initialValue: _challengeType,
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Math (default)')),
                   ...ChallengeType.values.map((t) => DropdownMenuItem(value: t, child: Text(ChallengeService.label(t)))),
@@ -913,6 +1043,31 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     );
   }
 
+  /// "Alarm set for 6:30 AM · in 8h 12m" — so saving confirms something
+  /// concrete rather than just closing the sheet.
+  String _confirmationText(TimeOfDay time, List<int> repeatDays) {
+    final now = DateTime.now();
+    var next = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
+
+    if (repeatDays.isNotEmpty) {
+      while (!repeatDays.contains(next.weekday)) {
+        next = next.add(const Duration(days: 1));
+      }
+    }
+
+    final until = next.difference(now);
+    final hours = until.inHours;
+    final minutes = until.inMinutes % 60;
+    final away = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+
+    final hh = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final mm = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+
+    return 'Alarm set for $hh:$mm $period · in $away';
+  }
+
   Future<void> _saveAlarm() async {
     try {
       final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
@@ -921,14 +1076,19 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
         targetSleepHours: _sleepGoalHours,
       );
 
-      await ref
-          .read(alarmsMapProvider.notifier)
-          .addAlarm(
-            time: TimeOfDay(hour: hour24, minute: _minute),
-            label: _labelController.text.trim().isEmpty
-                ? 'Work Morning'
-                : _labelController.text.trim(),
-            repeatDays: _repeatDays.toList()..sort(),
+      final time = TimeOfDay(hour: hour24, minute: _minute);
+      final label = _labelController.text.trim().isEmpty
+          ? 'Work Morning'
+          : _labelController.text.trim();
+      final repeatDays = _repeatDays.toList()..sort();
+      final notifier = ref.read(alarmsMapProvider.notifier);
+
+      if (_isEditing) {
+        await notifier.updateAlarm(
+          widget.initial!.copyWith(
+            time: time,
+            label: label,
+            repeatDays: repeatDays,
             isEnabled: _setAlarm,
             tag: _tag,
             sound: _sound,
@@ -944,13 +1104,46 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             wakeUpCheckEnabled: _wakeUpCheck,
             wakeUpCheckMinutes: _wakeUpCheckMinutes,
             hardcoreMode: _hardcoreMode,
-          );
+          ),
+        );
+      } else {
+        await notifier.addAlarm(
+          time: time,
+          label: label,
+          repeatDays: repeatDays,
+          isEnabled: _setAlarm,
+          tag: _tag,
+          sound: _sound,
+          personality: _personality,
+          gentleWake: _gentleWake,
+          gentleWakeDurationSeconds: _gentleWakeDuration,
+          challengeType: _challengeType,
+          voiceMemoPath: _voiceMemoPath,
+          stepGoal: _stepGoal,
+          savedQrCode: _savedQrCode,
+          questMode: _questMode,
+          questSteps: _questMode ? _questSteps : null,
+          wakeUpCheckEnabled: _wakeUpCheck,
+          wakeUpCheckMinutes: _wakeUpCheckMinutes,
+          hardcoreMode: _hardcoreMode,
+        );
+      }
 
       if (!mounted) {
         return;
       }
 
+      // Captured before pop — this sheet's context is gone afterwards.
+      final messenger = ScaffoldMessenger.of(context);
+
+      HapticFeedback.mediumImpact();
       Navigator.pop(context);
+
+      if (_setAlarm) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(_confirmationText(time, repeatDays))),
+        );
+      }
     } catch (e) {
       debugPrint('Error saving alarm: $e');
       if (!mounted) return;

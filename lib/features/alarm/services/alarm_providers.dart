@@ -68,6 +68,24 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     }
   }
 
+  /// Save an edit to an existing alarm.
+  ///
+  /// [saveAlarm] only ever schedules, so using it for an edit that switches
+  /// the alarm off would leave the previous schedule live and still firing.
+  /// This cancels in that case.
+  Future<void> updateAlarm(AlarmModel alarm) async {
+    await AlarmService.saveAlarm(alarm);
+    final map = await state;
+    map[alarm.id] = alarm;
+    if (alarm.isEnabled) {
+      // scheduleAlarm clears the previous schedule for this id first.
+      await AlarmService.scheduleAlarm(alarm);
+    } else {
+      await AlarmService.cancelAlarm(alarm.id);
+    }
+    state = Future.value(Map.from(map));
+  }
+
   /// Add a new alarm
   Future<void> addAlarm({
     required TimeOfDay time,

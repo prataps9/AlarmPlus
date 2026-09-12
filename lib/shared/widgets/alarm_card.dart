@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 
 class AlarmCard extends StatelessWidget {
@@ -7,11 +8,15 @@ class AlarmCard extends StatelessWidget {
     super.key,
     required this.alarm,
     required this.onToggle,
+    this.onTap,
     this.onDelete,
   });
 
   final AlarmModel alarm;
   final ValueChanged<bool> onToggle;
+
+  /// Opens the alarm for editing.
+  final VoidCallback? onTap;
   final VoidCallback? onDelete;
 
   @override
@@ -19,179 +24,168 @@ class AlarmCard extends StatelessWidget {
     final card = _buildCard(context);
     if (onDelete == null) return card;
 
+    // Swipe is the only delete affordance; the card used to carry a trash
+    // icon as well, which meant two paths to the same confirmation dialog.
     return Dismissible(
       key: ValueKey(alarm.id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 28),
-        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.only(right: Spacing.xxl),
+        margin: const EdgeInsets.only(bottom: Spacing.lg),
         decoration: BoxDecoration(
-          color: const Color(0xFFEF4444),
-          borderRadius: BorderRadius.circular(28),
+          color: Theme.of(context).colorScheme.error,
+          borderRadius: BorderRadius.circular(Radii.xl),
         ),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 28),
-      ),
-      confirmDismiss: (_) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Delete Alarm?'),
-          content: Text(
-            '${alarm.timeLabel} ${alarm.periodLabel}${alarm.label.isNotEmpty ? ' — ${alarm.label}' : ''} will be permanently removed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-              child: const Text('Delete'),
-            ),
-          ],
+        child: Icon(
+          Icons.delete_outline_rounded,
+          color: Theme.of(context).colorScheme.onError,
+          size: 28,
         ),
       ),
+      confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete!(),
       child: card,
     );
   }
 
-  Widget _buildCard(BuildContext context) {
-    final color = alarm.isEnabled
-        ? Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF0F172A)
-        : const Color(0xFF94A3B8);
+  Future<bool?> _confirmDelete(BuildContext context) {
+    final subtitle = alarm.label.isNotEmpty
+        ? '${alarm.timeLabel} ${alarm.periodLabel} — ${alarm.label}'
+        : '${alarm.timeLabel} ${alarm.periodLabel}';
 
-    final cardBg = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E293B)
-        : Colors.white;
-    final borderColor = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF334155)
-        : const Color(0xFFE2E8F0);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: borderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete alarm?'),
+        content: Text('$subtitle will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: RichText(
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 66,
-                        fontWeight: FontWeight.w400,
-                        color: color,
-                        height: 0.95,
-                      ),
-                      children: [
-                        TextSpan(text: alarm.timeLabel),
-                        TextSpan(
-                          text: ' ${alarm.periodLabel}',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w400,
-                            color: color.withValues(alpha: 0.4),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    // A disabled alarm reads as muted rather than a different design.
+    final timeColor =
+        alarm.isEnabled ? scheme.onSurface : scheme.onSurfaceVariant;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.lg),
+      child: Material(
+        color: scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(Radii.xl),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.xl),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.xl,
+              vertical: Spacing.xxl,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.xl),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.headlineLarge?.copyWith(
+                              fontSize: 58,
+                              fontWeight: FontWeight.w500,
+                              color: timeColor,
+                              height: 0.95,
+                            ),
+                            children: [
+                              TextSpan(text: alarm.timeLabel),
+                              TextSpan(
+                                text: ' ${alarm.periodLabel}',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w400,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Switch(
-                value: alarm.isEnabled,
-                onChanged: onToggle,
-                thumbColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-                    states.contains(WidgetState.selected)
-                        ? Colors.white
-                        : const Color(0xFFE2E8F0)),
-                trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-                    states.contains(WidgetState.selected)
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFFF1F5F9)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              if (alarm.tag.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    alarm.tag,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF475569),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 12),
-              Text(
-                alarm.repeatLabel,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF94A3B8),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (onDelete != null)
-                GestureDetector(
-                  onTap: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Alarm?'),
-                        content: Text(
-                          '${alarm.timeLabel} ${alarm.periodLabel}${alarm.label.isNotEmpty ? ' — ${alarm.label}' : ''} will be permanently removed.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-                            child: const Text('Delete'),
-                          ),
-                        ],
                       ),
-                    );
-                    if (confirmed == true) onDelete!();
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.delete_outline_rounded, color: Color(0xFFCBD5E1), size: 20),
-                  ),
+                    ),
+                    const SizedBox(width: Spacing.sm),
+                    Switch(value: alarm.isEnabled, onChanged: onToggle),
+                  ],
                 ),
-            ],
+                if (alarm.label.isNotEmpty) ...[
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    alarm.label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: timeColor,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: Spacing.md),
+                Row(
+                  children: [
+                    if (alarm.tag.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Spacing.md,
+                          vertical: Spacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                        ),
+                        child: Text(
+                          alarm.tag,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.md),
+                    ],
+                    Expanded(
+                      child: Text(
+                        alarm.repeatLabel,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    if (onTap != null)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

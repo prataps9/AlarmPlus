@@ -14,6 +14,9 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.media.VolumeProvider
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
@@ -42,6 +45,7 @@ class AlarmForegroundService : Service() {
     private var alarmId: Int = 0
     private var ringtone: Ringtone? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var mediaSession: MediaSession? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -60,6 +64,7 @@ class AlarmForegroundService : Service() {
         playNativeRingtoneIfSet(alarmId)
         registerVolumeReceiver()
         registerActionReceiver()
+        startMediaSession()
 
         // START_STICKY restarts this service if the system kills it while an alarm is active
         return START_STICKY
@@ -84,6 +89,7 @@ class AlarmForegroundService : Service() {
         releaseWakeLock()
         unregisterVolumeReceiverSafe()
         unregisterActionReceiverSafe()
+        stopMediaSession()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
@@ -239,6 +245,57 @@ class AlarmForegroundService : Service() {
     private fun releaseWakeLock() {
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
+    }
+
+    // ── MediaSession volume capture ─────────────────────────────────────────
+
+    /**
+     * Claims the volume keys while the alarm rings so pressing either one
+     * snoozes instead of changing a stream.
+     *
+     * The ACTION_MEDIA_BUTTON receiver below stays as a fallback: key routing
+     * is OEM-specific, and losing the snooze gesture entirely would be worse
+     * than handling the same press twice (both paths are idempotent — they
+     * send the same snooze to Dart, which ignores a repeat).
+     */
+    private fun startMediaSession() {
+        try {
+            val session = MediaSession(this, "AlarmPlusRing")
+
+            // A session only receives volume callbacks while it looks like
+            // it's actively playing something.
+            session.setPlaybackState(
+                PlaybackState.Builder()
+                    .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
+                    .setActions(PlaybackState.ACTION_STOP)
+                    .build()
+            )
+
+            session.setPlaybackToRemote(
+                object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, 100, 50) {
+                    override fun onAdjustVolume(direction: Int) {
+                        if (direction != 0) sendSnoozeToFlutter()
+                    }
+
+                    override fun onSetVolumeTo(volume: Int) {
+                        sendSnoozeToFlutter()
+                    }
+                }
+            )
+
+            session.isActive = true
+            mediaSession = session
+        } catch (_: Exception) {
+            // Fallback receiver still covers the common case.
+        }
+    }
+
+    private fun stopMediaSession() {
+        try {
+            mediaSession?.isActive = false
+            mediaSession?.release()
+        } catch (_: Exception) {}
+        mediaSession = null
     }
 
     // ── Volume button → snooze ───────────────────────────────────────────────

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
 /// Keeps the Android home screen widget (`AlarmWidgetProvider.kt`) in sync
@@ -34,6 +35,15 @@ class WidgetSyncService {
       final stats = await SmartAlarmService.getStats();
       await HomeWidget.saveWidgetData<int>('streak_days', stats.currentStreak);
       await HomeWidget.saveWidgetData<String>('next_alarm', _nextAlarmLabel());
+      // Drives the widget's toggle tint and the Quick Settings tile state.
+      await HomeWidget.saveWidgetData<bool>(
+        'next_alarm_enabled',
+        AlarmService.getAllAlarms().any((a) => a.isEnabled),
+      );
+      await HomeWidget.saveWidgetData<bool>(
+        'alarm_ringing',
+        AlarmRingFlow.currentRingingId != 0,
+      );
       await HomeWidget.updateWidget(
         androidName: _androidWidgetName,
         iOSName: _iosWidgetName,

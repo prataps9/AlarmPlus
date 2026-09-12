@@ -61,6 +61,26 @@
             android:name=".AlarmForegroundService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
+        <!-- Quick Settings tile for arming the next alarm from the shade. -->
+        <service
+            android:name=".AlarmTileService"
+            android:icon="@drawable/ic_flame"
+            android:label="Alarm+"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <!-- Widget button taps. Not exported: only this app triggers it. -->
+        <receiver
+            android:name=".AlarmWidgetActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="alarmplus.WIDGET_TOGGLE_NEXT" />
+                <action android:name="alarmplus.WIDGET_SNOOZE" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".AlarmWidgetProvider"
             android:exported="true">

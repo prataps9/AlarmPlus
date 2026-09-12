@@ -25,6 +25,9 @@ class AlarmRingFlow {
   static final Map<int, Timer> _missedRecoveryTimers = <int, Timer>{};
   static int _currentRingingId = 0;
 
+  /// The alarm currently ringing, or 0 when none is.
+  static int get currentRingingId => _currentRingingId;
+
   // Tracks alarms that were snoozed before being stopped (for XP calculation)
   static final Set<int> _snoozedIds = <int>{};
   // Tracks snooze count per alarm session for Boss Mode

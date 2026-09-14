@@ -8,7 +8,6 @@ import 'package:vibration/vibration.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/confetti_overlay.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 /// Sits above the [Navigator] (wired in via `MaterialApp.builder`) so it can
 /// show a confetti burst + banner for level-ups and badge unlocks no matter
@@ -126,7 +125,11 @@ class _CelebrationBanner extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const MascotWidget(mood: MascotMood.excited, size: 40, animate: false),
+            const Icon(
+              Icons.emoji_events_rounded,
+              size: 28,
+              color: Color(0xFF22C55E),
+            ),
             const SizedBox(width: 10),
             Flexible(
               child: Text(

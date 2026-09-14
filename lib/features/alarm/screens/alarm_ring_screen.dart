@@ -33,7 +33,6 @@ import 'package:alarm_plus/shared/widgets/sunrise_gradient.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/core/services/share_service.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
 
 class AlarmRingScreen extends StatefulWidget {
@@ -485,12 +484,13 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             Container(width: 40, height: 4,
               decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            MascotWidget(
-              mood: (reward != null &&
+            Icon(
+              (reward != null &&
                       (reward.newlyUnlockedBadges.isNotEmpty || reward.hitStreakMilestone != null))
-                  ? MascotMood.excited
-                  : MascotMood.happy,
-              size: 72,
+                  ? Icons.emoji_events_rounded
+                  : Icons.wb_sunny_rounded,
+              size: 56,
+              color: const Color(0xFF22C55E),
             ),
             const SizedBox(height: 8),
             if (reward != null) ...[

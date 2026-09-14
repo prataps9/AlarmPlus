@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -20,22 +19,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _OnboardingPage(
-      mascotMood: MascotMood.worried,
+      icon: Icons.alarm_on_rounded,
       title: 'Wake Up,\nFor Real',
       body: 'Smart challenges make sure you actually get out of bed — math, memory, shake, barcode and more.',
     ),
     _OnboardingPage(
-      mascotMood: MascotMood.excited,
+      icon: Icons.bolt_rounded,
       title: 'Earn XP\nEvery Morning',
       body: 'Build streaks, level up, and unlock badges the faster you dismiss your alarm.',
     ),
     _OnboardingPage(
-      mascotMood: MascotMood.sleepy,
+      icon: Icons.bedtime_rounded,
       title: 'Sleep\nSmarter',
       body: 'Track your sleep diary, set a bedtime schedule, and get weekly insights on how rested you really are.',
     ),
     _OnboardingPage(
-      mascotMood: MascotMood.happy,
+      icon: Icons.verified_user_rounded,
       title: 'Needs a Few\nPermissions',
       body: 'Alarm+ needs notifications and exact alarm access so it can reliably wake you up.',
       isPermission: true,
@@ -159,13 +158,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _OnboardingPage extends StatelessWidget {
   const _OnboardingPage({
-    required this.mascotMood,
+    required this.icon,
     required this.title,
     required this.body,
     this.isPermission = false,
   });
 
-  final MascotMood mascotMood;
+  final IconData icon;
   final String title;
   final String body;
   final bool isPermission;
@@ -177,7 +176,15 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MascotWidget(mood: mascotMood, size: 88),
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(icon, size: 44, color: const Color(0xFF22C55E)),
+          ),
           const SizedBox(height: 28),
           Text(
             title,

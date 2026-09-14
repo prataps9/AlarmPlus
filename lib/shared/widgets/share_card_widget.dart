@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
-
 /// Plain data for [ShareCardWidget] — kept separate from live app state so
 /// callers can pass in values already on hand (e.g. from a `DismissReward`)
 /// without this widget depending on any service directly.
@@ -44,8 +42,6 @@ class ShareCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mood = data.streak >= 7 ? MascotMood.excited : MascotMood.happy;
-
     return SizedBox(
       width: width,
       height: height,
@@ -65,7 +61,19 @@ class ShareCardWidget extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  MascotWidget(mood: mood, size: 220, animate: false),
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF334155), width: 3),
+                    ),
+                    child: const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 120,
+                      color: Color(0xFF22C55E),
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   Text(_flame, style: const TextStyle(fontSize: 96)),
                   const SizedBox(height: 12),

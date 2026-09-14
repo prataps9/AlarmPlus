@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_personality.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 import 'package:alarm_plus/shared/widgets/skeleton.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
@@ -101,7 +100,11 @@ class _EmptyAlarms extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const MascotWidget(mood: MascotMood.sleepy, size: 140),
+            Icon(
+              Icons.alarm_off_rounded,
+              size: 96,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: Spacing.xl),
             Text('No alarms yet', style: theme.textTheme.headlineSmall),
             const SizedBox(height: Spacing.sm),
@@ -161,7 +164,11 @@ class _AlarmsError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const MascotWidget(mood: MascotMood.worried, size: 120),
+            Icon(
+              Icons.error_outline_rounded,
+              size: 80,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: Spacing.xl),
             Text("Couldn't load your alarms", style: theme.textTheme.titleLarge),
             const SizedBox(height: Spacing.xl),

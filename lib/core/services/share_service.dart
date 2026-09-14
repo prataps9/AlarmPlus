@@ -38,7 +38,7 @@ class ShareService {
     try {
       // Two frames: the first lays out and paints the off-screen subtree,
       // the second lets any widget that renders differently on its very
-      // first frame (e.g. MascotWidget's initial animation tick) settle.
+      // first frame settle.
       await WidgetsBinding.instance.endOfFrame;
       await WidgetsBinding.instance.endOfFrame;
 

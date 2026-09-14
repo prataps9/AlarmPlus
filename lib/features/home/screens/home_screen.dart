@@ -18,8 +18,8 @@ import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -330,14 +330,6 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-MascotMood _moodForStreak(int streak, DateTime now) {
-  if (streak == 0) return MascotMood.worried;
-  final hour = now.hour;
-  if (hour >= 22 || hour < 5) return MascotMood.sleepy;
-  if (streak >= 7) return MascotMood.excited;
-  return MascotMood.happy;
-}
-
 class _StreakHeroWidget extends StatelessWidget {
   const _StreakHeroWidget({
     required this.stats,
@@ -371,7 +363,19 @@ class _StreakHeroWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                MascotWidget(mood: _moodForStreak(streak, DateTime.now()), size: 48),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surface,
+                  ),
+                  child: Icon(
+                    Icons.local_fire_department_rounded,
+                    size: 28,
+                    color: context.semantics.streakTier(streak),
+                  ),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(

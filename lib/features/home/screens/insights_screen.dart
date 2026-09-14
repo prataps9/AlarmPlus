@@ -7,7 +7,6 @@ import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/home/providers/insights_providers.dart';
 import 'package:alarm_plus/features/home/screens/insights_details_screen.dart';
-import 'package:alarm_plus/shared/widgets/mascot_widget.dart';
 import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
 import 'package:alarm_plus/shared/widgets/skeleton.dart';
 import 'package:alarm_plus/shared/widgets/stat_tile.dart';
@@ -473,8 +472,12 @@ class _InsightsError extends StatelessWidget {
       padding: const EdgeInsets.all(Spacing.xxxl),
       children: [
         const SizedBox(height: Spacing.xxxl),
-        const Center(
-          child: MascotWidget(mood: MascotMood.worried, size: 120),
+        Center(
+          child: Icon(
+            Icons.error_outline_rounded,
+            size: 96,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: Spacing.xl),
         Text(

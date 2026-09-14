@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/shared/models/challenge_type.dart';
+import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 
 class AlarmModel {
   AlarmModel({
@@ -26,6 +27,10 @@ class AlarmModel {
     this.wakeUpCheckEnabled = false,
     this.wakeUpCheckMinutes = 10,
     this.hardcoreMode = false,
+    this.snoozeMinutes = 5,
+    this.maxSnoozes = 0,
+    this.alarmVolume = 1.0,
+    this.vibrationPattern = VibrationPatternType.standard,
   });
 
   final String id;
@@ -53,6 +58,18 @@ class AlarmModel {
   final bool wakeUpCheckEnabled;
   final int wakeUpCheckMinutes;
   final bool hardcoreMode;
+
+  /// Minutes added when this alarm is snoozed.
+  final int snoozeMinutes;
+
+  /// Maximum number of times this alarm may be snoozed per ring; 0 = unlimited.
+  final int maxSnoozes;
+
+  /// Ring volume ceiling, 0.0-1.0. Applied directly at ring start, and as the
+  /// ceiling of the gentle-wake ramp when that's enabled.
+  final double alarmVolume;
+
+  final VibrationPatternType vibrationPattern;
 
   String get timeLabel {
     final now = DateTime.now();
@@ -133,6 +150,10 @@ class AlarmModel {
       'wakeUpCheckEnabled': wakeUpCheckEnabled,
       'wakeUpCheckMinutes': wakeUpCheckMinutes,
       'hardcoreMode': hardcoreMode,
+      'snoozeMinutes': snoozeMinutes,
+      'maxSnoozes': maxSnoozes,
+      'alarmVolume': alarmVolume,
+      'vibrationPattern': vibrationPattern.name,
     };
   }
 
@@ -187,6 +208,13 @@ class AlarmModel {
       wakeUpCheckEnabled: (map['wakeUpCheckEnabled'] as bool?) ?? false,
       wakeUpCheckMinutes: (map['wakeUpCheckMinutes'] as int?) ?? 10,
       hardcoreMode: (map['hardcoreMode'] as bool?) ?? false,
+      snoozeMinutes: (map['snoozeMinutes'] as int?) ?? 5,
+      maxSnoozes: (map['maxSnoozes'] as int?) ?? 0,
+      alarmVolume: (map['alarmVolume'] as num?)?.toDouble() ?? 1.0,
+      vibrationPattern: VibrationPatternType.values
+              .where((v) => v.name == map['vibrationPattern'])
+              .firstOrNull ??
+          VibrationPatternType.standard,
     );
   }
 
@@ -212,6 +240,10 @@ class AlarmModel {
     bool? wakeUpCheckEnabled,
     int? wakeUpCheckMinutes,
     bool? hardcoreMode,
+    int? snoozeMinutes,
+    int? maxSnoozes,
+    double? alarmVolume,
+    VibrationPatternType? vibrationPattern,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -237,6 +269,10 @@ class AlarmModel {
       wakeUpCheckEnabled: wakeUpCheckEnabled ?? this.wakeUpCheckEnabled,
       wakeUpCheckMinutes: wakeUpCheckMinutes ?? this.wakeUpCheckMinutes,
       hardcoreMode: hardcoreMode ?? this.hardcoreMode,
+      snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
+      maxSnoozes: maxSnoozes ?? this.maxSnoozes,
+      alarmVolume: alarmVolume ?? this.alarmVolume,
+      vibrationPattern: vibrationPattern ?? this.vibrationPattern,
     );
   }
 }

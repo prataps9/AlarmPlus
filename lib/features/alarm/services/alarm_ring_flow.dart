@@ -14,8 +14,17 @@ import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
+import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+/// Whether another snooze should be allowed. [maxSnoozes] of 0 means
+/// unlimited. Kept as a pure function — free of Hive/plugins/statics — so
+/// the cap itself is directly testable rather than only reachable through
+/// [AlarmRingFlow.snoozeAlarm]'s full native-dependent call chain.
+bool canSnoozeAgain({required int used, required int maxSnoozes}) {
+  return maxSnoozes <= 0 || used < maxSnoozes;
+}
 
 class AlarmRingFlow {
   static StreamSubscription<dynamic>? _ringSubscription;
@@ -27,6 +36,9 @@ class AlarmRingFlow {
 
   /// The alarm currently ringing, or 0 when none is.
   static int get currentRingingId => _currentRingingId;
+
+  /// Times this alarm has been snoozed in the current ring session.
+  static int snoozeCountFor(int alarmId) => _snoozeSessionCount[alarmId] ?? 0;
 
   // Tracks alarms that were snoozed before being stopped (for XP calculation)
   static final Set<int> _snoozedIds = <int>{};
@@ -104,9 +116,12 @@ class AlarmRingFlow {
     });
 
     try {
-      final hasVibrator = await Vibration.hasVibrator();
+      final pattern =
+          AlarmService.findByIntId(alarmId)?.vibrationPattern.pattern ??
+              VibrationPatternType.standard.pattern;
+      final hasVibrator = pattern.isNotEmpty && await Vibration.hasVibrator();
       if (hasVibrator) {
-        await Vibration.vibrate(pattern: [500, 1000], repeat: 0);
+        await Vibration.vibrate(pattern: pattern, repeat: 0);
       }
     } catch (_) {
       // Vibration capability differs by device.
@@ -148,15 +163,23 @@ class AlarmRingFlow {
     );
   }
 
-  static Future<void> snoozeAlarm(int alarmId) async {
+  /// Snoozes the ringing alarm. Returns false — refusing to snooze — once
+  /// the alarm's own [AlarmModel.maxSnoozes] has been reached for this ring
+  /// session (0 means unlimited).
+  static Future<bool> snoozeAlarm(int alarmId) async {
     final alarm = AlarmService.findByIntId(alarmId);
     if (alarm == null) {
-      return;
+      return false;
+    }
+
+    final used = _snoozeSessionCount[alarmId] ?? 0;
+    if (!canSnoozeAgain(used: used, maxSnoozes: alarm.maxSnoozes)) {
+      return false;
     }
 
     await AlarmService.cancelAlarm(alarm.id);
 
-    final newTime = DateTime.now().add(const Duration(minutes: 5));
+    final newTime = DateTime.now().add(Duration(minutes: alarm.snoozeMinutes));
     final updated = alarm.copyWith(
       time: TimeOfDay(hour: newTime.hour, minute: newTime.minute),
       isEnabled: true,
@@ -179,6 +202,8 @@ class AlarmRingFlow {
       appNavigatorKey.currentState?.pop();
       _ringScreenVisible = false;
     }
+
+    return true;
   }
 
   /// Stops the alarm and records XP/badges. Does NOT pop the ring screen —

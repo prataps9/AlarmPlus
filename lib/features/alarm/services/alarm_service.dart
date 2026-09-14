@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart' as sp;
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
@@ -309,6 +310,10 @@ class AlarmService {
     String? voiceMemoPath,
     int stepGoal = 20,
     int squatReps = 10,
+    int snoozeMinutes = 5,
+    int maxSnoozes = 0,
+    double alarmVolume = 1.0,
+    VibrationPatternType vibrationPattern = VibrationPatternType.standard,
     String? savedQrCode,
     bool questMode = false,
     List<ChallengeType>? questSteps,
@@ -331,6 +336,10 @@ class AlarmService {
       voiceMemoPath: voiceMemoPath,
       stepGoal: stepGoal,
       squatReps: squatReps,
+      snoozeMinutes: snoozeMinutes,
+      maxSnoozes: maxSnoozes,
+      alarmVolume: alarmVolume,
+      vibrationPattern: vibrationPattern,
       savedQrCode: savedQrCode,
       questMode: questMode,
       questSteps: questSteps,

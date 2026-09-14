@@ -100,6 +100,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         await SmartAlarmService.recordPersonalityUsed(alarm.personality);
         if (alarm.gentleWake) {
           _startGentleWake(alarm);
+        } else {
+          VolumeController.instance.setVolume(alarm.alarmVolume);
         }
       }
       // Guardian timer is owned by AlarmRingFlow — no duplicate needed here.
@@ -111,6 +113,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       _gentleSecondsLeft = alarm.gentleWakeDurationSeconds;
       _gentleWakeActive = true;
     });
+    final ceiling = alarm.alarmVolume;
     VolumeController.instance.setVolume(0.1);
 
     final duration = alarm.gentleWakeDurationSeconds;
@@ -121,8 +124,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       await Future<void>.delayed(const Duration(seconds: 1));
       if (!mounted || !_gentleWakeActive) return false;
       elapsed++;
-      final vol = 0.1 + (elapsed / stepCount) * 0.9;
-      VolumeController.instance.setVolume(vol.clamp(0.1, 1.0));
+      final vol = 0.1 + (elapsed / stepCount) * (ceiling - 0.1);
+      VolumeController.instance.setVolume(vol.clamp(0.1, ceiling));
       if (mounted) setState(() => _gentleSecondsLeft = duration - elapsed);
       return elapsed < stepCount && _gentleWakeActive;
     });
@@ -652,6 +655,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     final alarmId = _alarmId;
     final alarm = AlarmService.findByIntId(alarmId);
     final isHardcore = alarm?.hardcoreMode ?? false;
+    final snoozeMinutes = alarm?.snoozeMinutes ?? 5;
+    final maxSnoozes = alarm?.maxSnoozes ?? 0;
+    final snoozeLimitReached = !canSnoozeAgain(
+      used: AlarmRingFlow.snoozeCountFor(alarmId),
+      maxSnoozes: maxSnoozes,
+    );
     final screenWidth = MediaQuery.of(context).size.width;
     final dismissThreshold = screenWidth * 0.40;
     final isDismissDir = _dragDx > 0;
@@ -677,7 +686,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         if (_dragDx >= dismissThreshold) {
           _triggerDismiss(alarmId);
         } else if (_dragDx <= -dismissThreshold) {
-          AlarmRingFlow.snoozeAlarm(alarmId);
+          setState(() => _dragDx = 0.0);
+          if (snoozeLimitReached) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No more snoozes — time to get up!')),
+            );
+          } else {
+            AlarmRingFlow.snoozeAlarm(alarmId);
+          }
         } else {
           setState(() => _dragDx = 0.0);
         }
@@ -827,12 +843,27 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: _isDismissing ? null : () => AlarmRingFlow.snoozeAlarm(alarmId),
+                            onPressed: (_isDismissing || snoozeLimitReached)
+                                ? null
+                                : () async {
+                                    final snoozed =
+                                        await AlarmRingFlow.snoozeAlarm(alarmId);
+                                    if (!snoozed && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'No more snoozes — time to get up!'),
+                                        ),
+                                      );
+                                    }
+                                  },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size.fromHeight(62),
                               side: const BorderSide(color: Colors.black, width: 1.5),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
-                            child: const Text('Snooze · 5 min')),
+                            child: Text(snoozeLimitReached
+                                ? 'No more snoozes'
+                                : 'Snooze · $snoozeMinutes min')),
                         ),
                         const SizedBox(width: 12),
                         Expanded(

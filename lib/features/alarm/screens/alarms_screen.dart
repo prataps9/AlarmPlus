@@ -16,6 +16,7 @@ import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
 import 'package:alarm_plus/core/services/ringtone_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
+import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
 class AlarmsScreen extends ConsumerWidget {
@@ -218,6 +219,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   bool _wakeUpCheck = false;
   int _wakeUpCheckMinutes = 10;
   bool _hardcoreMode = false;
+  int _snoozeMinutes = 5;
+  int _maxSnoozes = 0;
+  double _alarmVolume = 1.0;
+  VibrationPatternType _vibrationPattern = VibrationPatternType.standard;
 
   DayTypeProfile _profile = DayTypeProfile.workday;
   double _sleepGoalHours = 7.5;
@@ -261,6 +266,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _wakeUpCheck = alarm.wakeUpCheckEnabled;
     _wakeUpCheckMinutes = alarm.wakeUpCheckMinutes;
     _hardcoreMode = alarm.hardcoreMode;
+    _snoozeMinutes = alarm.snoozeMinutes;
+    _maxSnoozes = alarm.maxSnoozes;
+    _alarmVolume = alarm.alarmVolume;
+    _vibrationPattern = alarm.vibrationPattern;
   }
 
   @override
@@ -776,6 +785,90 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               ],
 
               const SizedBox(height: 24),
+              Text('Ring Settings',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
+              const SizedBox(height: 10),
+              Row(children: [
+                Icon(Icons.volume_up_rounded,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: Spacing.sm),
+                Text('Ring volume: ${(_alarmVolume * 100).round()}%',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ]),
+              Slider(
+                value: _alarmVolume,
+                min: 0.1,
+                max: 1.0,
+                divisions: 18,
+                label: '${(_alarmVolume * 100).round()}%',
+                onChanged: (v) => setState(() => _alarmVolume = v),
+              ),
+              const SizedBox(height: Spacing.md),
+              Text('Vibration',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: Spacing.sm),
+              Wrap(
+                spacing: Spacing.sm,
+                children: [
+                  for (final p in VibrationPatternType.values)
+                    ChoiceChip(
+                      label: Text(p.label),
+                      selected: _vibrationPattern == p,
+                      onSelected: (_) =>
+                          setState(() => _vibrationPattern = p),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Spacing.lg),
+              Row(children: [
+                Icon(Icons.snooze_rounded,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: Spacing.sm),
+                Text('Snooze length: $_snoozeMinutes min',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ]),
+              Slider(
+                value: _snoozeMinutes.toDouble(),
+                min: 1,
+                max: 20,
+                divisions: 19,
+                label: '$_snoozeMinutes min',
+                onChanged: (v) => setState(() => _snoozeMinutes = v.round()),
+              ),
+              const SizedBox(height: Spacing.md),
+              Row(children: [
+                Icon(Icons.replay_rounded,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: Spacing.sm),
+                Text(
+                    _maxSnoozes == 0
+                        ? 'Max snoozes: unlimited'
+                        : 'Max snoozes: $_maxSnoozes',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ]),
+              Slider(
+                value: _maxSnoozes.toDouble(),
+                min: 0,
+                max: 10,
+                divisions: 10,
+                label: _maxSnoozes == 0 ? 'Unlimited' : '$_maxSnoozes',
+                onChanged: (v) => setState(() => _maxSnoozes = v.round()),
+              ),
+
+              const SizedBox(height: 24),
               // Voice Memo
               VoiceMemoRecorder(
                 initialPath: _voiceMemoPath,
@@ -1141,6 +1234,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             wakeUpCheckEnabled: _wakeUpCheck,
             wakeUpCheckMinutes: _wakeUpCheckMinutes,
             hardcoreMode: _hardcoreMode,
+            snoozeMinutes: _snoozeMinutes,
+            maxSnoozes: _maxSnoozes,
+            alarmVolume: _alarmVolume,
+            vibrationPattern: _vibrationPattern,
           ),
         );
       } else {
@@ -1164,6 +1261,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           wakeUpCheckEnabled: _wakeUpCheck,
           wakeUpCheckMinutes: _wakeUpCheckMinutes,
           hardcoreMode: _hardcoreMode,
+          snoozeMinutes: _snoozeMinutes,
+          maxSnoozes: _maxSnoozes,
+          alarmVolume: _alarmVolume,
+          vibrationPattern: _vibrationPattern,
         );
       }
 

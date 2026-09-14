@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
+import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
 /// Provider for the current tab index
@@ -101,6 +102,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     String? voiceMemoPath,
     int stepGoal = 20,
     int squatReps = 10,
+    int snoozeMinutes = 5,
+    int maxSnoozes = 0,
+    double alarmVolume = 1.0,
+    VibrationPatternType vibrationPattern = VibrationPatternType.standard,
     String? savedQrCode,
     bool questMode = false,
     List<ChallengeType>? questSteps,
@@ -122,6 +127,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       voiceMemoPath: voiceMemoPath,
       stepGoal: stepGoal,
       squatReps: squatReps,
+      snoozeMinutes: snoozeMinutes,
+      maxSnoozes: maxSnoozes,
+      alarmVolume: alarmVolume,
+      vibrationPattern: vibrationPattern,
       savedQrCode: savedQrCode,
       questMode: questMode,
       questSteps: questSteps,
@@ -150,20 +159,6 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final map = await state;
     map.remove(id);
     state = Future.value(Map.from(map));
-  }
-
-  /// Snooze alarm for 5 minutes
-  Future<void> snoozeAlarm(String id) async {
-    final map = await state;
-    final alarm = map[id];
-    if (alarm == null) return;
-
-    final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
-    final updated = alarm.copyWith(
-      time: TimeOfDay(hour: snoozeTime.hour, minute: snoozeTime.minute),
-      isEnabled: true,
-    );
-    await saveAlarm(updated);
   }
 
   /// Stop alarm

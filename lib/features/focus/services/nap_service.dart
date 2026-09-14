@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/core/services/live_timer_notification_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
 class NapService {
@@ -18,6 +19,7 @@ class NapService {
     await prefs.setBool(_activeKey, true);
     await prefs.setInt(_startMsKey, DateTime.now().millisecondsSinceEpoch);
     await prefs.setInt(_durationKey, durationMinutes);
+    await LiveTimerNotificationService.showNap(durationMinutes * 60);
   }
 
   static Future<void> cancelNap() async {
@@ -26,6 +28,7 @@ class NapService {
     await prefs.setBool(_activeKey, false);
     await prefs.remove(_startMsKey);
     await prefs.remove(_durationKey);
+    await LiveTimerNotificationService.cancel();
   }
 
   static Future<bool> isNapActive() async {
@@ -50,6 +53,7 @@ class NapService {
       // Alarm already rang; just clear state
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_activeKey, false);
+      await LiveTimerNotificationService.cancel();
       return true;
     }
     return false;

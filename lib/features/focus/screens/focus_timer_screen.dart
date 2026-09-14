@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:alarm_plus/core/services/live_timer_notification_service.dart';
+import 'package:alarm_plus/features/focus/services/focus_timer_service.dart';
 import 'package:alarm_plus/shared/widgets/focus_ring.dart';
 
 class FocusTimerScreen extends StatefulWidget {
@@ -92,6 +94,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
       _running = true;
     });
 
+    unawaited(FocusTimerService.start(Duration(seconds: _secondsLeft)));
+    unawaited(LiveTimerNotificationService.showFocus(_secondsLeft));
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsLeft <= 1) {
         timer.cancel();
@@ -99,6 +104,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
           _secondsLeft = 0;
           _running = false;
         });
+        unawaited(FocusTimerService.cancel());
+        unawaited(LiveTimerNotificationService.cancel());
         return;
       }
 
@@ -113,6 +120,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
     setState(() {
       _running = false;
     });
+    unawaited(FocusTimerService.cancel());
+    unawaited(LiveTimerNotificationService.cancel());
   }
 
   void _reset() {
@@ -121,6 +130,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
       _secondsLeft = _initialSeconds;
       _running = false;
     });
+    unawaited(FocusTimerService.cancel());
+    unawaited(LiveTimerNotificationService.cancel());
   }
 
   String _formatTime(int totalSeconds) {

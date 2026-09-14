@@ -15,6 +15,7 @@ import 'package:alarm_plus/core/services/guardian_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
+import 'package:alarm_plus/core/services/live_timer_notification_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -102,6 +103,10 @@ class AlarmRingFlow {
     _currentRingingId = alarmId;
     _ringStartTimes[alarmId] = DateTime.now();
     await WakelockPlus.enable();
+
+    // Whatever live nap/focus countdown was showing, this alarm ringing is
+    // the terminal event — clear it so a stale notification doesn't linger.
+    await LiveTimerNotificationService.cancel();
 
     // Start foreground service for lock-screen takeover + volume-snooze
     await _startForegroundService(alarmId);

@@ -34,6 +34,7 @@ import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_command_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
+import 'package:alarm_plus/shared/widgets/live_status_island.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,8 +76,9 @@ class _AppWithTheme extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      builder: (context, child) =>
-          CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => CelebrationOverlayHost(
+        child: LiveStatusIsland(child: child ?? const SizedBox.shrink()),
+      ),
       routes: {
           '/': (_) => const SplashScreen(),
           '/app': (_) => const MainScaffold(),

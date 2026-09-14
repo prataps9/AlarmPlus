@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
-import 'package:alarm_plus/features/alarm/screens/quest_builder_screen.dart';
-import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -98,8 +96,6 @@ class _AppWithTheme extends ConsumerWidget {
           MorningCheckInScreen.routeName: (_) => const MorningCheckInScreen(),
           NapTimerScreen.routeName: (_) => const NapTimerScreen(),
           SoundSettingsScreen.routeName: (_) => const SoundSettingsScreen(),
-          QrSpotSetupScreen.routeName: (_) => const QrSpotSetupScreen(),
-          QuestBuilderScreen.routeName: (_) => const QuestBuilderScreen(),
         },
     );
   }

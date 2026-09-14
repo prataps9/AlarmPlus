@@ -9,6 +9,7 @@ import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/location/screens/location_alarm_screen.dart';
+import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
@@ -141,8 +142,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 8),
 
-          // ── FEATURES section ───────────────────────────────────
-          _SectionHeader(label: 'FEATURES'),
+          // ── SLEEP section ───────────────────────────────────────
+          _SectionHeader(label: 'SLEEP'),
+          _SettingTile(
+            title: 'Sleep Insights',
+            subtitle: 'Weekly score and trends',
+            trailing: const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFAAAAAA), size: 20),
+            onTap: () =>
+                Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
+          ),
+          _SettingTile(
+            title: 'Wind Down / Bedtime',
+            subtitle: 'Bedtime and wind-down reminders',
+            trailing: const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFAAAAAA), size: 20),
+            onTap: () =>
+                Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName),
+          ),
+          _SettingTile(
+            title: 'Sleep Diary',
+            subtitle: 'Log sleep quality daily',
+            trailing: const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFAAAAAA), size: 20),
+            onTap: () =>
+                Navigator.of(context).pushNamed(SleepDiaryScreen.routeName),
+          ),
+          const SizedBox(height: 8),
+
+          // ── SAFETY & AUTOMATION section ─────────────────────────
+          _SectionHeader(label: 'SAFETY & AUTOMATION'),
           FutureBuilder<String>(
             future: _guardianWebhookFuture,
             builder: (context, snapshot) {
@@ -177,29 +206,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: Color(0xFFAAAAAA), size: 20),
               );
             },
-          ),
-          _SettingTile(
-            title: 'Sleep Insights',
-            subtitle: 'Weekly score and trends',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
-          ),
-          _SettingTile(
-            title: 'Wind Down / Bedtime',
-            subtitle: 'Bedtime and wind-down reminders',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName),
-          ),
-          _SettingTile(
-            title: 'Sleep Diary',
-            subtitle: 'Log sleep quality daily',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
-            onTap: () => Navigator.of(context).pushNamed('/sleep-diary'),
           ),
           const SizedBox(height: 8),
 

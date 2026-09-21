@@ -20,6 +20,7 @@ import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/shared/models/day_type_profile.dart';
 
 const _nativeRingtoneKeyPrefix = 'alarm.native_ringtone';
 
@@ -327,10 +328,15 @@ class AlarmService {
       debugPrint('resyncSchedules: could not read scheduled alarms: $error');
     }
 
+    final now = DateTime.now();
+    // Before deciding what to re-arm: an expired skip would otherwise keep
+    // pushing the alarm past an occurrence that has already gone by.
+    await _clearExpiredSkips(now);
+
     final stale = alarmsNeedingReschedule(
       alarms: getAllAlarms(),
       scheduled: scheduled,
-      now: DateTime.now(),
+      now: now,
     );
     for (final alarm in stale) {
       await scheduleAlarm(alarm, persist: false);
@@ -349,6 +355,38 @@ class AlarmService {
     await _notifications.cancel(_windDownNotificationId(id));
     final prefs = await sp.SharedPreferences.getInstance();
     await prefs.remove('$_nativeRingtoneKeyPrefix.$alarmId');
+  }
+
+  /// Passes over the next occurrence without disabling the alarm, or restores
+  /// it when one is already being skipped. Returns the updated alarm.
+  static Future<AlarmModel?> toggleSkipNext(String id) async {
+    final alarm = StorageService.getAlarm(id);
+    if (alarm == null) {
+      return null;
+    }
+
+    final updated = alarm.isSkippingNext
+        ? alarm.copyWith(skippedOccurrence: null)
+        : alarm.copyWith(
+            skippedOccurrence: alarm.nextDateTimeFrom(DateTime.now()),
+          );
+
+    await saveAlarm(updated);
+    if (updated.isEnabled) {
+      await scheduleAlarm(updated, persist: false);
+    }
+    return updated;
+  }
+
+  /// Drops skips whose occurrence has already passed, so a card stops
+  /// claiming the next alarm is skipped once it no longer is.
+  static Future<void> _clearExpiredSkips(DateTime now) async {
+    for (final alarm in getAllAlarms()) {
+      final skipped = alarm.skippedOccurrence;
+      if (skipped != null && !skipped.isAfter(now)) {
+        await saveAlarm(alarm.copyWith(skippedOccurrence: null));
+      }
+    }
   }
 
   static Future<void> toggleAlarm(String id, bool on) async {
@@ -395,6 +433,8 @@ class AlarmService {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    bool sunriseWake = false,
+    DayTypeProfile? profile,
   }) {
     return AlarmModel(
       id: _uuid.v4(),
@@ -421,6 +461,8 @@ class AlarmService {
       wakeUpCheckEnabled: wakeUpCheckEnabled,
       wakeUpCheckMinutes: wakeUpCheckMinutes,
       hardcoreMode: hardcoreMode,
+      sunriseWake: sunriseWake,
+      profile: profile,
     );
   }
 

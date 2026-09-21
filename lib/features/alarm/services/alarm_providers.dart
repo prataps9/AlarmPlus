@@ -5,6 +5,7 @@ import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/shared/models/day_type_profile.dart';
 
 /// Provider for the current tab index
 final currentTabIndexProvider = StateProvider<int>((ref) => 0);
@@ -112,6 +113,8 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    bool sunriseWake = false,
+    DayTypeProfile? profile,
   }) async {
     final alarm = AlarmService.createAlarm(
       time: time,
@@ -137,11 +140,24 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       wakeUpCheckEnabled: wakeUpCheckEnabled,
       wakeUpCheckMinutes: wakeUpCheckMinutes,
       hardcoreMode: hardcoreMode,
+      sunriseWake: sunriseWake,
+      profile: profile,
     );
     await saveAlarm(alarm);
   }
 
-  /// Toggle alarm on/off
+  /// Skips the next occurrence, or restores it if already skipped.
+  Future<void> toggleSkipNext(String id) async {
+    final map = await state;
+    if (!map.containsKey(id)) return;
+
+    final updated = await AlarmService.toggleSkipNext(id);
+    if (updated == null) return;
+
+    map[id] = updated;
+    state = Future.value(Map.from(map));
+  }
+
   Future<void> toggleAlarm(String id, bool on) async {
     final map = await state;
     final alarm = map[id];
@@ -196,6 +212,41 @@ final alarmsListProvider = FutureProvider<List<AlarmModel>>((ref) async {
   });
   return sorted;
 });
+
+/// One profile's worth of alarms, for the grouped list.
+class AlarmGroup {
+  const AlarmGroup({required this.profile, required this.alarms});
+
+  /// Null for alarms that belong to no routine.
+  final DayTypeProfile? profile;
+  final List<AlarmModel> alarms;
+
+  String get label => profile?.label ?? 'Other';
+
+  /// True when every alarm in the group is armed.
+  bool get allEnabled => alarms.every((a) => a.isEnabled);
+}
+
+/// Pure: groups [alarms] by profile in enum order, with the ungrouped ones
+/// last. Empty groups are omitted, and the incoming order is preserved
+/// within each group.
+List<AlarmGroup> groupAlarmsByProfile(List<AlarmModel> alarms) {
+  final groups = <AlarmGroup>[];
+
+  for (final profile in DayTypeProfile.values) {
+    final matching = alarms.where((a) => a.profile == profile).toList();
+    if (matching.isNotEmpty) {
+      groups.add(AlarmGroup(profile: profile, alarms: matching));
+    }
+  }
+
+  final ungrouped = alarms.where((a) => a.profile == null).toList();
+  if (ungrouped.isNotEmpty) {
+    groups.add(AlarmGroup(profile: null, alarms: ungrouped));
+  }
+
+  return groups;
+}
 
 /// Provider for vibration setting
 final vibrationEnabledProvider = StateProvider<bool>((ref) => true);

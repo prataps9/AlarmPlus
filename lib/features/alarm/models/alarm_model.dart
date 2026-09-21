@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/shared/models/challenge_type.dart';
+import 'package:alarm_plus/shared/models/day_type_profile.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
 
@@ -31,6 +32,9 @@ class AlarmModel {
     this.maxSnoozes = 0,
     this.alarmVolume = 1.0,
     this.vibrationPattern = VibrationPatternType.standard,
+    this.sunriseWake = false,
+    this.profile,
+    this.skippedOccurrence,
   });
 
   final String id;
@@ -71,6 +75,24 @@ class AlarmModel {
 
   final VibrationPatternType vibrationPattern;
 
+  /// Brightens the ring screen from dark to warm daylight over
+  /// [gentleWakeDurationSeconds], alongside the audio ramp.
+  final bool sunriseWake;
+
+  /// Which routine this alarm belongs to, for grouping the list. Null means
+  /// ungrouped.
+  final DayTypeProfile? profile;
+
+  /// A single occurrence to pass over — "skip tomorrow" without disabling the
+  /// whole repeat schedule. Cleared once it is in the past.
+  final DateTime? skippedOccurrence;
+
+  /// Whether the upcoming occurrence is currently being passed over.
+  bool get isSkippingNext {
+    final skipped = skippedOccurrence;
+    return skipped != null && skipped.isAfter(DateTime.now());
+  }
+
   String get timeLabel => clockDigits(time);
 
   /// Empty when the device is on 24-hour time.
@@ -96,6 +118,19 @@ class AlarmModel {
   }
 
   DateTime nextDateTimeFrom(DateTime from) {
+    final candidate = _occurrenceOnOrAfter(from);
+
+    final skipped = skippedOccurrence;
+    if (skipped != null && candidate.isAtSameMomentAs(skipped)) {
+      // Exactly one occurrence is passed over, so search again from just
+      // after it rather than skipping every future match.
+      return _occurrenceOnOrAfter(candidate.add(const Duration(minutes: 1)));
+    }
+
+    return candidate;
+  }
+
+  DateTime _occurrenceOnOrAfter(DateTime from) {
     var candidate = DateTime(
       from.year,
       from.month,
@@ -149,6 +184,9 @@ class AlarmModel {
       'maxSnoozes': maxSnoozes,
       'alarmVolume': alarmVolume,
       'vibrationPattern': vibrationPattern.name,
+      'sunriseWake': sunriseWake,
+      'profile': profile?.name,
+      'skippedOccurrence': skippedOccurrence?.toIso8601String(),
     };
   }
 
@@ -210,6 +248,12 @@ class AlarmModel {
               .where((v) => v.name == map['vibrationPattern'])
               .firstOrNull ??
           VibrationPatternType.standard,
+      sunriseWake: (map['sunriseWake'] as bool?) ?? false,
+      profile: DayTypeProfile.values
+          .where((p) => p.name == map['profile'])
+          .firstOrNull,
+      skippedOccurrence:
+          DateTime.tryParse(map['skippedOccurrence']?.toString() ?? ''),
     );
   }
 
@@ -239,6 +283,9 @@ class AlarmModel {
     int? maxSnoozes,
     double? alarmVolume,
     VibrationPatternType? vibrationPattern,
+    bool? sunriseWake,
+    Object? profile = _sentinel,
+    Object? skippedOccurrence = _sentinel,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -268,6 +315,13 @@ class AlarmModel {
       maxSnoozes: maxSnoozes ?? this.maxSnoozes,
       alarmVolume: alarmVolume ?? this.alarmVolume,
       vibrationPattern: vibrationPattern ?? this.vibrationPattern,
+      sunriseWake: sunriseWake ?? this.sunriseWake,
+      profile: identical(profile, _sentinel)
+          ? this.profile
+          : profile as DayTypeProfile?,
+      skippedOccurrence: identical(skippedOccurrence, _sentinel)
+          ? this.skippedOccurrence
+          : skippedOccurrence as DateTime?,
     );
   }
 }

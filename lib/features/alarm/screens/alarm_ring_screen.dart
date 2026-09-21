@@ -887,10 +887,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       ),
     );
 
-    // Wrap with sunrise gradient for gentle wake alarms
-    if (alarm?.gentleWake == true) {
+    // sunriseWake is the dedicated setting, but gentleWake alarms have always
+    // shown the gradient — keeping them included avoids silently removing it
+    // from alarms that already had it.
+    if (alarm?.sunriseWake == true || alarm?.gentleWake == true) {
       body = SunriseGradient(
         durationSeconds: alarm!.gentleWakeDurationSeconds,
+        // Only the explicit setting drives the device's own brightness.
+        rampBrightness: alarm.sunriseWake,
         child: body,
       );
     } else {

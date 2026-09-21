@@ -19,6 +19,8 @@ import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/shared/models/day_type_profile.dart';
+import 'package:alarm_plus/core/services/custom_sound_service.dart';
 
 class AlarmsScreen extends ConsumerWidget {
   const AlarmsScreen({super.key});
@@ -35,6 +37,17 @@ class AlarmsScreen extends ConsumerWidget {
         data: (alarms) {
           if (alarms.isEmpty) return _EmptyAlarms(ref: ref);
 
+          final groups = groupAlarmsByProfile(alarms);
+          // Headers only earn their space once alarms actually belong to a
+          // routine — otherwise the list looks exactly as it always has.
+          final showGroups = groups.any((g) => g.profile != null);
+
+          final items = <Object>[];
+          for (final group in groups) {
+            if (showGroups) items.add(group);
+            items.addAll(group.alarms);
+          }
+
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(
               Spacing.xl,
@@ -43,9 +56,22 @@ class AlarmsScreen extends ConsumerWidget {
               // Clears the FAB.
               Spacing.xxxl * 2.5,
             ),
-            itemCount: alarms.length,
+            itemCount: items.length,
             itemBuilder: (context, index) {
-              final alarm = alarms[index];
+              final item = items[index];
+              if (item is AlarmGroup) {
+                return _GroupHeader(
+                  group: item,
+                  onSetAll: (enabled) {
+                    final notifier = ref.read(alarmsMapProvider.notifier);
+                    for (final alarm in item.alarms) {
+                      notifier.toggleAlarm(alarm.id, enabled);
+                    }
+                  },
+                );
+              }
+
+              final alarm = item as AlarmModel;
               return AlarmCard(
                 key: ValueKey(alarm.id),
                 alarm: alarm,
@@ -57,6 +83,9 @@ class AlarmsScreen extends ConsumerWidget {
                 },
                 onDelete: () {
                   ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
+                },
+                onToggleSkip: () {
+                  ref.read(alarmsMapProvider.notifier).toggleSkipNext(alarm.id);
                 },
               );
             },
@@ -85,6 +114,55 @@ class AlarmsScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+    );
+  }
+}
+
+/// Section header for a routine, with a control to arm or disarm the whole
+/// group at once.
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({required this.group, required this.onSetAll});
+
+  final AlarmGroup group;
+  final ValueChanged<bool> onSetAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final allOn = group.allEnabled;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              group.label.toUpperCase(),
+              style: theme.textTheme.labelMedium?.copyWith(
+                letterSpacing: 2,
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Text(
+            '${group.alarms.length}',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: Spacing.sm),
+          TextButton(
+            onPressed: () => onSetAll(!allOn),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(allOn ? 'All off' : 'All on'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -211,6 +289,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   String _personality = 'gentle';
   final Set<int> _repeatDays = {2, 3, 4, 5, 6};
   bool _gentleWake = false;
+  bool _sunriseWake = false;
   int _gentleWakeDuration = 60;
   ChallengeType? _challengeType;
   String? _voiceMemoPath;
@@ -258,7 +337,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       ..clear()
       ..addAll(alarm.repeatDays);
     _gentleWake = alarm.gentleWake;
+    _sunriseWake = alarm.sunriseWake;
     _gentleWakeDuration = alarm.gentleWakeDurationSeconds;
+    if (alarm.profile != null) _profile = alarm.profile!;
     _challengeType = alarm.challengeType;
     _voiceMemoPath = alarm.voiceMemoPath;
     _questMode = alarm.questMode;
@@ -605,6 +686,25 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                         ),
                       )
                     : const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 24),
+              // Sunrise wake-up light
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Sunrise Light', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
+                        Text('Brighten the screen from dark to daylight over ${_gentleWakeDuration}s', style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  _AnimatedToggle(
+                    value: _sunriseWake,
+                    onChanged: (v) => setState(() => _sunriseWake = v),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               // Wake Challenge picker
@@ -1237,6 +1337,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             maxSnoozes: _maxSnoozes,
             alarmVolume: _alarmVolume,
             vibrationPattern: _vibrationPattern,
+            sunriseWake: _sunriseWake,
+            profile: _profile,
           ),
         );
       } else {
@@ -1264,6 +1366,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           maxSnoozes: _maxSnoozes,
           alarmVolume: _alarmVolume,
           vibrationPattern: _vibrationPattern,
+          sunriseWake: _sunriseWake,
+          profile: _profile,
         );
       }
 
@@ -1318,6 +1422,7 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
   final _player = AudioPlayer();
   String? _previewingKey;
   bool _pickingNative = false;
+  bool _importingFile = false;
   late String _selected;
   late String _selectedTitle;
 
@@ -1369,6 +1474,19 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
     _player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => _previewingKey = null);
     });
+  }
+
+  Future<void> _pickCustomFile() async {
+    if (_importingFile) return;
+    setState(() => _importingFile = true);
+
+    final imported = await CustomSoundService.pickAndImport();
+
+    if (!mounted) return;
+    setState(() => _importingFile = false);
+    if (imported != null) {
+      await _select(imported.path, imported.title);
+    }
   }
 
   Future<void> _pickNative() async {
@@ -1455,6 +1573,27 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                 onTap: _pickNative,
               ),
             ],
+
+            // Works on both platforms — iOS has no system ringtone picker, so
+            // this is the only way to use your own audio there.
+            const SizedBox(height: 4),
+            _SoundRow(
+              icon: Icons.audio_file_rounded,
+              label: 'My Music',
+              subtitle: CustomSoundService.isCustom(_selected)
+                  ? _selectedTitle
+                  : 'Use an audio file from this device',
+              isSelected: CustomSoundService.isCustom(_selected),
+              trailing: _importingFile
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right_rounded,
+                      color: Color(0xFFAAAAAA), size: 20),
+              onTap: _pickCustomFile,
+            ),
 
             const SizedBox(height: 16),
             const Text('AMBIENT SOUNDS',

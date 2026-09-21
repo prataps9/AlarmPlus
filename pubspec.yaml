@@ -71,6 +71,8 @@ dependencies:
   share_plus: ^11.0.0
   home_widget: ^0.7.0
   speech_to_text: ^7.0.0
+  screen_brightness: ^2.1.11
+  file_picker: ^11.0.3
 
 dependency_overrides:
   vector_math: ">=2.2.0 <3.0.0"

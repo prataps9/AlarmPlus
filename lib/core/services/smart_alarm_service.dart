@@ -12,10 +12,10 @@ import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/shared/models/day_type_profile.dart';
 
 enum DismissChallengeType { none, math, memory, qr, steps }
 
-enum DayTypeProfile { workday, gym, weekend, travel }
 
 class AlarmReliabilityStatus {
   const AlarmReliabilityStatus({

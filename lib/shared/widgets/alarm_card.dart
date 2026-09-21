@@ -10,6 +10,7 @@ class AlarmCard extends StatelessWidget {
     required this.onToggle,
     this.onTap,
     this.onDelete,
+    this.onToggleSkip,
   });
 
   final AlarmModel alarm;
@@ -18,6 +19,9 @@ class AlarmCard extends StatelessWidget {
   /// Opens the alarm for editing.
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
+  /// Skips the next occurrence, or restores it if already skipped.
+  final VoidCallback? onToggleSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +150,30 @@ class AlarmCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                // Stated plainly: a silently skipped alarm is exactly the kind
+                // of surprise an alarm app must never spring on someone.
+                if (alarm.isSkippingNext) ...[
+                  const SizedBox(height: Spacing.xs),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.skip_next_rounded,
+                        size: 16,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: Spacing.xs),
+                      Expanded(
+                        child: Text(
+                          'Skipping the next one',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: Spacing.md),
                 Row(
                   children: [
@@ -174,6 +202,19 @@ class AlarmCard extends StatelessWidget {
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
+                    // Skipping only means anything for an armed alarm.
+                    if (onToggleSkip != null && alarm.isEnabled)
+                      TextButton(
+                        onPressed: onToggleSkip,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Spacing.md,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(alarm.isSkippingNext ? 'Undo' : 'Skip next'),
+                      ),
                     if (onTap != null)
                       Icon(
                         Icons.chevron_right_rounded,

@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class BedtimeService {
   static const _key = 'bedtime_schedule';
@@ -86,11 +87,6 @@ class BedtimeService {
     );
   }
 
-  static String nextBedtimeLabel(BedtimeSchedule schedule) {
-    final h = schedule.targetBedtime.hour;
-    final m = schedule.targetBedtime.minute;
-    final period = h >= 12 ? 'PM' : 'AM';
-    final displayH = h % 12 == 0 ? 12 : h % 12;
-    return '$displayH:${m.toString().padLeft(2, '0')} $period';
-  }
+  static String nextBedtimeLabel(BedtimeSchedule schedule) =>
+      formatClockTime(schedule.targetBedtime);
 }

@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 /// Everything the Insights tab renders, resolved in one pass.
 ///
@@ -133,10 +135,10 @@ String _headlineFor(List<AlarmModel> alarms, List<double> counts) {
     if (counts[i] > counts[busiest]) busiest = i;
   }
 
-  final hh = avgHour == 0 ? 12 : (avgHour > 12 ? avgHour - 12 : avgHour);
-  final mm = avgMinute.toString().padLeft(2, '0');
-  final period = avgHour >= 12 ? 'PM' : 'AM';
+  final clock = formatClockTime(
+    TimeOfDay(hour: avgHour, minute: avgMinute),
+  );
 
   return 'Most alarms cluster on ${WeekdayLoad.dayLabels[busiest]} '
-      'around $hh:$mm $period.';
+      'around $clock.';
 }

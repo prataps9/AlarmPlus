@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class AlarmModel {
   AlarmModel({
@@ -71,15 +71,10 @@ class AlarmModel {
 
   final VibrationPatternType vibrationPattern;
 
-  String get timeLabel {
-    final now = DateTime.now();
-    final date = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return DateFormat('hh:mm').format(date);
-  }
+  String get timeLabel => clockDigits(time);
 
-  String get periodLabel {
-    return time.hour >= 12 ? 'PM' : 'AM';
-  }
+  /// Empty when the device is on 24-hour time.
+  String get periodLabel => clockPeriodLabel(time);
 
   String get repeatLabel {
     if (repeatDays.length == 7) {

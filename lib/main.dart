@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,11 +64,39 @@ class AlarmPlusApp extends StatelessWidget {
   }
 }
 
-class _AppWithTheme extends ConsumerWidget {
+class _AppWithTheme extends ConsumerStatefulWidget {
   const _AppWithTheme();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AppWithTheme> createState() => _AppWithThemeState();
+}
+
+class _AppWithThemeState extends ConsumerState<_AppWithTheme>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A repeating alarm only re-arms its next occurrence when it's dismissed
+    // in-app. Resuming is the reliable moment to notice a chain that broke
+    // while we weren't running.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AlarmService.resyncSchedules());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = ref.watch(themeDarkProvider);
 
     return MaterialApp(

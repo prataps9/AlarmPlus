@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 enum DismissChallengeType { none, math, memory, qr, steps }
 
@@ -1429,12 +1430,7 @@ class SmartAlarmService {
     return score.round().clamp(45, 100);
   }
 
-  static String formatTimeOfDay(TimeOfDay time) {
-    final hour12 = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$hour12:$minute $period';
-  }
+  static String formatTimeOfDay(TimeOfDay time) => formatClockTime(time);
 }
 
 extension on TeenSleepProfile {

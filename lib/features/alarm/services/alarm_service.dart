@@ -5,7 +5,6 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -20,8 +19,28 @@ import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 const _nativeRingtoneKeyPrefix = 'alarm.native_ringtone';
+
+/// The enabled alarms that have no future occurrence still scheduled, given
+/// what the platform currently holds in [scheduled] (alarm int id → fire time).
+///
+/// Kept pure and separate from [AlarmService.resyncSchedules] so the repair
+/// rule is testable without the alarm plugin or platform channels.
+List<AlarmModel> alarmsNeedingReschedule({
+  required List<AlarmModel> alarms,
+  required Map<int, DateTime> scheduled,
+  required DateTime now,
+}) {
+  return alarms.where((alarm) {
+    if (!alarm.isEnabled) {
+      return false;
+    }
+    final pending = scheduled[AlarmService.alarmIntId(alarm.id)];
+    return pending == null || !pending.isAfter(now);
+  }).toList();
+}
 
 class AlarmService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -156,7 +175,13 @@ class AlarmService {
       id: alarmId,
       dateTime: targetTime,
       assetAudioPath: audioPath,
-      volumeSettings: VolumeSettings.fade(fadeDuration: Duration(seconds: 8)),
+      volumeSettings: VolumeSettings.fade(
+        fadeDuration: const Duration(seconds: 8),
+        volume: alarm.alarmVolume,
+        // Hardcore alarms re-assert their volume if the user tries to turn
+        // it down mid-ring.
+        volumeEnforced: alarm.hardcoreMode,
+      ),
       notificationSettings: NotificationSettings(
         title: alarm.label.isEmpty ? 'Alarm+' : alarm.label,
         body: alarm.tag,
@@ -206,9 +231,10 @@ class AlarmService {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: scheduleMode,
-      matchDateTimeComponents: alarm.repeatDays.isNotEmpty
-          ? DateTimeComponents.time
-          : null,
+      // No matchDateTimeComponents: this notification is the backup for one
+      // specific occurrence (targetTime) and is re-armed each cycle alongside
+      // Alarm.set. DateTimeComponents.time would repeat it *daily*, firing a
+      // full-screen alarm notification on days a weekday-only alarm is off.
       payload: '$alarmId',
     );
 
@@ -261,6 +287,55 @@ class AlarmService {
     for (final alarm in alarms) {
       await scheduleAlarm(alarm, persist: false);
     }
+  }
+
+  /// Re-arms every enabled alarm whose next occurrence is missing or already
+  /// in the past. Returns how many were repaired.
+  ///
+  /// Repeating alarms are scheduled one occurrence at a time, and the next one
+  /// is normally armed when the ring is dismissed inside the app. When that
+  /// never happens — dismissed from the notification, process killed, device
+  /// rebooted, clock or timezone changed — the chain simply stops and the
+  /// alarm never fires again. Calling this on resume (and from the native
+  /// time-change receiver) closes that hole.
+  ///
+  /// Safe to call often: an alarm already scheduled for a future moment is
+  /// left untouched.
+  static Future<int> resyncSchedules() async {
+    if (!_supportsNativeAlarmOps) {
+      return 0;
+    }
+
+    // Rescheduling calls Alarm.stop() first, which would silence an alarm
+    // that is ringing right now. If anything is ringing, leave scheduling
+    // alone — the ring flow re-arms on dismiss.
+    try {
+      if (await Alarm.isRinging()) {
+        return 0;
+      }
+    } catch (error) {
+      debugPrint('resyncSchedules: ringing check failed: $error');
+      return 0;
+    }
+
+    final scheduled = <int, DateTime>{};
+    try {
+      for (final settings in await Alarm.getAlarms()) {
+        scheduled[settings.id] = settings.dateTime;
+      }
+    } catch (error) {
+      debugPrint('resyncSchedules: could not read scheduled alarms: $error');
+    }
+
+    final stale = alarmsNeedingReschedule(
+      alarms: getAllAlarms(),
+      scheduled: scheduled,
+      now: DateTime.now(),
+    );
+    for (final alarm in stale) {
+      await scheduleAlarm(alarm, persist: false);
+    }
+    return stale.length;
   }
 
   static Future<void> _cancelScheduledArtifacts(String id) async {
@@ -349,9 +424,7 @@ class AlarmService {
     );
   }
 
-  static String formatTimeLabel(DateTime value) {
-    return DateFormat('hh:mm a').format(value);
-  }
+  static String formatTimeLabel(DateTime value) => formatClockDateTime(value);
 
   static int _idToInt(String id) {
     final sanitized = id.replaceAll('-', '');

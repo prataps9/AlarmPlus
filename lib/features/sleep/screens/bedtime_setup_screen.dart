@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class BedtimeSetupScreen extends StatefulWidget {
   const BedtimeSetupScreen({super.key});
@@ -55,11 +56,7 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final h = _bedtime.hour;
-    final m = _bedtime.minute;
-    final period = h >= 12 ? 'PM' : 'AM';
-    final displayH = h % 12 == 0 ? 12 : h % 12;
-    final timeLabel = '$displayH:${m.toString().padLeft(2, '0')} $period';
+    final timeLabel = formatClockTime(_bedtime, context: context);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -167,10 +164,10 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
 
   String _windDownTimeLabel() {
     final totalMin = _bedtime.hour * 60 + _bedtime.minute - _windDownMinutes;
-    final h = (totalMin ~/ 60) % 24;
-    final m = totalMin % 60;
-    final period = h >= 12 ? 'PM' : 'AM';
-    final dH = h % 12 == 0 ? 12 : h % 12;
-    return '$dH:${m.toString().padLeft(2, '0')} $period';
+    final wrapped = (totalMin + 24 * 60) % (24 * 60);
+    return formatClockTime(
+      TimeOfDay(hour: wrapped ~/ 60, minute: wrapped % 60),
+      context: context,
+    );
   }
 }

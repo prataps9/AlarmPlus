@@ -18,6 +18,7 @@ import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class AlarmsScreen extends ConsumerWidget {
   const AlarmsScreen({super.key});
@@ -1041,7 +1042,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       wakeTime: TimeOfDay(hour: hour24, minute: _minute),
       sleepHours: _sleepGoalHours,
     );
-    return '${_formatHour(bedtime.hour)}:${bedtime.minute.toString().padLeft(2, '0')} ${bedtime.hour >= 12 ? 'PM' : 'AM'}';
+    return formatClockTime(bedtime, context: context);
   }
 
   String _soundLabel() => _soundTitle;
@@ -1190,11 +1191,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     final minutes = until.inMinutes % 60;
     final away = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
 
-    final hh = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final mm = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-
-    return 'Alarm set for $hh:$mm $period · in $away';
+    return 'Alarm set for ${formatClockTime(time, context: context)} · in $away';
   }
 
   Future<void> _saveAlarm() async {

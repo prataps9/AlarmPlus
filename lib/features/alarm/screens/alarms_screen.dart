@@ -23,6 +23,8 @@ import 'package:alarm_plus/shared/utils/time_format.dart';
 class AlarmsScreen extends ConsumerWidget {
   const AlarmsScreen({super.key});
 
+  static const routeName = '/alarms';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alarmsAsync = ref.watch(alarmsListProvider);

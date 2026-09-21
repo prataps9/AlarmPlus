@@ -31,6 +31,19 @@ object WidgetCommandBridge {
     const val CMD_TOGGLE_NEXT = "toggleNext"
     const val CMD_SNOOZE = "snooze"
 
+    /** Reschedule anything stale — boot, timezone/clock change, app update. */
+    const val CMD_RESYNC = "resync"
+
+    const val CMD_SHOW_ALARMS = "showAlarms"
+    const val CMD_DISMISS_ALARM = "dismissAlarm"
+
+    /** Carried as a JSON object rather than a bare string: it has arguments. */
+    const val CMD_SET_ALARM = "setAlarm"
+
+    const val CMD_NEW_ALARM = "newAlarm"
+    const val CMD_START_NAP = "startNap"
+    const val CMD_START_FOCUS = "startFocus"
+
     /**
      * Delivers [command], returning true if it reached a running app. When it
      * returns false the command has been queued instead and the caller should
@@ -54,6 +67,15 @@ object WidgetCommandBridge {
         enqueue(context, command)
         return false
     }
+
+    /**
+     * Queues [command] without attempting live delivery.
+     *
+     * For the cold-start path: during MainActivity.onCreate the engine exists
+     * but Dart's `main()` has not yet bound its handler, so a live call would
+     * be dropped. Queued commands are drained once storage is ready.
+     */
+    fun queue(context: Context, command: String) = enqueue(context, command)
 
     /**
      * Stored as a JSON array string rather than a StringSet: Flutter's

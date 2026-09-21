@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launcher long-press shortcuts.
+
+  Each carries its command in an alarmplus://shortcut/<command> data URI
+  rather than an intent extra, because <extra> is not parsed from static
+  shortcut XML. MainActivity reads the URI and hands the command to Dart.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_alarm"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_alarm"
+        android:shortcutShortLabel="@string/shortcut_new_alarm_short"
+        android:shortcutLongLabel="@string/shortcut_new_alarm_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.alarmplus.app"
+            android:targetClass="com.alarmplus.app.MainActivity"
+            android:data="alarmplus://shortcut/newAlarm" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="start_nap"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_nap"
+        android:shortcutShortLabel="@string/shortcut_nap_short"
+        android:shortcutLongLabel="@string/shortcut_nap_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.alarmplus.app"
+            android:targetClass="com.alarmplus.app.MainActivity"
+            android:data="alarmplus://shortcut/startNap" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="start_focus"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_focus"
+        android:shortcutShortLabel="@string/shortcut_focus_short"
+        android:shortcutLongLabel="@string/shortcut_focus_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.alarmplus.app"
+            android:targetClass="com.alarmplus.app.MainActivity"
+            android:data="alarmplus://shortcut/startFocus" />
+    </shortcut>
+</shortcuts>

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'package:alarm_plus/core/services/next_alarm_clock_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -30,6 +33,11 @@ class WidgetSyncService {
 
   static Future<void> refresh() async {
     if (kIsWeb) return;
+
+    // Every caller of refresh() is exactly "the alarm set changed", which is
+    // also when the system's registered next alarm has to be updated.
+    unawaited(NextAlarmClockService.sync());
+
     try {
       await HomeWidget.setAppGroupId(_iosAppGroupId);
       final stats = await SmartAlarmService.getStats();

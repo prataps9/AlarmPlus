@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_new_alarm_short">New alarm</string>
+    <string name="shortcut_new_alarm_long">Set a new alarm</string>
+
+    <string name="shortcut_nap_short">Nap</string>
+    <string name="shortcut_nap_long">Start a nap timer</string>
+
+    <string name="shortcut_focus_short">Focus</string>
+    <string name="shortcut_focus_long">Start a focus session</string>
+</resources>

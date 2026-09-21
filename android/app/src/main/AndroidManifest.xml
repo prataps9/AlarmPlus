@@ -56,6 +56,36 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Launcher long-press shortcuts. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+        <!-- Standard system alarm intents, so Google Assistant and other apps
+             can drive AlarmPlus the way they drive the stock Clock. No UI of
+             its own; it hands the intent to Dart and finishes. -->
+        <activity
+            android:name=".AlarmIntentActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SET_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SHOW_ALARMS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DISMISS_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SNOOZE_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <service
             android:name=".AlarmForegroundService"
@@ -79,6 +109,30 @@
             <intent-filter>
                 <action android:name="alarmplus.WIDGET_TOGGLE_NEXT" />
                 <action android:name="alarmplus.WIDGET_SNOOZE" />
+            </intent-filter>
+        </receiver>
+        <!-- Fires when the alarm registered with the system via setAlarmClock
+             is due. Never rings — only asks Dart to re-check its schedule.
+             Not exported and no intent-filter: it is only ever reached by this
+             app's own explicit PendingIntent. -->
+        <receiver
+            android:name=".NextAlarmMarkerReceiver"
+            android:exported="false" />
+        <!-- Alarms are scheduled as a relative delay, so a timezone or clock
+             change silently shifts them all; a reboot or update drops them.
+
+             Exported, because a manifest-registered receiver with an
+             intent-filter does not receive system broadcasts otherwise. Safe:
+             all four are protected broadcasts only the OS can send. -->
+        <receiver
+            android:name=".SystemTimeChangeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
         <receiver

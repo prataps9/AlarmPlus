@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
+import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -115,6 +116,7 @@ class _AppWithThemeState extends ConsumerState<_AppWithTheme>
           OnboardingScreen.routeName: (_) => const OnboardingScreen(),
           FocusTimerScreen.routeName: (_) => const FocusTimerScreen(),
           AlarmRingScreen.routeName: (_) => const AlarmRingScreen(),
+          AlarmsScreen.routeName: (_) => const AlarmsScreen(),
           MorningMissionsScreen.routeName: (_) => const MorningMissionsScreen(),
           SplashScreen.routeName: (_) => const SplashScreen(),
           WakeRoutineScreen.routeName: (_) => const WakeRoutineScreen(),

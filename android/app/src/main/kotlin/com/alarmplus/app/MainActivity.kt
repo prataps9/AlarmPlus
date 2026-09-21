@@ -34,6 +34,27 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             km.requestDismissKeyguard(this, null)
         }
+
+        // Queued, not dispatched: Dart's main() has not bound its handler yet
+        // this early, so a live call would be dropped.
+        shortcutCommand(intent)?.let { WidgetCommandBridge.queue(this, it) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Already running, so Dart is listening and can act immediately.
+        shortcutCommand(intent)?.let { WidgetCommandBridge.dispatch(this, it) }
+    }
+
+    /**
+     * Launcher long-press shortcuts arrive as an explicit intent carrying
+     * `alarmplus://shortcut/<command>`.
+     */
+    private fun shortcutCommand(source: Intent?): String? {
+        val data = source?.data ?: return null
+        if (data.scheme != "alarmplus" || data.host != "shortcut") return null
+        return data.lastPathSegment?.takeIf { it.isNotEmpty() }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -64,6 +85,21 @@ class MainActivity : FlutterActivity() {
                     "getDefaultAlarmUri" -> {
                         val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                         result.success(uri?.toString())
+                    }
+                    "setNextAlarmClock" -> {
+                        // Dart sends epoch millis as a Long; Flutter may hand it
+                        // over as an Int when it fits, so accept either.
+                        val millis = (call.argument<Any>("triggerAtMillis") as? Number)?.toLong()
+                        if (millis == null || millis <= 0) {
+                            NextAlarmRegistrar.clear(this)
+                        } else {
+                            NextAlarmRegistrar.setNextAlarm(this, millis)
+                        }
+                        result.success(null)
+                    }
+                    "clearNextAlarmClock" -> {
+                        NextAlarmRegistrar.clear(this)
+                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }

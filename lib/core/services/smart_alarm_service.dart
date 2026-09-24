@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:alarm_plus/core/services/celebration_event.dart';
+import 'package:alarm_plus/core/services/progression_service.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
@@ -74,6 +75,7 @@ class DismissReward {
     required this.wasNoSnooze,
     this.hitStreakMilestone,
     this.comebackBonus,
+    this.xpBoosted = false,
   });
 
   final int xpEarned;
@@ -83,6 +85,26 @@ class DismissReward {
   final bool wasNoSnooze;
   final int? hitStreakMilestone;
   final int? comebackBonus;
+
+  /// Whether a double-XP boost was running, so [xpEarned] is already doubled.
+  final bool xpBoosted;
+}
+
+/// Result of [SmartAlarmService.awardXp]: what was actually credited after
+/// any XP boost, and the new lifetime total.
+class XpAward {
+  const XpAward({required this.earned, required this.total});
+
+  final int earned;
+  final int total;
+}
+
+/// A streak lost to a missed alarm that can still be bought back.
+class LostStreak {
+  const LostStreak({required this.days, required this.lostAt});
+
+  final int days;
+  final DateTime lostAt;
 }
 
 class MoodCheckIn {
@@ -266,6 +288,7 @@ class SmartAlarmService {
   static const _streakMilestonesSeenKey = 'smart.streak.milestones_seen';
   static const _streakDismissHistoryKey = 'smart.streak.dismiss_history';
   static const _streakComebackUsedKey = 'smart.streak.comeback_bonus_used';
+  static const _streakLostKey = 'smart.streak.lost';
   // Math challenge keys
   static const _mathDifficultyKey = 'smart.math.difficulty';
   static const _mathStatsKey = 'smart.math.stats';
@@ -301,12 +324,17 @@ class SmartAlarmService {
 
   static const List<int> _streakMilestones = [7, 14, 30, 60, 100];
 
+  /// How long after losing a streak it can still be repaired from the shop.
+  static const Duration streakRepairWindow = Duration(hours: 48);
+
   static final _celebrationController = StreamController<CelebrationEvent>.broadcast();
 
   /// Broadcasts a [CelebrationEvent] whenever a level-up, badge unlock, or
   /// streak milestone happens, so UI (see [CelebrationOverlayHost]) can react
   /// with a confetti burst / banner regardless of which call site triggered it.
   static Stream<CelebrationEvent> get celebrationEvents => _celebrationController.stream;
+
+  static void celebrate(CelebrationEvent event) => _celebrationController.add(event);
 
   static const List<Map<String, String>> _missionPool = [
     {'id': 'm1', 'title': 'Drink a glass of water', 'icon': '💧'},
@@ -328,17 +356,28 @@ class SmartAlarmService {
     return prefs.getInt(_xpKey) ?? 0;
   }
 
-  static Future<int> addXp(int amount) async {
+  /// Adds XP (doubled while an XP boost is running) and returns the new total.
+  static Future<int> addXp(int amount) async => (await awardXp(amount)).total;
+
+  /// Like [addXp], but also reports how much was actually credited, for UI
+  /// that shows "+N XP".
+  static Future<XpAward> awardXp(int amount) async {
+    final earned = await ProgressionService.boosted(amount);
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getInt(_xpKey) ?? 0;
-    final next = (current + amount).clamp(0, 999999);
+    final next = (current + earned).clamp(0, 999999);
     await prefs.setInt(_xpKey, next);
     final levelBefore = levelFromXp(current);
     final levelAfter = levelFromXp(next);
     if (levelAfter > levelBefore) {
       _celebrationController.add(CelebrationEvent.levelUp(levelAfter));
     }
-    return next;
+    // Only gains count toward the daily goal; a snooze penalty shouldn't
+    // un-hit a goal you already reached.
+    if (earned > 0) {
+      await ProgressionService.recordActivity(QuestMetric.xp, earned);
+    }
+    return XpAward(earned: earned, total: next);
   }
 
   static int levelFromXp(int xp) => xp ~/ 500;
@@ -467,7 +506,10 @@ class SmartAlarmService {
     final milestonesSeen = await getStreakMilestonesSeen();
     final hitMilestone = _streakMilestones.contains(newStreak) && !milestonesSeen.contains(newStreak);
     if (hitMilestone) {
-      await prefs.setInt(_streakFreezesKey, (prefs.getInt(_streakFreezesKey) ?? 0) + 1);
+      // Freezes cap out like the shop's; past the cap, pay the freeze in gems.
+      if (!await addStreakFreeze()) {
+        await ProgressionService.addGems(ShopItem.streakFreeze.price ~/ 3);
+      }
       final seen = [...milestonesSeen, newStreak];
       await prefs.setString(_streakMilestonesSeenKey, jsonEncode(seen));
       _celebrationController.add(CelebrationEvent.streakMilestone(newStreak));
@@ -480,12 +522,14 @@ class SmartAlarmService {
     final comebackXp = await _checkComebackBonus(prefs, stats.currentStreak);
     xp += comebackXp;
 
-    final totalXp = await addXp(xp);
+    final award = await awardXp(xp);
+    if (!hadSnooze) await ProgressionService.recordActivity(QuestMetric.noSnoozeWake);
     final newBadges = await checkAndUnlockBadges(next);
 
     return DismissReward(
-      xpEarned: xp,
-      totalXp: totalXp,
+      xpEarned: award.earned,
+      totalXp: award.total,
+      xpBoosted: award.earned > xp,
       newlyUnlockedBadges: newBadges,
       stats: next,
       wasNoSnooze: !hadSnooze,
@@ -527,16 +571,39 @@ class SmartAlarmService {
     await prefs.setInt(_consecutiveNoSnoozeKey, 0);
   }
 
-  static Future<void> recordMissed() async {
+  /// Records an alarm that rang out unanswered. If the user holds a streak
+  /// freeze it's spent to keep the streak alive (at most one per day, so the
+  /// recovery backup ringing out too doesn't burn a second one); otherwise the
+  /// streak resets and stays repairable for [streakRepairWindow].
+  ///
+  /// Returns true when the streak survived.
+  static Future<bool> recordMissed() async {
+    final prefs = await SharedPreferences.getInstance();
     final stats = await getStats();
-    await _saveStats(
-      stats.copyWith(
-        missedCount: stats.missedCount + 1,
-        currentStreak: 0,
-      ),
-    );
+    final counted = stats.copyWith(missedCount: stats.missedCount + 1);
+
+    if (stats.currentStreak > 0) {
+      final frozenToday = prefs.getString(_streakFreezeUsedDateKey) == _isoDate(DateTime.now());
+      if (frozenToday || await useStreakFreeze()) {
+        await _saveStats(counted);
+        if (!frozenToday) {
+          _celebrationController.add(CelebrationEvent.streakFrozen(stats.currentStreak));
+        }
+        return true;
+      }
+      await prefs.setString(
+        _streakLostKey,
+        jsonEncode({'days': stats.currentStreak, 'at': DateTime.now().toIso8601String()}),
+      );
+    }
+
+    await _saveStats(counted.copyWith(currentStreak: 0));
     await _recordDismissHistory(false);
+    return false;
   }
+
+  static String _isoDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   static Future<AlarmStats> getStats() async {
     final prefs = await SharedPreferences.getInstance();
@@ -607,6 +674,7 @@ class SmartAlarmService {
     final stats = await getStats();
     await _saveStats(stats.copyWith(moodCheckInCount: stats.moodCheckInCount + 1));
     await addXp(20);
+    await ProgressionService.recordActivity(QuestMetric.moodCheckIn);
   }
 
   // ─── Existing methods ────────────────────────────────────────────────────────
@@ -1036,9 +1104,50 @@ class SmartAlarmService {
     final owned = prefs.getInt(_streakFreezesKey) ?? 0;
     if (owned <= 0) return false;
     await prefs.setInt(_streakFreezesKey, owned - 1);
-    final today = DateTime.now();
-    await prefs.setString(_streakFreezeUsedDateKey,
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}');
+    await prefs.setString(_streakFreezeUsedDateKey, _isoDate(DateTime.now()));
+    return true;
+  }
+
+  /// Adds one freeze unless already holding [ProgressionService.maxStreakFreezes].
+  static Future<bool> addStreakFreeze() async {
+    final prefs = await SharedPreferences.getInstance();
+    final owned = prefs.getInt(_streakFreezesKey) ?? 0;
+    if (owned >= ProgressionService.maxStreakFreezes) return false;
+    await prefs.setInt(_streakFreezesKey, owned + 1);
+    return true;
+  }
+
+  /// The streak most recently lost to a missed alarm, if it's still inside
+  /// [streakRepairWindow].
+  static Future<LostStreak?> getRepairableStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_streakLostKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final lost = LostStreak(
+        days: (map['days'] as num).toInt(),
+        lostAt: DateTime.parse(map['at'] as String),
+      );
+      if (DateTime.now().difference(lost.lostAt) > streakRepairWindow) return null;
+      return lost;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Restores a lost streak on top of whatever has been rebuilt since it broke.
+  static Future<bool> repairStreak() async {
+    final lost = await getRepairableStreak();
+    if (lost == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final stats = await getStats();
+    final restored = lost.days + stats.currentStreak;
+    await _saveStats(stats.copyWith(
+      currentStreak: restored,
+      bestStreak: restored > stats.bestStreak ? restored : stats.bestStreak,
+    ));
+    await prefs.remove(_streakLostKey);
     return true;
   }
 
@@ -1268,15 +1377,15 @@ class SmartAlarmService {
     missions[idx].completedAt = DateTime.now();
     await saveTodayMissions(missions);
 
-    final xp = missions[idx].xpReward;
-    await addXp(xp);
+    final award = await awardXp(missions[idx].xpReward);
+    await ProgressionService.recordActivity(QuestMetric.missions);
     await prefs.setInt(_missionTotalKey, (prefs.getInt(_missionTotalKey) ?? 0) + 1);
 
     // Check if all 3 missions complete → update streak
     if (missions.every((m) => m.isCompleted)) {
       await _updateMissionStreak(prefs);
     }
-    return xp;
+    return award.earned;
   }
 
   static Future<void> _updateMissionStreak(SharedPreferences prefs) async {
@@ -1369,6 +1478,9 @@ class SmartAlarmService {
     final best = prefs.getInt(_wakeBestScoreKey) ?? 0;
     if (score.total > best) {
       await prefs.setInt(_wakeBestScoreKey, score.total);
+    }
+    if (score.total >= 80) {
+      await ProgressionService.recordActivity(QuestMetric.wakeScore80);
     }
     return best;
   }

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/core/services/progression_service.dart';
 import 'package:alarm_plus/features/sleep/models/sleep_entry.dart';
 
 class SleepDiaryService {
@@ -27,6 +28,7 @@ class SleepDiaryService {
     final all = await _loadAll();
     all[entry.date] = entry;
     await prefs.setString(_key, jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))));
+    await ProgressionService.recordActivity(QuestMetric.sleepLog);
   }
 
   static Future<SleepEntry?> getEntryForDate(DateTime date) async {

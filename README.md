@@ -14,6 +14,10 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
 - **Gamification** — XP, levels ("Sleeper" → "Early Bird" → "Dawn Warrior" →
   "Circadian Master" → "Flow Legend"), unlockable badges, and streaks with
   streak freezes and comeback bonuses.
+- **Daily loop** — a daily XP goal (Casual 50 → Intense 250) with a
+  7-day history, three rotating daily quests that pay out gems, and a gem
+  shop for streak freezes (up to 2; one is spent automatically when you
+  miss an alarm), a 30-minute double-XP boost, and a 48-hour streak repair.
 - **Wake Quality Score** — a score computed from dismiss speed, challenge
   accuracy, snooze count, and a daily mood check-in.
 - **Morning Missions** — small daily habits (drink water, stretch, gratitude

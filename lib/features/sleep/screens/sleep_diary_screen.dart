@@ -62,11 +62,11 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
       voiceMemoPath: _voiceMemoPath,
     );
     await SleepDiaryService.saveEntry(entry);
-    await SmartAlarmService.addXp(10);
+    final award = await SmartAlarmService.awardXp(10);
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved  +10 XP 🌙')),
+      SnackBar(content: Text('Saved  +${award.earned} XP 🌙')),
     );
   }
 

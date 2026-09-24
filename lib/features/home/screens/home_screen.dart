@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +10,10 @@ import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
+import 'package:alarm_plus/core/services/celebration_event.dart';
+import 'package:alarm_plus/core/services/progression_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/progress/screens/quests_screen.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
@@ -74,6 +79,7 @@ class HomeScreen extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 16),
+            const _DailyProgressCard(),
             // Morning Missions card
             FutureBuilder<List<dynamic>>(
               future: SmartAlarmService.getTodayMissions(),
@@ -478,6 +484,90 @@ class _StreakHeroWidget extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Daily goal ring + quest count + gem balance, linking to [QuestsScreen].
+/// Stateful so it refreshes live when XP lands or on return from Quests,
+/// rather than waiting for Home to rebuild.
+class _DailyProgressCard extends StatefulWidget {
+  const _DailyProgressCard();
+
+  @override
+  State<_DailyProgressCard> createState() => _DailyProgressCardState();
+}
+
+class _DailyProgressCardState extends State<_DailyProgressCard> {
+  DailyProgress? _progress;
+  StreamSubscription<CelebrationEvent>? _events;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _events = SmartAlarmService.celebrationEvents.listen((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _events?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final progress = await ProgressionService.getDailyProgress();
+    if (mounted) setState(() => _progress = progress);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _progress;
+    if (progress == null) return const SizedBox(height: 76);
+    final remaining = progress.goal.xp - progress.xpToday;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Material(
+        color: context.colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.lg),
+          onTap: () async {
+            await Navigator.of(context).pushNamed(QuestsScreen.routeName);
+            await _load();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(Spacing.lg),
+            child: Row(
+              children: [
+                DailyGoalRing(progress: progress),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        progress.goalMet
+                            ? 'Daily goal reached'
+                            : '$remaining XP to your daily goal',
+                        style: context.texts.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        progress.boostActive
+                            ? '⚡ Double XP active · ${progress.questsCompleted}/${progress.quests.length} quests'
+                            : '${progress.questsCompleted}/${progress.quests.length} daily quests done',
+                        style: context.texts.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                GemCount(gems: progress.gems),
+                Icon(Icons.chevron_right_rounded, color: context.colors.onSurfaceVariant),
+              ],
+            ),
+          ),
         ),
       ),
     );

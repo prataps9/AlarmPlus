@@ -23,6 +23,7 @@ import 'package:alarm_plus/features/location/screens/location_alarm_screen.dart'
 import 'package:alarm_plus/features/location/screens/location_picker_screen.dart';
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
+import 'package:alarm_plus/features/progress/screens/quests_screen.dart';
 import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
@@ -118,6 +119,7 @@ class _AppWithThemeState extends ConsumerState<_AppWithTheme>
           AlarmRingScreen.routeName: (_) => const AlarmRingScreen(),
           AlarmsScreen.routeName: (_) => const AlarmsScreen(),
           MorningMissionsScreen.routeName: (_) => const MorningMissionsScreen(),
+          QuestsScreen.routeName: (_) => const QuestsScreen(),
           SplashScreen.routeName: (_) => const SplashScreen(),
           WakeRoutineScreen.routeName: (_) => const WakeRoutineScreen(),
           SleepInsightsScreen.routeName: (_) => const SleepInsightsScreen(),

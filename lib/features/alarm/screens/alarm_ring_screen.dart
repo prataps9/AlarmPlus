@@ -299,8 +299,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (result == null) return false;
     if (result['success'] == true) {
       _wrongAnswers = (result['wrongCount'] as int?) ?? 0;
-      _quickSolveXp = (result['quickXp'] as int?) ?? 0;
-      if (_quickSolveXp > 0) await SmartAlarmService.addXp(_quickSolveXp);
+      final quickXp = (result['quickXp'] as int?) ?? 0;
+      _quickSolveXp = quickXp > 0 ? (await SmartAlarmService.awardXp(quickXp)).earned : 0;
       return true;
     }
     return false;
@@ -507,6 +507,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
               if (_quickSolveXp > 0)
                 Text('+$_quickSolveXp Quick-Solve Bonus!',
                   style: const TextStyle(fontSize: 14, color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
+              if (reward.xpBoosted)
+                const Text('⚡ Double XP boost applied',
+                  style: TextStyle(fontSize: 14, color: Color(0xFFF59E0B), fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(SmartAlarmService.levelLabel(reward.totalXp),
                 style: const TextStyle(fontSize: 16, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),

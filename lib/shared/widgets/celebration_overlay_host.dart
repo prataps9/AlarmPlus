@@ -26,6 +26,7 @@ class _CelebrationOverlayHostState extends State<CelebrationOverlayHost> {
   final _player = AudioPlayer();
   StreamSubscription<CelebrationEvent>? _subscription;
   String? _bannerText;
+  final _pending = <String>[];
   Timer? _bannerTimer;
 
   @override
@@ -35,25 +36,46 @@ class _CelebrationOverlayHostState extends State<CelebrationOverlayHost> {
   }
 
   void _onEvent(CelebrationEvent event) {
-    _confettiKey.currentState?.burst();
-    unawaited(_playFeedback());
+    if (event.isFestive) {
+      _confettiKey.currentState?.burst();
+      unawaited(_playFeedback());
+    }
 
     if (CelebrationBus.mutePresentation) return;
 
-    final text = switch (event.kind) {
-      CelebrationKind.levelUp =>
-        'Level Up! ${SmartAlarmService.levelLabel((event.level ?? 0) * 500)}',
-      CelebrationKind.badgeUnlocked =>
-        'Badge Unlocked: ${SmartAlarmService.badgeDisplayName(event.badgeId ?? '') ?? event.badgeId}',
-      CelebrationKind.streakMilestone => '${event.streakDays}-Day Streak!',
-    };
+    _pending.add(bannerText(event));
+    if (_bannerText == null) _showNextBanner();
+  }
 
-    setState(() => _bannerText = text);
+  /// One dismiss can level you up, finish a quest and hit your daily goal at
+  /// once, so banners queue instead of overwriting each other.
+  void _showNextBanner() {
+    if (_pending.isEmpty) {
+      if (mounted) setState(() => _bannerText = null);
+      return;
+    }
+    setState(() => _bannerText = _pending.removeAt(0));
     _bannerTimer?.cancel();
     _bannerTimer = Timer(const Duration(milliseconds: 2600), () {
-      if (mounted) setState(() => _bannerText = null);
+      if (mounted) _showNextBanner();
     });
   }
+
+  @visibleForTesting
+  static String bannerText(CelebrationEvent event) => switch (event.kind) {
+        CelebrationKind.levelUp =>
+          'Level Up! ${SmartAlarmService.levelLabel((event.level ?? 0) * 500)}',
+        CelebrationKind.badgeUnlocked =>
+          'Badge Unlocked: ${SmartAlarmService.badgeDisplayName(event.badgeId ?? '') ?? event.badgeId}',
+        CelebrationKind.streakMilestone => '${event.streakDays}-Day Streak!',
+        CelebrationKind.streakFrozen =>
+          'Streak Freeze used — your ${event.streakDays}-day streak is safe',
+        CelebrationKind.dailyGoalMet => 'Daily goal reached! ${event.goalXp} XP',
+        CelebrationKind.questCompleted =>
+          'Quest complete: ${event.questTitle} +${event.gems} 💎',
+        CelebrationKind.allQuestsCompleted =>
+          "All of today's quests done! +${event.gems} 💎 bonus",
+      };
 
   Future<void> _playFeedback() async {
     try {

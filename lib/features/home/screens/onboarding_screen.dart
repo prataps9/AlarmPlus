@@ -54,6 +54,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _finish() async {
+    // No-op for anything already granted; catches users who skipped the
+    // "Grant Permissions" button, since alarms can't ring without them.
+    await AlarmService.requestPermissions();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
     if (mounted) {

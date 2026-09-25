@@ -5,6 +5,7 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -48,8 +49,20 @@ class AlarmService {
 
   static bool get _supportsNativeAlarmOps => _isMobilePlatform;
 
+  /// A notification tap that launched the app from a terminated state.
+  /// Held until [AlarmRingFlow] has its listeners bound, because a response
+  /// emitted before that would be dropped.
+  static NotificationResponse? _launchResponse;
+
+  static NotificationResponse? takeLaunchResponse() {
+    final r = _launchResponse;
+    _launchResponse = null;
+    return r;
+  }
+
   static Future<void> init() async {
     tz_data.initializeTimeZones();
+    await _setLocalTimezone();
     if (_supportsNativeAlarmOps) {
       await Alarm.init();
     }
@@ -74,7 +87,29 @@ class AlarmService {
       debugPrint('Error initializing notifications: $e');
       return false;
     });
-    await requestPermissions();
+    try {
+      final launch = await _notifications.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        _launchResponse = launch!.notificationResponse;
+      }
+    } catch (e) {
+      debugPrint('Notification launch details unavailable: $e');
+    }
+    // Permissions are requested from UI (onboarding's permissions page, or
+    // the splash for returning users), not here: this runs before runApp,
+    // so the prompts appeared over a blank screen with no explanation.
+  }
+
+  /// Without this `tz.local` is UTC, so notifications that repeat by wall
+  /// clock (`matchDateTimeComponents`) fire at UTC times.
+  static Future<void> _setLocalTimezone() async {
+    if (kIsWeb) return;
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      debugPrint('Could not resolve local timezone, staying on UTC: $e');
+    }
   }
 
   static void _onNotificationResponse(NotificationResponse response) {
@@ -119,9 +154,14 @@ class AlarmService {
     await StorageService.saveAlarm(alarm);
   }
 
+  /// Schedules [alarm] at its next occurrence — or exactly at [at] when
+  /// given (snooze, wake-up-check re-ring). Pass [at] rather than rewriting
+  /// `alarm.time`: a [TimeOfDay] drops the seconds, so "now + 5 s" rounds
+  /// into the past and `nextDateTimeFrom` pushes it to tomorrow.
   static Future<void> scheduleAlarm(
     AlarmModel alarm, {
     bool persist = true,
+    DateTime? at,
   }) async {
     await _cancelScheduledArtifacts(alarm.id);
 
@@ -134,7 +174,7 @@ class AlarmService {
       return;
     }
 
-    final targetTime = alarm.nextDateTimeFrom(DateTime.now());
+    final targetTime = at ?? alarm.nextDateTimeFrom(DateTime.now());
     final alarmId = alarmIntId(alarm.id);
     var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
@@ -177,6 +217,9 @@ class AlarmService {
       warningNotificationOnKill:
           !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       androidFullScreenIntent: true,
+      // Hardcore alarms keep ringing when the app is swiped away; the
+      // plugin's default stops the audio on task removal.
+      androidStopAlarmOnTermination: !alarm.hardcoreMode,
     );
 
     try {
@@ -189,12 +232,7 @@ class AlarmService {
 
     final location = tz.local;
     final zoned = tz.TZDateTime.from(targetTime, location);
-    final bool isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    final scheduleMode = isAndroid
-        ? ((await Permission.scheduleExactAlarm.status).isGranted
-              ? AndroidScheduleMode.exactAllowWhileIdle
-              : AndroidScheduleMode.inexactAllowWhileIdle)
-        : AndroidScheduleMode.exactAllowWhileIdle;
+    final scheduleMode = await exactScheduleMode();
 
     await _notifications.zonedSchedule(
       alarmId,
@@ -217,9 +255,9 @@ class AlarmService {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: scheduleMode,
-      matchDateTimeComponents: alarm.repeatDays.isNotEmpty
-          ? DateTimeComponents.time
-          : null,
+      // One-shot at the next occurrence. A daily `DateTimeComponents.time`
+      // repeat fired on every day, including a weekday alarm's weekends;
+      // the next occurrence is rescheduled on every dismiss and app start.
       payload: '$alarmId',
     );
 
@@ -252,6 +290,21 @@ class AlarmService {
     }
     unawaited(WidgetSyncService.refresh());
     unawaited(StreakReminderService.refresh());
+  }
+
+  /// Exact scheduling when the user granted it, otherwise the inexact
+  /// fallback Android allows without the permission.
+  static Future<AndroidScheduleMode> exactScheduleMode() async {
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    if (!isAndroid) return AndroidScheduleMode.exactAllowWhileIdle;
+    try {
+      return (await Permission.scheduleExactAlarm.status).isGranted
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+    } catch (_) {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
   }
 
   static Future<void> cancelAlarm(String id) async {

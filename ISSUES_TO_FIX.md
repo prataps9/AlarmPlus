@@ -2,25 +2,20 @@
 
 This document tracks identified issues, deprecations, and potential logic bugs in the **AlarmPlus** project that need fixing.
 
-## 🔴 High Priority: Open reliability bugs (audit 2026-09-25)
-These were verified by reading the code, but are **not fixed yet**. Each one
-touches the native ring flow and needs on-device testing.
-- **Notification "Stop" skips every challenge, even in Hardcore mode** (`AlarmForegroundService.kt` stop action → `alarm_ring_flow.dart` `_stopFromNotification`). It still awards XP and streak. The action should open the ring screen instead.
-- **Hardcore anti-swipe doesn't work.** `AlarmSettings` never sets `androidStopAlarmOnTermination: false`, so swiping the app away stops the audio. `onTaskRemoved` also restarts the service for every alarm, not just Hardcore ones.
-- **The 2-minute "missed recovery" misbehaves** (`alarm_ring_flow.dart`):
-  - it stops a ringing alarm even while the user is mid-challenge;
-  - it saves the backup time over the user's real alarm (`persist` defaults to true);
-  - it resets the guardian timer on every re-ring, so **Guardian Alert can never fire**.
-- **The Wake-Up Check re-ring rarely fires.** `TimeOfDay.fromDateTime(now + 5s)` rounds down to the minute, so `nextDateTimeFrom` moves it to tomorrow. It also relies on in-memory `Timer`s that are lost if the process dies.
-- **Timezone is never set.** `tz.setLocalLocation` is never called, so `tz.local` is UTC and daily `matchDateTimeComponents` notifications fire at UTC times. Add `flutter_timezone`.
-- **The backup notification repeats daily even for weekday-only alarms.** It uses `DateTimeComponents.time` instead of `dayOfWeekAndTime`.
-- **Media volume is left at the alarm level after every alarm.** `alarm_ring_screen.dart` sets it with `VolumeController` and never restores it.
+## 🔴 High Priority
+- **Needs on-device verification (2026-09-25 ring-flow fixes).** The Kotlin and Android resource changes below were only checked for syntax, not built: there was no Android SDK in the environment. Run `flutter build apk` and test on a phone:
+  - lock-screen notification (Open / Snooze buttons)
+  - Hardcore mode swipe-away
+  - a cold start caused by a ringing alarm
+  - the Android 12+ animated splash
+  - long-press launcher shortcuts
+  - the wake-up check re-ring after killing the app
 - **Premium is a local SharedPreferences flag** with no receipt verification, and refunds never lock it again. Consider server-side verification or re-querying purchases at startup.
 
 ## 🟡 Medium Priority
 - **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
-- **Wind-Down and Sleep Sounds can't be reached from the main UI**: nothing pushes `/wind-down`.
-- **Three system permission prompts appear before any UI** (`SplashScreen` → `AlarmService.requestPermissions`). They should move into the onboarding permissions page.
+- **Wind-Down can't be reached from the main UI**: nothing pushes `/wind-down`. Sleep Sounds is now reachable through the launcher shortcut, but not from Home.
+- **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the two `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`). The web and iOS launch screens are still the old white ones.
 
 ## ✅ Fixed
 - **Silent Failures (catch blocks):** All empty `catch (_) {}` blocks now log via `debugPrint`.
@@ -37,6 +32,22 @@ touches the native ring flow and needs on-device testing.
   - A miss now spends an owned freeze (at most one per day) instead of resetting the streak.
   - A later miss no longer erases a day the user did wake up.
 - **Purchases could be lost (2026-09-25):** `purchaseStream` was only listened to during a purchase, so pending or late UPI purchases were never completed and were auto-refunded. A global listener now starts in `main()`.
+- **Ring-flow reliability (2026-09-25, second pass):**
+  - **Notification "Stop" skipped every challenge** (and still paid XP). The native notification now has **Open** (to the ring screen) instead, and a stray stop call opens the ring screen rather than dismissing.
+  - **Snooze:** the notification's snooze shows the alarm's real snooze length and is hidden in Hardcore; volume-key snooze is ignored for Hardcore alarms.
+  - **Hardcore anti-swipe:** now sets `androidStopAlarmOnTermination: false`. The native service's `onTaskRemoved` restart only applies to Hardcore alarms.
+  - **2-minute "missed recovery":** it overwrote the user's alarm time, stopped alarms mid-challenge, and reset the guardian timer. It is replaced by a 30-minute auto-silence (`autoSilenceAfter`) that records one miss, keeps the next occurrence, and posts a "you slept through it" notification.
+  - **Guardian Alert** now counts from the first ring of the session.
+  - **Wake-Up Check:** the notification and the re-ring are both OS-scheduled at exact times (`wakeCheckTimes`), so they survive the process dying. Tapping the check restores the normal schedule.
+  - **Snooze time** is scheduled as an absolute `DateTime`. It used to go through `TimeOfDay`, which dropped seconds and could let a repeating alarm's snooze slip to another day.
+  - **Timezone:** set from the device with `flutter_timezone`, so daily notifications no longer fire at UTC times.
+  - **Backup notification** is now a one-shot at the next occurrence. It had repeated daily, including a weekday alarm's weekends.
+  - **Media volume** is restored after the ring screen closes.
+  - **Cold start from a ringing alarm:**
+    - the ring screen now waits for the navigator (it used to be dropped before `runApp`);
+    - the splash replaces itself in place instead of replacing the ring screen on top of it;
+    - a notification tap that launched the app is replayed once listeners are bound.
+  - **Permission prompts** no longer fire before the first frame. They moved to onboarding, and to the splash for returning users.
 - **Paywall advertised unimplemented features (2026-09-25):** the bundle is now only what ships. The paywall is a full screen, there is a Pro card and Restore in Settings, and locked Insights cards have an unlock button and refresh after purchase.
 
 ## ✅ Phase 1 Heavy Sleeper Features (Implemented 2026-05-17)

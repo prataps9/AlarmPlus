@@ -6,8 +6,13 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:windowSplashScreenBackground">#FFFFFF</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/android12splash</item>
+        <!-- Midnight sky + animated Pip (bells ringing). Must match the first
+             frame of lib/features/home/screens/splash_screen.dart, which
+             continues the animation. Hand-edited: re-running
+             flutter_native_splash will overwrite these two lines. -->
+        <item name="android:windowSplashScreenBackground">@color/splash_night</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_pip_animated</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
     </style>
     <!-- Theme applied to the Android Window as soon as the process has started.
          This theme determines the color of the Android Window while your

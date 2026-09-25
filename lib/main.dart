@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
+import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -31,6 +32,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
+import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
@@ -52,6 +54,7 @@ Future<void> main() async {
   await WidgetCommandService.drainPending();
   await NapService.checkMissedNap();
   await LocationAlarmService.startMonitoring();
+  await AppShortcutsService.init();
   runApp(const AlarmPlusApp());
 }
 
@@ -88,6 +91,7 @@ class _AppWithTheme extends ConsumerWidget {
           OnboardingScreen.routeName: (_) => const OnboardingScreen(),
           FocusTimerScreen.routeName: (_) => const FocusTimerScreen(),
           AlarmRingScreen.routeName: (_) => const AlarmRingScreen(),
+          AlarmsScreen.routeName: (_) => const AlarmsScreen(),
           MorningMissionsScreen.routeName: (_) => const MorningMissionsScreen(),
           SplashScreen.routeName: (_) => const SplashScreen(),
           WakeRoutineScreen.routeName: (_) => const WakeRoutineScreen(),

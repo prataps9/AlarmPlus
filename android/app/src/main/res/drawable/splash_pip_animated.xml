@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ launch animation: Pip asleep while the alarm bells ring.
+     The Flutter SplashScreen picks up from exactly this frame (same
+     background, same pose and position) and wakes Pip up, so the hand-off
+     from the system splash to Flutter reads as one animation.
+     Generated from PipPainter's geometry: 100-unit design box scaled 1.5x
+     into the 240dp splash-icon canvas, inside the 160dp safe circle. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="240dp"
+            android:height="240dp"
+            android:viewportWidth="240"
+            android:viewportHeight="240">
+            <group android:name="pip">
+            <path android:pathData="M105,168 h0 a5.25,5.25 0 0,1 5.25,5.25 v7.5 a5.25,5.25 0 0,1 -5.25,5.25 h-0 a5.25,5.25 0 0,1 -5.25,-5.25 v-7.5 a5.25,5.25 0 0,1 5.25,-5.25 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M95.25,186 a9.75,4.5 0 1,0 19.5,0 a9.75,4.5 0 1,0 -19.5,0 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M135,168 h0 a5.25,5.25 0 0,1 5.25,5.25 v7.5 a5.25,5.25 0 0,1 -5.25,5.25 h-0 a5.25,5.25 0 0,1 -5.25,-5.25 v-7.5 a5.25,5.25 0 0,1 5.25,-5.25 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M125.25,186 a9.75,4.5 0 1,0 19.5,0 a9.75,4.5 0 1,0 -19.5,0 z" android:fillColor="#FF0D4B24" />
+        <group android:translateX="94.5" android:translateY="90" android:rotation="-23">
+            <group android:name="bell_left">
+            <path android:pathData="M-16.5,6 Q-16.5,-19.5 0,-19.5 Q16.5,-19.5 16.5,6 z" android:fillColor="#FF199145" android:strokeColor="#FF0D4B24" android:strokeWidth="3.3" />
+            <path android:pathData="M-3.9,-22.5 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0 z" android:fillColor="#FF199145" android:strokeColor="#FF0D4B24" android:strokeWidth="3.3" />
+            <path android:pathData="M-19.5,6 L19.5,6" android:strokeColor="#FF0D4B24" android:strokeWidth="4.8" android:strokeLineCap="round" />
+            </group>
+        </group>
+        <group android:translateX="145.5" android:translateY="90" android:rotation="23">
+            <group android:name="bell_right">
+            <path android:pathData="M-16.5,6 Q-16.5,-19.5 0,-19.5 Q16.5,-19.5 16.5,6 z" android:fillColor="#FF199145" android:strokeColor="#FF0D4B24" android:strokeWidth="3.3" />
+            <path android:pathData="M-3.9,-22.5 a3.9,3.9 0 1,0 7.8,0 a3.9,3.9 0 1,0 -7.8,0 z" android:fillColor="#FF199145" android:strokeColor="#FF0D4B24" android:strokeWidth="3.3" />
+            <path android:pathData="M-19.5,6 L19.5,6" android:strokeColor="#FF0D4B24" android:strokeWidth="4.8" android:strokeLineCap="round" />
+            </group>
+        </group>
+            <path android:pathData="M120,81 L120,69" android:strokeColor="#FF0D4B24" android:strokeWidth="3.6" android:strokeLineCap="round" />
+            <path android:pathData="M115.2,66.75 a4.8,4.8 0 1,0 9.6,0 a4.8,4.8 0 1,0 -9.6,0 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M75,135 L67.43,157.78" android:strokeColor="#FF0D4B24" android:strokeWidth="7.5" android:strokeLineCap="round" />
+            <path android:pathData="M60.83,157.78 a6.6,6.6 0 1,0 13.2,0 a6.6,6.6 0 1,0 -13.2,0 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M165,135 L172.57,157.78" android:strokeColor="#FF0D4B24" android:strokeWidth="7.5" android:strokeLineCap="round" />
+            <path android:pathData="M165.97,157.78 a6.6,6.6 0 1,0 13.2,0 a6.6,6.6 0 1,0 -13.2,0 z" android:fillColor="#FF0D4B24" />
+            <path android:pathData="M70.5,132 a49.5,49.5 0 1,0 99,0 a49.5,49.5 0 1,0 -99,0 z" android:fillColor="#FF22C55E" android:strokeColor="#FF0D4B24" android:strokeWidth="3.9" />
+            <path android:pathData="M88.5,108 a10.5,10.5 0 1,0 21,0 a10.5,10.5 0 1,0 -21,0 z" android:fillColor="#FFFFFFFF" android:fillAlpha="0.22" />
+            <path android:pathData="M81.75,135 a38.25,38.25 0 1,0 76.5,0 a38.25,38.25 0 1,0 -76.5,0 z" android:fillColor="#FFFFFBEB" />
+            <path android:pathData="M99,127.5 Q106.5,135 114,127.5" android:strokeColor="#FF1E293B" android:strokeWidth="3.9" android:strokeLineCap="round" />
+            <path android:pathData="M126,127.5 Q133.5,135 141,127.5" android:strokeColor="#FF1E293B" android:strokeWidth="3.9" android:strokeLineCap="round" />
+            <path android:pathData="M85.5,144 a6,3.75 0 1,0 12,0 a6,3.75 0 1,0 -12,0 z" android:fillColor="#FFFB7185" android:fillAlpha="0.45" />
+            <path android:pathData="M142.5,144 a6,3.75 0 1,0 12,0 a6,3.75 0 1,0 -12,0 z" android:fillColor="#FFFB7185" android:fillAlpha="0.45" />
+            <path android:pathData="M116.4,150 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0 z" android:strokeColor="#FF1E293B" android:strokeWidth="3" />
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="bell_left">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="-14"
+                android:valueTo="14"
+                android:valueType="floatType"
+                android:duration="80"
+                android:repeatCount="13"
+                android:repeatMode="reverse"
+                android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+        </aapt:attr>
+    </target>
+    <target android:name="bell_right">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="14"
+                android:valueTo="-14"
+                android:valueType="floatType"
+                android:duration="80"
+                android:repeatCount="13"
+                android:repeatMode="reverse"
+                android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+        </aapt:attr>
+    </target>
+    <target android:name="pip">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="translateY"
+                android:valueFrom="0"
+                android:valueTo="-5"
+                android:valueType="floatType"
+                android:duration="160"
+                android:repeatCount="6"
+                android:repeatMode="reverse"
+                android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+        </aapt:attr>
+    </target>
+</animated-vector>

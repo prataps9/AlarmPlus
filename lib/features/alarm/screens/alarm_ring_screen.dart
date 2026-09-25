@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:volume_controller/volume_controller.dart';
 
@@ -10,6 +11,7 @@ import 'package:alarm_plus/features/alarm/challenges/photo_proof_challenge_widge
 import 'package:alarm_plus/features/alarm/challenges/squat_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/voice_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/barcode_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/color_clash_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/eye_open_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/memory_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/shake_challenge_widget.dart';
@@ -58,6 +60,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   int _quickSolveXp = 0;
   final int _dismissStartMs = DateTime.now().millisecondsSinceEpoch;
 
+  /// Media volume before this screen changed it, restored on dispose —
+  /// otherwise every alarm left the phone's media volume at the alarm level.
+  double? _volumeBefore;
+
   // Gentle wake volume ramp
   int _gentleSecondsLeft = 0;
   bool _gentleWakeActive = false;
@@ -100,6 +106,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         final config = PersonalityConfig.forName(alarm.personality);
         setState(() => _personality = config);
         await SmartAlarmService.recordPersonalityUsed(alarm.personality);
+        try {
+          _volumeBefore = await VolumeController.instance.getVolume();
+        } catch (_) {
+          // Volume control unavailable on this platform.
+        }
+        if (!mounted) return;
         if (alarm.gentleWake) {
           _startGentleWake(alarm);
         } else {
@@ -134,15 +146,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   }
 
   void _stopGentleWake() {
-    if (_gentleWakeActive) {
-      _gentleWakeActive = false;
-      VolumeController.instance.setVolume(1.0);
-    }
+    _gentleWakeActive = false;
   }
 
   @override
   void dispose() {
     _gentleWakeActive = false;
+    final before = _volumeBefore;
+    if (before != null) VolumeController.instance.setVolume(before);
     _pulseController.dispose();
     _ringController.dispose();
     super.dispose();
@@ -276,6 +287,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         return _showOverlayChallenge(
           (onPass, onFail) =>
               VoiceChallengeWidget(onPassed: onPass, onFailed: onFail),
+        );
+      case ChallengeType.colorClash:
+        return _showOverlayChallenge(
+          (onPass, onFail) =>
+              ColorClashChallengeWidget(onPassed: onPass, onFailed: onFail),
         );
       case ChallengeType.random:
         return _showChallenge(ChallengeService.randomChallenge());
@@ -678,9 +694,15 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     Widget body = GestureDetector(
       onHorizontalDragUpdate: (d) {
         if (_isDismissing) return;
+        final wasArmed = _dragDx.abs() >= dismissThreshold;
         setState(() {
           _dragDx = (_dragDx + d.delta.dx).clamp(-dismissThreshold * 1.2, dismissThreshold * 1.2);
         });
+        // A tick when the swipe crosses the "let go to act" point, like
+        // Android's own slide-to-answer.
+        if (!wasArmed && _dragDx.abs() >= dismissThreshold) {
+          HapticFeedback.mediumImpact();
+        }
       },
       onHorizontalDragEnd: (d) {
         if (_isDismissing) return;
@@ -816,7 +838,21 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                                       shape: BoxShape.circle,
                                       color: _personality.accentColor,
                                       border: Border.all(color: _personality.primaryColor, width: 2)),
-                                    child: Icon(Icons.notifications_active_rounded, size: 52, color: _personality.primaryColor),
+                                    child: Center(
+                                      // Pip *is* the ringing alarm clock, and
+                                      // reacts to the swipe in progress.
+                                      child: PipMascot(
+                                        size: 118,
+                                        ringing: !_isDismissing,
+                                        mood: isDismissDir && dragProgress > 0.3
+                                            ? MascotMood.cheering
+                                            : isSnoozeDir && dragProgress > 0.3
+                                                ? MascotMood.sleepy
+                                                : _isBossMode
+                                                    ? MascotMood.worried
+                                                    : MascotMood.waving,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],

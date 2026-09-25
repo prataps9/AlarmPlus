@@ -245,6 +245,8 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
         return Icons.photo_camera_rounded;
       case ChallengeType.voiceRepeat:
         return Icons.record_voice_over_rounded;
+      case ChallengeType.colorClash:
+        return Icons.palette_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
     }

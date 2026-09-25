@@ -24,6 +24,18 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
+- **Pip, the mascot** — a code-drawn, animated alarm-clock buddy (no image
+  assets). Pip has seven moods with their own motion: waving, a cheering
+  jump with ringing bells, a sleepy "z"-float, a worried shiver, a proud
+  sparkle. Pip also blinks, bobs, and wiggles when tapped. Pip greets you on
+  Home with a contextual line (streak at risk, bedtime, next alarm), and
+  appears on splash, onboarding, the celebration banner and the dismiss
+  sheet. Code lives in `lib/features/mascot/`.
+- **Alarm+ Pro** — a one-time lifetime unlock (₹299 or the store's local
+  price, no subscription). It includes Pip's Wardrobe (4 outfits), double
+  streak freezes, Sleep Coach Pro, and an always-on wake challenge. It
+  has a full-screen paywall (`lib/features/premium/`), and the purchase
+  listener runs for the whole app lifetime so pending payments aren't lost.
 - **Sleep tools** — sleep diary, sleep insights, wind-down mode, bedtime
   setup, sleep sounds, location-based alarms, nap timer, focus timer.
 

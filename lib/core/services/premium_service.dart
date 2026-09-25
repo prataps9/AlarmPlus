@@ -4,21 +4,67 @@ import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/features/premium/screens/paywall_screen.dart';
+
+/// Everything Alarm+ Pro unlocks. Only list things that actually ship — the
+/// paywall renders this list verbatim, so an entry here is a promise.
 enum PremiumFeature {
-  dailyWakePlanner,
-  weeklyWakePlanner,
+  mascotOutfits,
+  doubleStreakFreezes,
   sleepCoachPro,
-  adaptiveAlarmTuning,
-  rotatingAlarmSounds,
-  weekendDriftGuard,
-  recoveryDayPlanner,
   smartDismissModes,
 }
 
+enum PurchaseOutcome { success, pending, cancelled, failed, unavailable }
+
+class PremiumBenefit {
+  const PremiumBenefit(this.feature, this.icon, this.title, this.description);
+
+  final PremiumFeature feature;
+  final IconData icon;
+  final String title;
+  final String description;
+}
+
 class PremiumService {
+  PremiumService._();
+
   static const lifetimePriceInr = 299;
+  static const fallbackPriceLabel = '₹$lifetimePriceInr';
   static const _premiumUnlockedKey = 'premium.lifetime.unlocked';
   static const _productId = 'alarm_plus_lifetime_premium';
+
+  /// Live Pro state for widgets (`ValueListenableBuilder`) — so a purchase
+  /// unlocks every open screen immediately instead of on next launch.
+  static final ValueNotifier<bool> isPro = ValueNotifier(false);
+
+  /// True while the store reports the purchase as pending (e.g. a UPI
+  /// payment awaiting confirmation).
+  static final ValueNotifier<bool> purchasePending = ValueNotifier(false);
+
+  static StreamSubscription<List<PurchaseDetails>>? _storeSub;
+  static Completer<PurchaseOutcome>? _purchaseCompleter;
+  static Completer<bool>? _restoreCompleter;
+  static String? _cachedPrice;
+
+  // ─── Startup ────────────────────────────────────────────────────────────────
+
+  /// Loads the saved Pro flag and starts listening to the store for the
+  /// whole app lifetime. The store re-delivers purchases that finished while
+  /// the app was closed (slow UPI/cards) on this stream at launch; they must
+  /// be completed or Google Play auto-refunds them after three days.
+  static Future<void> init() async {
+    isPro.value = await isLifetimePremiumUnlocked();
+    try {
+      _storeSub ??= InAppPurchase.instance.purchaseStream.listen(
+        _onPurchases,
+        onError: (Object e) => debugPrint('IAP stream error: $e'),
+      );
+    } catch (e) {
+      // No store on this platform (desktop, web, tests).
+      debugPrint('IAP unavailable: $e');
+    }
+  }
 
   // ─── Local unlock state ──────────────────────────────────────────────────────
 
@@ -30,282 +76,191 @@ class PremiumService {
   static Future<void> unlockLifetimePremium() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumUnlockedKey, true);
+    isPro.value = true;
   }
 
   static Future<void> lockLifetimePremium() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumUnlockedKey, false);
+    isPro.value = false;
   }
 
   static Future<bool> canUse(PremiumFeature feature) async {
     return isLifetimePremiumUnlocked();
   }
 
-  // ─── IAP purchase flow ───────────────────────────────────────────────────────
+  // ─── Store ──────────────────────────────────────────────────────────────────
 
-  /// Initiates a real Google Play / App Store purchase.
-  /// Returns true when the purchase completes successfully.
-  static Future<bool> purchaseLifetimePremium(BuildContext context) async {
-    final iap = InAppPurchase.instance;
+  static Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (purchase.productID != _productId) continue;
 
-    final available = await iap.isAvailable();
-    if (!available) {
-      if (context.mounted) {
-        _showSnack(context, 'Store not available. Check your connection.');
-      }
-      return false;
-    }
-
-    final response = await iap.queryProductDetails({_productId});
-    if (response.notFoundIDs.isNotEmpty || response.productDetails.isEmpty) {
-      if (context.mounted) {
-        _showSnack(context, 'Product not found. Please try again later.');
-      }
-      debugPrint('IAP product not found: ${response.notFoundIDs}');
-      return false;
-    }
-
-    final product = response.productDetails.first;
-    final purchaseParam = PurchaseParam(productDetails: product);
-
-    final completer = Completer<bool>();
-    late StreamSubscription<List<PurchaseDetails>> sub;
-
-    sub = iap.purchaseStream.listen((purchases) async {
-      for (final purchase in purchases) {
-        if (purchase.productID != _productId) continue;
-
-        if (purchase.status == PurchaseStatus.purchased ||
-            purchase.status == PurchaseStatus.restored) {
-          await iap.completePurchase(purchase);
+      switch (purchase.status) {
+        case PurchaseStatus.pending:
+          purchasePending.value = true;
+          _finishPurchase(PurchaseOutcome.pending);
+          continue;
+        case PurchaseStatus.purchased:
+        case PurchaseStatus.restored:
+          purchasePending.value = false;
           await unlockLifetimePremium();
-          if (!completer.isCompleted) completer.complete(true);
-          await sub.cancel();
-          return;
-        }
+          _finishPurchase(PurchaseOutcome.success);
+          _finishRestore(true);
+        case PurchaseStatus.error:
+          purchasePending.value = false;
+          debugPrint('IAP error: ${purchase.error}');
+          _finishPurchase(PurchaseOutcome.failed);
+        case PurchaseStatus.canceled:
+          purchasePending.value = false;
+          _finishPurchase(PurchaseOutcome.cancelled);
+      }
 
-        if (purchase.status == PurchaseStatus.error) {
-          if (!completer.isCompleted) completer.complete(false);
-          await sub.cancel();
-          return;
-        }
-
-        if (purchase.status == PurchaseStatus.canceled) {
-          if (!completer.isCompleted) completer.complete(false);
-          await sub.cancel();
-          return;
+      if (purchase.pendingCompletePurchase) {
+        try {
+          await InAppPurchase.instance.completePurchase(purchase);
+        } catch (e) {
+          debugPrint('IAP completePurchase failed: $e');
         }
       }
-    }, onError: (_) async {
-      if (!completer.isCompleted) completer.complete(false);
-      await sub.cancel();
-    });
-
-    final started = await iap.buyNonConsumable(purchaseParam: purchaseParam);
-    if (!started) {
-      await sub.cancel();
-      return false;
     }
-
-    // Wait for up to 5 minutes for user to complete payment in the store UI.
-    return completer.future.timeout(
-      const Duration(minutes: 5),
-      onTimeout: () async {
-        await sub.cancel();
-        return false;
-      },
-    );
   }
 
-  /// Restores existing purchases (users who reinstalled the app).
-  static Future<bool> restorePurchases(BuildContext context) async {
-    final iap = InAppPurchase.instance;
-
-    final available = await iap.isAvailable();
-    if (!available) {
-      if (context.mounted) {
-        _showSnack(context, 'Store not available. Check your connection.');
-      }
-      return false;
-    }
-
-    final completer = Completer<bool>();
-    late StreamSubscription<List<PurchaseDetails>> sub;
-
-    sub = iap.purchaseStream.listen((purchases) async {
-      for (final purchase in purchases) {
-        if (purchase.productID != _productId) continue;
-        if (purchase.status == PurchaseStatus.restored) {
-          await iap.completePurchase(purchase);
-          await unlockLifetimePremium();
-          if (!completer.isCompleted) completer.complete(true);
-          await sub.cancel();
-          return;
-        }
-      }
-    }, onDone: () async {
-      if (!completer.isCompleted) completer.complete(false);
-      await sub.cancel();
-    }, onError: (_) async {
-      if (!completer.isCompleted) completer.complete(false);
-      await sub.cancel();
-    });
-
-    await iap.restorePurchases();
-
-    return completer.future.timeout(
-      const Duration(seconds: 15),
-      onTimeout: () async {
-        await sub.cancel();
-        return false;
-      },
-    );
+  static void _finishPurchase(PurchaseOutcome outcome) {
+    final c = _purchaseCompleter;
+    if (c != null && !c.isCompleted) c.complete(outcome);
   }
 
-  static void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+  static void _finishRestore(bool restored) {
+    final c = _restoreCompleter;
+    if (c != null && !c.isCompleted) c.complete(restored);
+  }
+
+  /// The store's localized price (e.g. "$3.99" outside India), falling back
+  /// to the INR list price when the store can't be reached.
+  static Future<String> displayPrice() async {
+    if (_cachedPrice != null) return _cachedPrice!;
+    try {
+      final iap = InAppPurchase.instance;
+      if (!await iap.isAvailable()) return fallbackPriceLabel;
+      final response = await iap.queryProductDetails({_productId});
+      if (response.productDetails.isEmpty) return fallbackPriceLabel;
+      return _cachedPrice = response.productDetails.first.price;
+    } catch (e) {
+      debugPrint('IAP price lookup failed: $e');
+      return fallbackPriceLabel;
+    }
+  }
+
+  /// Starts a Google Play / App Store purchase. The outcome arrives through
+  /// the global listener set up in [init].
+  static Future<PurchaseOutcome> purchaseLifetimePremium() async {
+    try {
+      final iap = InAppPurchase.instance;
+      if (!await iap.isAvailable()) return PurchaseOutcome.unavailable;
+
+      final response = await iap.queryProductDetails({_productId});
+      if (response.productDetails.isEmpty) {
+        debugPrint('IAP product not found: ${response.notFoundIDs}');
+        return PurchaseOutcome.unavailable;
+      }
+
+      _purchaseCompleter = Completer<PurchaseOutcome>();
+      final started = await iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: response.productDetails.first),
+      );
+      if (!started) return PurchaseOutcome.failed;
+
+      return await _purchaseCompleter!.future.timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => PurchaseOutcome.failed,
+      );
+    } catch (e) {
+      debugPrint('IAP purchase failed: $e');
+      return PurchaseOutcome.failed;
+    } finally {
+      _purchaseCompleter = null;
+    }
+  }
+
+  /// Restores a previous purchase (reinstall / new phone). Returns false
+  /// when the store reports nothing to restore within a few seconds —
+  /// Google Play emits nothing at all in that case.
+  static Future<bool> restorePurchases() async {
+    try {
+      final iap = InAppPurchase.instance;
+      if (!await iap.isAvailable()) return false;
+      _restoreCompleter = Completer<bool>();
+      await iap.restorePurchases();
+      return await _restoreCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => false,
+      );
+    } catch (e) {
+      debugPrint('IAP restore failed: $e');
+      return false;
+    } finally {
+      _restoreCompleter = null;
+    }
   }
 
   // ─── Feature metadata ────────────────────────────────────────────────────────
 
-  static String featureTitle(PremiumFeature feature) {
-    switch (feature) {
-      case PremiumFeature.dailyWakePlanner:
-        return 'Daily Wake Planner';
-      case PremiumFeature.weeklyWakePlanner:
-        return 'Weekly Wake Planner';
-      case PremiumFeature.sleepCoachPro:
-        return 'Sleep Coach Pro';
-      case PremiumFeature.adaptiveAlarmTuning:
-        return 'Adaptive Alarm Tuning';
-      case PremiumFeature.rotatingAlarmSounds:
-        return 'Rotating Alarm Sounds';
-      case PremiumFeature.weekendDriftGuard:
-        return 'Weekend Drift Guard';
-      case PremiumFeature.recoveryDayPlanner:
-        return 'Recovery Day Planner';
-      case PremiumFeature.smartDismissModes:
-        return 'Smart Dismiss Modes';
-    }
-  }
-
-  static String featureDescription(PremiumFeature feature) {
-    switch (feature) {
-      case PremiumFeature.dailyWakePlanner:
-        return 'Smart daily wake suggestions based on your day type and routine.';
-      case PremiumFeature.weeklyWakePlanner:
-        return 'A full weekly alarm planner with commute and sleep patterns.';
-      case PremiumFeature.sleepCoachPro:
-        return 'Teen sleep debt, consistency score, and smarter bedtime coaching.';
-      case PremiumFeature.adaptiveAlarmTuning:
-        return 'Mood and sleep check-ins that auto-tune your next wake-up time.';
-      case PremiumFeature.rotatingAlarmSounds:
-        return 'Dynamic sound rotation to reduce alarm fatigue.';
-      case PremiumFeature.weekendDriftGuard:
-        return 'Protects teens from sleeping too late on weekends and breaking their weekday rhythm.';
-      case PremiumFeature.recoveryDayPlanner:
-        return 'Builds a next-day recovery plan when sleep debt or poor sleep quality shows up.';
-      case PremiumFeature.smartDismissModes:
-        return 'Advanced stop challenges that reduce snoozing and help users actually get up.';
-    }
-  }
-
-  static List<PremiumFeature> bundleFeatures() {
-    return const [
+  static const benefits = <PremiumBenefit>[
+    PremiumBenefit(
+      PremiumFeature.mascotOutfits,
+      Icons.checkroom_rounded,
+      "Pip's Wardrobe",
+      'Dress Pip up: four exclusive outfits, from Royal Riser to Night Dreamer.',
+    ),
+    PremiumBenefit(
+      PremiumFeature.doubleStreakFreezes,
+      Icons.ac_unit_rounded,
+      'Double Streak Freezes',
+      'Earn 2 freezes at every streak milestone, so one bad morning never resets your streak.',
+    ),
+    PremiumBenefit(
       PremiumFeature.sleepCoachPro,
-      PremiumFeature.recoveryDayPlanner,
-      PremiumFeature.weekendDriftGuard,
-      PremiumFeature.adaptiveAlarmTuning,
-      PremiumFeature.dailyWakePlanner,
-      PremiumFeature.weeklyWakePlanner,
-      PremiumFeature.rotatingAlarmSounds,
+      Icons.insights_rounded,
+      'Sleep Coach Pro',
+      'Full sleep trends, a recovery plan after short nights, and weekend-drift warnings.',
+    ),
+    PremiumBenefit(
       PremiumFeature.smartDismissModes,
-    ];
-  }
+      Icons.psychology_rounded,
+      'Always-On Wake Challenge',
+      'Force a math, memory or shake challenge on every alarm, so no more half-asleep dismissals.',
+    ),
+  ];
 
-  static List<String> bundleLabels() {
-    return bundleFeatures().map(featureTitle).toList(growable: false);
-  }
+  static PremiumBenefit benefitFor(PremiumFeature feature) =>
+      benefits.firstWhere((b) => b.feature == feature);
 
-  static String paywallMessage(PremiumFeature feature) {
-    return '${featureTitle(feature)} is part of Lifetime Premium for ₹$lifetimePriceInr.\n\n${featureDescription(feature)}';
-  }
+  static String featureTitle(PremiumFeature feature) =>
+      benefitFor(feature).title;
 
-  // ─── Paywall dialog ──────────────────────────────────────────────────────────
+  static String featureDescription(PremiumFeature feature) =>
+      benefitFor(feature).description;
 
-  /// Shows a paywall and initiates a real IAP purchase.
-  /// Returns true if premium was unlocked.
+  static List<PremiumFeature> bundleFeatures() =>
+      benefits.map((b) => b.feature).toList(growable: false);
+
+  static List<String> bundleLabels() =>
+      benefits.map((b) => b.title).toList(growable: false);
+
+  // ─── Paywall ────────────────────────────────────────────────────────────────
+
+  /// Opens the full-screen paywall with [feature] highlighted.
+  /// Returns true if the user is Pro when the paywall closes.
   static Future<bool> showLifetimePaywall(
     BuildContext context,
     PremiumFeature feature,
   ) async {
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Unlock ${featureTitle(feature)}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(paywallMessage(feature)),
-            const SizedBox(height: 16),
-            const Text(
-              'Payment is processed securely through Google Play.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx, false);
-              if (ctx.mounted) {
-                final restored = await restorePurchases(ctx);
-                if (ctx.mounted && restored) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Premium restored!')),
-                  );
-                }
-              }
-            },
-            child: const Text('Restore'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Not now'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Unlock ₹299'),
-          ),
-        ],
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PaywallScreen(highlight: feature),
       ),
     );
-
-    if (proceed != true) return false;
-
-    if (!context.mounted) return false;
-
-    // Show loading while purchase is in flight
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Opening payment…'),
-        duration: Duration(seconds: 60),
-      ),
-    );
-
-    final success = await purchaseLifetimePremium(context);
-    messenger.hideCurrentSnackBar();
-
-    if (success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lifetime Premium unlocked!')),
-      );
-    }
-
-    return success;
+    return isPro.value;
   }
 }

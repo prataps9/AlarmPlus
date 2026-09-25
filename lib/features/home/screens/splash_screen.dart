@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
+import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -103,10 +105,9 @@ class _SplashScreenState extends State<SplashScreen>
                   opacity: _iconOpacity.value,
                   child: Transform.scale(
                     scale: _iconScale.value * _iconShrink.value,
-                    child: const Icon(
-                      Icons.alarm_rounded,
-                      size: 80,
-                      color: Color(0xFF0F172A),
+                    child: const PipMascot(
+                      mood: MascotMood.waving,
+                      size: 96,
                     ),
                   ),
                 ),

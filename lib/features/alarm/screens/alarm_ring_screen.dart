@@ -34,6 +34,8 @@ import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/core/services/share_service.dart';
 import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
+import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
+import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 
 class AlarmRingScreen extends StatefulWidget {
   const AlarmRingScreen({super.key});
@@ -487,13 +489,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             Container(width: 40, height: 4,
               decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            Icon(
-              (reward != null &&
+            PipMascot(
+              mood: (reward != null &&
                       (reward.newlyUnlockedBadges.isNotEmpty || reward.hitStreakMilestone != null))
-                  ? Icons.emoji_events_rounded
-                  : Icons.wb_sunny_rounded,
-              size: 56,
-              color: const Color(0xFF22C55E),
+                  ? MascotMood.cheering
+                  : MascotMood.happy,
+              size: 96,
             ),
             const SizedBox(height: 8),
             if (reward != null) ...[

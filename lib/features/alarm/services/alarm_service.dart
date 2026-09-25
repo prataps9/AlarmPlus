@@ -23,6 +23,9 @@ import 'package:alarm_plus/core/services/widget_sync_service.dart';
 
 const _nativeRingtoneKeyPrefix = 'alarm.native_ringtone';
 
+/// Android's "default alarm tone" setting (Settings.System.DEFAULT_ALARM_ALERT_URI).
+const _androidDefaultAlarmUri = 'content://settings/system/alarm_alert';
+
 class AlarmService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -133,10 +136,18 @@ class AlarmService {
 
     final targetTime = alarm.nextDateTimeFrom(DateTime.now());
     final alarmId = alarmIntId(alarm.id);
-    final selectedSound = SmartAlarmService.rotateSoundForDate(
+    var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
       alarm.sound,
     );
+    // "default" used to be sent to the alarm plugin as '', which it resolves
+    // to a directory path that fails to load, so the alarm rang silently.
+    // On Android, route it through the native ringtone path below using
+    // the system's default-alarm URI instead.
+    if ((selectedSound == 'default' || selectedSound.isEmpty) &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      selectedSound = _androidDefaultAlarmUri;
+    }
 
     // Determine audio path for the alarm package.
     // content:// URIs can't be loaded as Flutter assets — we store them in prefs
@@ -259,6 +270,14 @@ class AlarmService {
   static Future<void> restoreEnabledAlarms() async {
     final alarms = getAllAlarms().where((alarm) => alarm.isEnabled);
     for (final alarm in alarms) {
+      // Rescheduling starts with Alarm.stop(), so restoring an alarm that is
+      // ringing right now (the app was cold-started by that very alarm)
+      // would silence it.
+      if (_supportsNativeAlarmOps &&
+          await Alarm.isRinging(alarmIntId(alarm.id))
+              .catchError((_) => false)) {
+        continue;
+      }
       await scheduleAlarm(alarm, persist: false);
     }
   }

@@ -13,6 +13,10 @@ import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
+import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
+import 'package:alarm_plus/features/mascot/screens/wardrobe_screen.dart';
+import 'package:alarm_plus/features/mascot/services/mascot_service.dart';
+import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -64,6 +68,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 fontWeight: FontWeight.w700,
                 fontSize: 24,
               )),
+          const SizedBox(height: 20),
+          const _ProCard(),
           const SizedBox(height: 20),
 
           // ── ALARM section ──────────────────────────────────────
@@ -211,6 +217,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── APP section ────────────────────────────────────────
           _SectionHeader(label: 'APP'),
+          ValueListenableBuilder<MascotOutfit>(
+            valueListenable: MascotService.selectedOutfit,
+            builder: (context, outfit, _) => _SettingTile(
+              title: "Pip's Wardrobe",
+              subtitle: outfit.label,
+              trailing: const Icon(Icons.checkroom_rounded,
+                  color: Color(0xFFAAAAAA), size: 20),
+              onTap: () =>
+                  Navigator.of(context).pushNamed(WardrobeScreen.routeName),
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: PremiumService.isPro,
+            builder: (context, isPro, _) => isPro
+                ? const SizedBox.shrink()
+                : _SettingTile(
+                    title: 'Restore Purchase',
+                    subtitle: 'Already bought Pro? Get it back here',
+                    trailing: const Icon(Icons.restore_rounded,
+                        color: Color(0xFFAAAAAA), size: 20),
+                    onTap: () => _restorePurchase(context),
+                  ),
+          ),
           FutureBuilder<PackageInfo>(
             future: _packageInfoFuture,
             builder: (context, snapshot) {
@@ -236,6 +265,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _restorePurchase(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Checking your purchases…')),
+    );
+    final restored = await PremiumService.restorePurchases();
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(restored
+          ? 'Alarm+ Pro restored. Welcome back!'
+          : 'No previous Pro purchase found on this account.'),
+    ));
   }
 
   Future<void> _openPrivacyPolicy(BuildContext context) async {
@@ -425,6 +468,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Top-of-Settings upsell, or a "you're Pro" badge once unlocked.
+class _ProCard extends StatelessWidget {
+  const _ProCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: PremiumService.isPro,
+      builder: (context, isPro, _) => Material(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => isPro
+              ? Navigator.of(context).pushNamed(WardrobeScreen.routeName)
+              : PremiumService.showLifetimePaywall(
+                  context, PremiumFeature.mascotOutfits),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+            child: Row(
+              children: [
+                IgnorePointer(
+                  child: PipMascot(
+                    mood: isPro ? MascotMood.proud : MascotMood.waving,
+                    outfit: isPro ? null : MascotOutfit.royal,
+                    size: 68,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isPro ? 'Alarm+ Pro · Lifetime' : 'Upgrade to Alarm+ Pro',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isPro
+                            ? "Thanks for your support! Dress up Pip in the wardrobe."
+                            : 'Outfits for Pip, double streak freezes, Sleep Coach Pro. '
+                                'One payment of ${PremiumService.fallbackPriceLabel}.',
+                        style: const TextStyle(
+                          color: Color(0xFFCBD5E1),
+                          fontSize: 12.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isPro ? Icons.verified_rounded : Icons.chevron_right_rounded,
+                  color: isPro ? const Color(0xFFFBBF24) : Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

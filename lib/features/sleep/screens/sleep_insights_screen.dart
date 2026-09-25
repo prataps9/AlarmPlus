@@ -218,7 +218,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
           ),
           const Center(
             child: Text(
-              'Unlock Full History\nwith Premium',
+              'Unlock Full Trends\nwith Pro',
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
             ),
@@ -375,13 +375,17 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Unlock 30-Day History', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('See trends over time with Lifetime Premium', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                Text('Unlock Your Full Sleep Trends', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                Text('See your daily wake scores with Alarm+ Pro', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
               ],
             ),
           ),
           TextButton(
-            onPressed: () => PremiumService.showLifetimePaywall(context, PremiumFeature.sleepCoachPro),
+            onPressed: () async {
+              final unlocked = await PremiumService.showLifetimePaywall(
+                  context, PremiumFeature.sleepCoachPro);
+              if (unlocked && mounted) setState(() => _dataFuture = _load());
+            },
             child: const Text('Unlock'),
           ),
         ],

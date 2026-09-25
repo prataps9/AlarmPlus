@@ -7,6 +7,8 @@ import 'package:vibration/vibration.dart';
 
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
+import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 import 'package:alarm_plus/shared/widgets/confetti_overlay.dart';
 
 /// Sits above the [Navigator] (wired in via `MaterialApp.builder`) so it can
@@ -125,11 +127,7 @@ class _CelebrationBanner extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.emoji_events_rounded,
-              size: 28,
-              color: Color(0xFF22C55E),
-            ),
+            const PipMascot(mood: MascotMood.cheering, size: 48),
             const SizedBox(width: 10),
             Flexible(
               child: Text(

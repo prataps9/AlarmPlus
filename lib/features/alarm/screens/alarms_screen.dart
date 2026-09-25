@@ -608,9 +608,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               Text('Wake Challenge', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 10),
               DropdownButtonFormField<ChallengeType?>(
-                // `value` rather than `initialValue`: the latter needs Flutter 3.32+,
-                // but CI pins 3.29.0 (and `value` stays in sync with state).
-                value: _challengeType,
+                initialValue: _challengeType,
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Math (default)')),
                   ...ChallengeType.values.map((t) => DropdownMenuItem(value: t, child: Text(ChallengeService.label(t)))),

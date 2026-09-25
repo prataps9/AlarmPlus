@@ -154,9 +154,8 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _steps.length,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         setState(() {
-          if (newIndex > oldIndex) newIndex--;
           final item = _steps.removeAt(oldIndex);
           _steps.insert(newIndex, item);
         });

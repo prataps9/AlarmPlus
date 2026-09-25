@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/share_service.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
@@ -379,8 +380,8 @@ class _CoachCard extends StatelessWidget {
 
     final message = summary.premiumUnlocked
         ? summary.premiumSleep.recoveryHeadline
-        : 'Sleep Coach Pro, the recovery planner and the weekend drift guard '
-            'are part of Lifetime Premium.';
+        : 'Sleep Coach Pro, with recovery plans and weekend-drift warnings, '
+            'is part of Alarm+ Pro.';
 
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
@@ -405,6 +406,13 @@ class _CoachCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(message, style: theme.textTheme.bodyLarge),
+                if (!summary.premiumUnlocked)
+                  TextButton(
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () => PremiumService.showLifetimePaywall(
+                        context, PremiumFeature.sleepCoachPro),
+                    child: const Text('Unlock with Pro'),
+                  ),
                 if (summary.premiumUnlocked &&
                     summary.premiumSleep.recoveryActions.isNotEmpty) ...[
                   const SizedBox(height: Spacing.sm),

@@ -66,6 +66,12 @@ class WeekdayLoad {
 
 final insightsSummaryProvider =
     FutureProvider.autoDispose<InsightsSummary>((ref) async {
+  // Recompute the moment a purchase or restore lands, so locked cards open
+  // without leaving the screen.
+  void onProChanged() => ref.invalidateSelf();
+  PremiumService.isPro.addListener(onProChanged);
+  ref.onDispose(() => PremiumService.isPro.removeListener(onProChanged));
+
   final alarms = await ref.watch(alarmsListProvider.future);
 
   final coach = await SmartAlarmService.buildSleepCoachSnapshot(alarms);

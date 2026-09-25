@@ -111,7 +111,7 @@ class AlarmModel {
 
     if (repeatDays.isEmpty) {
       if (candidate.isBefore(from)) {
-        candidate = candidate.add(const Duration(days: 1));
+        candidate = _nextDay(candidate);
       }
       return candidate;
     }
@@ -122,9 +122,15 @@ class AlarmModel {
       if (validDay && !candidate.isBefore(from)) {
         return candidate;
       }
-      candidate = candidate.add(const Duration(days: 1));
+      candidate = _nextDay(candidate);
     }
   }
+
+  /// Same wall-clock time on the following calendar day. Adding
+  /// `Duration(days: 1)` instead would add 24 hours, which on a DST
+  /// switch day lands the alarm an hour early or late.
+  DateTime _nextDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day + 1, time.hour, time.minute);
 
   Map<String, dynamic> toMap() {
     return {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/home/providers/insights_providers.dart';
@@ -88,10 +89,21 @@ class _CoachDetail extends StatelessWidget {
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: Text(
-                'Recovery planning and weekend drift analysis are part of '
-                'Lifetime Premium.',
-                style: theme.textTheme.bodyMedium,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recovery planning and weekend drift analysis are part '
+                    'of Alarm+ Pro.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () => PremiumService.showLifetimePaywall(
+                        context, PremiumFeature.sleepCoachPro),
+                    child: const Text('Unlock with Pro'),
+                  ),
+                ],
               ),
             ),
           ],

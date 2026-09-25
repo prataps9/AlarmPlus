@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:alarm_plus/core/services/celebration_event.dart';
+import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
 
@@ -439,7 +440,13 @@ class SmartAlarmService {
   static Future<DismissReward> recordDismissed({bool hadSnooze = false, int snoozeCount = 0}) async {
     final prefs = await SharedPreferences.getInstance();
     final stats = await getStats();
-    final newStreak = stats.currentStreak + 1;
+    // A streak counts wake-up *days*: a second alarm on the same day earns
+    // XP but doesn't extend the streak (otherwise seven alarms a minute
+    // apart would unlock the 7-day badge).
+    final alreadyWokeToday =
+        (await getCalendarHistory())[_dayKey(DateTime.now())] == true;
+    final newStreak =
+        alreadyWokeToday ? stats.currentStreak : stats.currentStreak + 1;
     final next = stats.copyWith(
       dismissCount: stats.dismissCount + 1,
       currentStreak: newStreak,
@@ -466,7 +473,8 @@ class SmartAlarmService {
     final milestonesSeen = await getStreakMilestonesSeen();
     final hitMilestone = _streakMilestones.contains(newStreak) && !milestonesSeen.contains(newStreak);
     if (hitMilestone) {
-      await prefs.setInt(_streakFreezesKey, (prefs.getInt(_streakFreezesKey) ?? 0) + 1);
+      final earned = await PremiumService.canUse(PremiumFeature.doubleStreakFreezes) ? 2 : 1;
+      await prefs.setInt(_streakFreezesKey, (prefs.getInt(_streakFreezesKey) ?? 0) + earned);
       final seen = [...milestonesSeen, newStreak];
       await prefs.setString(_streakMilestonesSeenKey, jsonEncode(seen));
       _celebrationController.add(CelebrationEvent.streakMilestone(newStreak));
@@ -526,16 +534,29 @@ class SmartAlarmService {
     await prefs.setInt(_consecutiveNoSnoozeKey, 0);
   }
 
-  static Future<void> recordMissed() async {
+  /// Records a missed alarm. If the user owns a streak freeze it is spent
+  /// to keep the streak alive (at most one per day, since a single missed
+  /// morning can be recorded more than once). Returns true when a freeze
+  /// saved the streak.
+  static Future<bool> recordMissed() async {
+    final prefs = await SharedPreferences.getInstance();
     final stats = await getStats();
+    final today = _dayKey(DateTime.now());
+    final frozeToday = prefs.getString(_streakFreezeUsedDateKey) == today;
+    final saved = stats.currentStreak > 0 &&
+        (frozeToday || await useStreakFreeze());
     await _saveStats(
       stats.copyWith(
         missedCount: stats.missedCount + 1,
-        currentStreak: 0,
+        currentStreak: saved ? stats.currentStreak : 0,
       ),
     );
     await _recordDismissHistory(false);
+    return saved;
   }
+
+  static String _dayKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   static Future<AlarmStats> getStats() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1035,9 +1056,7 @@ class SmartAlarmService {
     final owned = prefs.getInt(_streakFreezesKey) ?? 0;
     if (owned <= 0) return false;
     await prefs.setInt(_streakFreezesKey, owned - 1);
-    final today = DateTime.now();
-    await prefs.setString(_streakFreezeUsedDateKey,
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}');
+    await prefs.setString(_streakFreezeUsedDateKey, _dayKey(DateTime.now()));
     return true;
   }
 
@@ -1070,9 +1089,10 @@ class SmartAlarmService {
         debugPrint('Failed to parse dismiss history: $e');
       }
     }
-    final today = DateTime.now();
-    final key = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    history[key] = dismissed;
+    final key = _dayKey(DateTime.now());
+    // A later miss (e.g. a second alarm) mustn't erase a morning the user
+    // did wake up; the calendar shows the day as won.
+    history[key] = dismissed || history[key] == true;
     // Keep only last 90 entries
     if (history.length > 90) {
       final sorted = history.keys.toList()..sort();

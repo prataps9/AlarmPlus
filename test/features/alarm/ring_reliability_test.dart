@@ -10,6 +10,7 @@ import 'package:alarm_plus/features/home/screens/splash_screen.dart';
 import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
 import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
+import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
 
 void main() {
   group('wake-up check timing', () {
@@ -76,12 +77,13 @@ void main() {
       expect(find.text('HOME'), findsOneWidget);
     });
 
-    testWidgets('sky paints from midnight to full sunrise', (tester) async {
-      for (final dawn in [0.0, 0.5, 1.0]) {
-        await tester.pumpWidget(SizedBox(
-          width: 400,
-          height: 800,
-          child: CustomPaint(painter: SkyPainter(dawn: dawn, time: dawn)),
+    testWidgets('logo paints with the minute hand at any angle',
+        (tester) async {
+      for (final turns in [0.0, 0.25, 1.0]) {
+        await tester.pumpWidget(MaterialApp(
+          home: Center(
+            child: AlarmLogo(size: 240, color: Colors.black, minuteTurns: turns),
+          ),
         ));
       }
       expect(tester.takeException(), isNull);

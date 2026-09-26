@@ -364,6 +364,17 @@ class AlarmService {
     }
   }
 
+  /// Skips (or, with [skip] false, un-skips) the next occurrence of a
+  /// repeating alarm and reschedules it.
+  static Future<void> setSkipNext(String id, {required bool skip}) async {
+    final alarm = StorageService.getAlarm(id);
+    if (alarm == null || alarm.repeatDays.isEmpty) return;
+    final updated =
+        skip ? alarm.skipNext(DateTime.now()) : alarm.copyWith(skipDate: null);
+    await saveAlarm(updated);
+    if (updated.isEnabled) await scheduleAlarm(updated);
+  }
+
   static List<AlarmModel> getAllAlarms() {
     return StorageService.getAllAlarms();
   }

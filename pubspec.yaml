@@ -73,6 +73,7 @@ dependencies:
   speech_to_text: ^7.0.0
   flutter_timezone: ^5.1.0
   quick_actions: ^1.1.1
+  file_picker: ^11.0.3
 
 dependency_overrides:
   vector_math: ">=2.2.0 <3.0.0"
@@ -114,17 +115,17 @@ flutter_launcher_icons:
   min_sdk_android: 24
 
 # NOTE: Android 12+ uses a hand-written animated icon
-# (res/drawable/splash_pip_animated.xml, wired in values-v31 styles), which
+# (res/drawable/splash_logo_animated.xml, wired in values-v31 styles), which
 # this generator can't produce. Re-running it overwrites those styles, so
 # restore the two windowSplashScreen* lines afterwards.
 flutter_native_splash:
-  color: "#1A0533"
+  color: "#FFFFFF"
   image: assets/icon/app_icon.png
   android: true
   ios: true
   web: true
   android_12:
-    color: "#1A0533"
+    color: "#FFFFFF"
     image: assets/icon/app_icon.png
 
   # To add assets to your application, add an assets section, like this:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
@@ -10,6 +11,7 @@ class AlarmCard extends StatelessWidget {
     required this.onToggle,
     this.onTap,
     this.onDelete,
+    this.onSkipNext,
   });
 
   final AlarmModel alarm;
@@ -18,6 +20,10 @@ class AlarmCard extends StatelessWidget {
   /// Opens the alarm for editing.
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
+  /// Skips (true) or restores (false) the next occurrence. Only offered for
+  /// enabled, repeating alarms.
+  final ValueChanged<bool>? onSkipNext;
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +180,10 @@ class AlarmCard extends StatelessWidget {
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
+                    if (onSkipNext != null &&
+                        alarm.isEnabled &&
+                        alarm.repeatDays.isNotEmpty)
+                      _SkipChip(alarm: alarm, onChanged: onSkipNext!),
                     if (onTap != null)
                       Icon(
                         Icons.chevron_right_rounded,
@@ -187,6 +197,38 @@ class AlarmCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Skip next" / "Skips Mon, 29 Sep ✕" for a repeating alarm.
+class _SkipChip extends StatelessWidget {
+  const _SkipChip({required this.alarm, required this.onChanged});
+
+  final AlarmModel alarm;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final skipping = alarm.isSkippingFrom(DateTime.now());
+    if (!skipping) {
+      return TextButton(
+        onPressed: () => onChanged(true),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+        ),
+        child: const Text('Skip next'),
+      );
+    }
+    return InputChip(
+      label: Text('Skips ${DateFormat('EEE, d MMM').format(alarm.skipDate!)}'),
+      avatar: const Icon(Icons.event_busy_rounded, size: 18),
+      onDeleted: () => onChanged(false),
+      deleteButtonTooltipMessage: 'Undo skip',
+      backgroundColor: const Color(0xFFFEF3C7),
+      side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

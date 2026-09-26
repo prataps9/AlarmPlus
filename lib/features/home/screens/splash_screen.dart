@@ -1,20 +1,17 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
-import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
+import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
 
-/// Launch animation: "the alarm goes off, Pip wakes up, the sun rises".
+/// Launch screen: white, with the Alarm+ logo.
 ///
-/// The first frame deliberately matches the Android 12+ system splash
-/// (`res/drawable/splash_pip_animated.xml`): the same midnight colour and a
-/// sleeping Pip at the same size and position, ringing. That way the
-/// system's hand-off to Flutter looks like one continuous animation.
+/// The first frame matches the Android 12+ system splash
+/// (`res/drawable/splash_logo_animated.xml`): same white, same logo at the
+/// same size and position, minute hand back at 12 after its sweep. The logo
+/// then glides up and the wordmark fades in beneath it, so the hand-off
+/// from the system splash reads as one motion.
 ///
 /// Tap anywhere to skip. With reduce-motion on it shows the final frame
 /// briefly and moves on.
@@ -23,11 +20,11 @@ class SplashScreen extends StatefulWidget {
 
   static const routeName = '/splash';
 
-  /// Keep in sync with `@color/splash_night` in `res/values/colors.xml`.
-  static const night = Color(0xFF1A0533);
+  /// Keep in sync with `@color/splash_background` in `res/values/colors.xml`.
+  static const background = Colors.white;
 
-  /// Native icon: Pip's 100-unit box is drawn 1.5x in dp.
-  static const nativePipSize = 150.0;
+  /// The native splash icon canvas (240dp), which the logo fills.
+  static const nativeLogoSize = 240.0;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -35,23 +32,19 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  static const _total = Duration(milliseconds: 2600);
+  static const _total = Duration(milliseconds: 1500);
 
-  // Timeline, as fractions of [_total].
-  static const _wakeAt = 0.28;
-  static const _dawn = Interval(0.26, 0.80, curve: Curves.easeInOutCubic);
-  static const _rise = Interval(0.40, 0.70, curve: Curves.easeOutBack);
-  static const _tagline = Interval(0.74, 0.92, curve: Curves.easeOut);
+  static const _lift = Interval(0.10, 0.55, curve: Curves.easeOutCubic);
+  static const _word = Interval(0.35, 0.75, curve: Curves.easeOut);
+  static const _tagline = Interval(0.55, 0.90, curve: Curves.easeOut);
 
   late final AnimationController _c =
       AnimationController(vsync: this, duration: _total);
-  bool _awake = false;
   bool _leaving = false;
 
   @override
   void initState() {
     super.initState();
-    _c.addListener(_onTick);
     _c.addStatusListener((s) {
       if (s == AnimationStatus.completed) _leave();
     });
@@ -64,17 +57,9 @@ class _SplashScreenState extends State<SplashScreen>
     final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
       _c.value = 1;
-      _awake = true;
-      Future<void>.delayed(const Duration(milliseconds: 700), _leave);
+      Future<void>.delayed(const Duration(milliseconds: 600), _leave);
     } else {
       _c.forward();
-    }
-  }
-
-  void _onTick() {
-    if (!_awake && _c.value >= _wakeAt) {
-      setState(() => _awake = true);
-      HapticFeedback.mediumImpact();
     }
   }
 
@@ -100,50 +85,61 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    const ink = Color(0xFF0F172A);
     return Scaffold(
-      backgroundColor: SplashScreen.night,
+      backgroundColor: SplashScreen.background,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _leave,
         child: AnimatedBuilder(
           animation: _c,
           builder: (context, _) {
-            final t = _c.value;
-            final dawn = _dawn.transform(t);
-            final rise = _rise.transform(t);
+            final lift = _lift.transform(_c.value);
+            final word = _word.transform(_c.value);
+            final tag = _tagline.transform(_c.value);
             return Stack(
               fit: StackFit.expand,
               children: [
-                CustomPaint(painter: SkyPainter(dawn: dawn, time: t)),
                 Center(
                   child: Transform.translate(
-                    offset: Offset(0, -70 * rise),
+                    offset: Offset(0, -64 * lift),
                     child: Transform.scale(
-                      scale: 1 - 0.12 * rise,
-                      child: PipMascot(
-                        size: SplashScreen.nativePipSize,
-                        mood: _awake ? MascotMood.cheering : MascotMood.sleepy,
-                        ringing: !_awake,
+                      scale: 1 - 0.3 * lift,
+                      child: const AlarmLogo(
+                        size: SplashScreen.nativeLogoSize,
+                        color: ink,
                       ),
                     ),
                   ),
                 ),
                 Align(
-                  alignment: const Alignment(0, 0.42),
+                  alignment: const Alignment(0, 0.30),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _Wordmark(t: t),
-                      const SizedBox(height: 10),
                       Opacity(
-                        opacity: _tagline.transform(t),
-                        child: Text(
-                          'Wake up. Level up.',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            letterSpacing: 0.6,
+                        opacity: word,
+                        child: Transform.translate(
+                          offset: Offset(0, 12 * (1 - word)),
+                          child: Text(
+                            'Alarm+',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
+                              color: ink,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Opacity(
+                        opacity: tag,
+                        child: const Text(
+                          'Wake up on time, every time.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF64748B),
                           ),
                         ),
                       ),
@@ -193,139 +189,4 @@ void replaceRouteInPlace(BuildContext context, String name) {
       },
     ),
   );
-}
-
-/// "Alarm+" with each letter dropping in on its own elastic bounce, and the
-/// "+" spinning into place last.
-class _Wordmark extends StatelessWidget {
-  const _Wordmark({required this.t});
-
-  final double t;
-
-  static const _letters = ['A', 'l', 'a', 'r', 'm', '+'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < _letters.length; i++) _letter(i),
-      ],
-    );
-  }
-
-  Widget _letter(int i) {
-    final start = 0.50 + i * 0.045;
-    final e = Interval(start, math.min(1.0, start + 0.22), curve: Curves.elasticOut)
-        .transform(t);
-    final visible = Interval(start, start + 0.05).transform(t);
-    final isPlus = _letters[i] == '+';
-    return Opacity(
-      opacity: visible,
-      child: Transform.translate(
-        offset: Offset(0, -46 * (1 - e)),
-        child: Transform.rotate(
-          angle: isPlus ? (1 - e) * math.pi : 0,
-          child: Text(
-            _letters[i],
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 46,
-              fontWeight: FontWeight.w800,
-              color: isPlus ? const Color(0xFFFDE68A) : Colors.white,
-              height: 1,
-              shadows: const [
-                Shadow(color: Color(0x55000000), blurRadius: 12, offset: Offset(0, 4)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Night sky turning into sunrise: a gradient that warms from midnight,
-/// stars that twinkle then fade, and a glowing sun coming over the horizon.
-@visibleForTesting
-class SkyPainter extends CustomPainter {
-  SkyPainter({required this.dawn, required this.time});
-
-  /// 0 = midnight (flat [SplashScreen.night], matching the system splash),
-  /// 1 = full sunrise.
-  final double dawn;
-
-  /// Overall animation time, drives the twinkle.
-  final double time;
-
-  static const _nightTop = SplashScreen.night;
-  static const _nightBottom = SplashScreen.night;
-  static const _dawnTop = Color(0xFF4C1D95);
-  static const _dawnMid = Color(0xFFDB2777);
-  static const _dawnBottom = Color(0xFFF59E0B);
-
-  // Deterministic star field, as fractions of the screen.
-  static final List<Offset> _stars = List.generate(36, (i) {
-    final r = math.Random(i * 7919);
-    return Offset(r.nextDouble(), r.nextDouble() * 0.65);
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.lerp(_nightTop, _dawnTop, dawn)!,
-            Color.lerp(_nightBottom, _dawnMid, dawn)!,
-            Color.lerp(_nightBottom, _dawnBottom, dawn)!,
-          ],
-          stops: const [0, 0.6, 1],
-        ).createShader(rect),
-    );
-
-    // Stars: fade in over the first moments (the native splash has none),
-    // twinkle, then disappear as the sky brightens.
-    final starAlpha = (time / 0.12).clamp(0.0, 1.0) * (1 - dawn);
-    if (starAlpha > 0.01) {
-      for (var i = 0; i < _stars.length; i++) {
-        final twinkle = 0.55 + 0.45 * math.sin(time * 18 + i * 1.7);
-        canvas.drawCircle(
-          Offset(_stars[i].dx * size.width, _stars[i].dy * size.height),
-          i % 5 == 0 ? 1.8 : 1.1,
-          Paint()..color = Colors.white.withValues(alpha: starAlpha * twinkle),
-        );
-      }
-    }
-
-    // Sun rising from below the bottom edge, with a soft glow.
-    if (dawn > 0) {
-      // Ends with ~3/4 of the disc showing, well below the tagline.
-      final radius = size.width * 0.36;
-      final center = Offset(
-        size.width / 2,
-        size.height + radius - radius * 0.75 * dawn,
-      );
-      canvas.drawCircle(
-        center,
-        radius * 1.9,
-        Paint()
-          ..shader = RadialGradient(colors: [
-            const Color(0xFFFDE68A).withValues(alpha: 0.55 * dawn),
-            const Color(0xFFFDE68A).withValues(alpha: 0),
-          ]).createShader(Rect.fromCircle(center: center, radius: radius * 1.9)),
-      );
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()..color = const Color(0xFFFEF3C7).withValues(alpha: 0.9 * dawn),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(SkyPainter old) => old.dawn != dawn || old.time != time;
 }

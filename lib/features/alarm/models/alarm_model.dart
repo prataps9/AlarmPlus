@@ -31,6 +31,7 @@ class AlarmModel {
     this.maxSnoozes = 0,
     this.alarmVolume = 1.0,
     this.vibrationPattern = VibrationPatternType.standard,
+    this.skipDate,
   });
 
   final String id;
@@ -64,6 +65,10 @@ class AlarmModel {
 
   /// Maximum number of times this alarm may be snoozed per ring; 0 = unlimited.
   final int maxSnoozes;
+
+  /// A single upcoming occurrence of a repeating alarm to skip (a holiday,
+  /// a day off), as a date. Once that date has passed it has no effect.
+  final DateTime? skipDate;
 
   /// Ring volume ceiling, 0.0-1.0. Applied directly at ring start, and as the
   /// ceiling of the gentle-wake ramp when that's enabled.
@@ -119,11 +124,34 @@ class AlarmModel {
     while (true) {
       final weekday = candidate.weekday;
       final validDay = repeatDays.contains(weekday);
-      if (validDay && !candidate.isBefore(from)) {
+      if (validDay && !candidate.isBefore(from) && !_isSkipped(candidate)) {
         return candidate;
       }
       candidate = _nextDay(candidate);
     }
+  }
+
+  bool _isSkipped(DateTime occurrence) {
+    final skip = skipDate;
+    return skip != null &&
+        skip.year == occurrence.year &&
+        skip.month == occurrence.month &&
+        skip.day == occurrence.day;
+  }
+
+  /// Whether a skip is set for an occurrence that hasn't happened yet.
+  bool isSkippingFrom(DateTime now) {
+    final skip = skipDate;
+    if (skip == null || repeatDays.isEmpty) return false;
+    return DateTime(skip.year, skip.month, skip.day, time.hour, time.minute)
+        .isAfter(now);
+  }
+
+  /// Skips the next occurrence (the one that would ring after [now]).
+  /// Repeating alarms only: a one-off alarm should simply be switched off.
+  AlarmModel skipNext(DateTime now) {
+    final next = copyWith(skipDate: null).nextDateTimeFrom(now);
+    return copyWith(skipDate: DateTime(next.year, next.month, next.day));
   }
 
   /// Same wall-clock time on the following calendar day. Adding
@@ -160,6 +188,9 @@ class AlarmModel {
       'maxSnoozes': maxSnoozes,
       'alarmVolume': alarmVolume,
       'vibrationPattern': vibrationPattern.name,
+      'skipDate': skipDate == null
+          ? null
+          : '${skipDate!.year}-${skipDate!.month}-${skipDate!.day}',
     };
   }
 
@@ -221,7 +252,15 @@ class AlarmModel {
               .where((v) => v.name == map['vibrationPattern'])
               .firstOrNull ??
           VibrationPatternType.standard,
+      skipDate: _parseDate(map['skipDate']),
     );
+  }
+
+  static DateTime? _parseDate(Object? raw) {
+    if (raw is! String) return null;
+    final parts = raw.split('-').map(int.tryParse).toList();
+    if (parts.length != 3 || parts.any((p) => p == null)) return null;
+    return DateTime(parts[0]!, parts[1]!, parts[2]!);
   }
 
   AlarmModel copyWith({
@@ -250,6 +289,7 @@ class AlarmModel {
     int? maxSnoozes,
     double? alarmVolume,
     VibrationPatternType? vibrationPattern,
+    Object? skipDate = _sentinel,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -279,6 +319,7 @@ class AlarmModel {
       maxSnoozes: maxSnoozes ?? this.maxSnoozes,
       alarmVolume: alarmVolume ?? this.alarmVolume,
       vibrationPattern: vibrationPattern ?? this.vibrationPattern,
+      skipDate: identical(skipDate, _sentinel) ? this.skipDate : skipDate as DateTime?,
     );
   }
 }

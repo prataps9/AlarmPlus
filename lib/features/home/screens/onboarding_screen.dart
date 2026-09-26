@@ -3,8 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
-import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
+import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -21,24 +20,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _OnboardingPage(
-      mood: MascotMood.waving,
-      title: "Hi, I'm Pip!",
-      body: "I'm your wake-up buddy. My challenges (math, memory, shake, barcode and more) make sure you actually get out of bed.",
+      icon: null, // the Alarm+ logo
+      title: 'Wake Up,\nFor Real',
+      body: 'Smart challenges make sure you actually get out of bed: math, memory, shake, barcode, Color Clash and more.',
     ),
     _OnboardingPage(
-      mood: MascotMood.cheering,
+      icon: Icons.bolt_rounded,
       title: 'Earn XP\nEvery Morning',
       body: 'Build streaks, level up, and unlock badges the faster you dismiss your alarm.',
     ),
     _OnboardingPage(
-      mood: MascotMood.sleepy,
+      icon: Icons.bedtime_rounded,
       title: 'Sleep\nSmarter',
       body: 'Track your sleep diary, set a bedtime schedule, and get weekly insights on how rested you really are.',
     ),
     _OnboardingPage(
-      mood: MascotMood.worried,
+      icon: Icons.verified_user_rounded,
       title: 'Needs a Few\nPermissions',
-      body: "I can't ring without notifications and exact-alarm access. Grant them so I never miss your wake-up.",
+      body: 'Alarm+ needs notifications and exact-alarm access so it can reliably wake you up.',
       isPermission: true,
     ),
   ];
@@ -163,13 +162,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _OnboardingPage extends StatelessWidget {
   const _OnboardingPage({
-    required this.mood,
+    required this.icon,
     required this.title,
     required this.body,
     this.isPermission = false,
   });
 
-  final MascotMood mood;
+  /// Null shows the Alarm+ logo.
+  final IconData? icon;
   final String title;
   final String body;
   final bool isPermission;
@@ -181,7 +181,18 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PipMascot(mood: mood, size: 128),
+          if (icon == null)
+            const AlarmLogo(size: 104, color: Color(0xFF0F172A))
+          else
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(icon, size: 44, color: const Color(0xFF0F172A)),
+            ),
           const SizedBox(height: 28),
           Text(
             title,

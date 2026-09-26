@@ -6,7 +6,17 @@ import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
-/// Provider for the current tab index
+/// Bottom-navigation tabs, in order — the standard clock-app layout, plus
+/// Insights. Settings lives behind the gear on the Alarm tab.
+abstract final class AppTab {
+  static const alarm = 0;
+  static const clock = 1;
+  static const timer = 2;
+  static const stopwatch = 3;
+  static const insights = 4;
+}
+
+/// Provider for the current tab index (see [AppTab]).
 final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 /// Provider for alarms map state
@@ -150,6 +160,15 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final updated = alarm.copyWith(isEnabled: on);
     await AlarmService.toggleAlarm(id, on);
     map[id] = updated;
+    state = Future.value(Map.from(map));
+  }
+
+  /// Skip, or un-skip, the next occurrence of a repeating alarm.
+  Future<void> setSkipNext(String id, {required bool skip}) async {
+    await AlarmService.setSkipNext(id, skip: skip);
+    final map = await state;
+    final updated = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull;
+    if (updated != null) map[id] = updated;
     state = Future.value(Map.from(map));
   }
 

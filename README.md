@@ -11,8 +11,7 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   personalities, and per-alarm dismiss challenges (math, memory pattern,
   shake-to-wake, typing, barcode/QR scan, trivia, word scramble, step counter,
   eye-open detection, squats, photo proof, read-aloud, and Color Clash, a
-  Stroop test where you tap the ink colour, not the word). Pip rings on
-  the alarm screen and reacts as you swipe.
+  Stroop test where you tap the ink colour, not the word).
 - **Gamification** — XP, levels ("Sleeper" → "Early Bird" → "Dawn Warrior" →
   "Circadian Master" → "Flow Legend"), unlockable badges, and streaks with
   streak freezes and comeback bonuses.
@@ -26,23 +25,9 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
-- **Pip, the mascot** — a code-drawn, animated alarm-clock buddy (no image
-  assets). Pip has seven moods with their own motion: waving, a cheering
-  jump with ringing bells, a sleepy "z"-float, a worried shiver, a proud
-  sparkle. Pip also blinks, bobs, and wiggles when tapped. Pip greets you on
-  Home with a contextual line (streak at risk, bedtime, next alarm), and
-  appears on splash, onboarding, the celebration banner and the dismiss
-  sheet. Code lives in `lib/features/mascot/`.
-- **Animated launch** — on Android 12+ the system splash is an
-  animated-vector Pip, asleep while the alarm bells ring
-  (`res/drawable/splash_pip_animated.xml`). The Flutter splash continues
-  from that exact frame: Pip wakes up and jumps, the night sky turns into
-  a sunrise, and the wordmark bounces in. Tap to skip; reduce-motion is
-  respected.
-- **Native Android touches** — predictive-back page animations (Android
-  14+), launcher long-press shortcuts (New alarm, Power nap, Sleep sounds,
-  Focus timer), a Quick Settings tile, a home-screen widget, and volume-key
-  snooze.
+- **Pip, the mascot** — a code-drawn, animated alarm-clock character that
+  appears only in celebrations (level-ups, badges, the post-alarm sheet) and
+  in the Pro wardrobe. Code lives in `lib/features/mascot/`.
 - **Alarm+ Pro** — a one-time lifetime unlock (₹299 or the store's local
   price, no subscription). It includes Pip's Wardrobe (4 outfits), double
   streak freezes, Sleep Coach Pro, and an always-on wake challenge. It

@@ -10,6 +10,9 @@ import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/features/clock/screens/stopwatch_screen.dart';
+import 'package:alarm_plus/features/clock/screens/timer_screen.dart';
+import 'package:alarm_plus/features/clock/screens/world_clock_screen.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
@@ -23,7 +26,6 @@ import 'package:alarm_plus/features/mascot/services/mascot_service.dart';
 import 'package:alarm_plus/features/location/screens/location_picker_screen.dart';
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
-import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/morning_check_in_screen.dart';
@@ -114,10 +116,14 @@ class _AppWithTheme extends ConsumerWidget {
 class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key});
 
+  // Order must match AppTab. Settings is behind the gear on the Alarm tab,
+  // as in the stock clock app.
   static const _destinations = [
-    (icon: Icons.alarm_rounded, label: 'ALARMS'),
-    (icon: Icons.insights_rounded, label: 'INSIGHTS'),
-    (icon: Icons.settings_rounded, label: 'SETTINGS'),
+    (icon: Icons.alarm_rounded, label: 'Alarm'),
+    (icon: Icons.public_rounded, label: 'Clock'),
+    (icon: Icons.hourglass_bottom_rounded, label: 'Timer'),
+    (icon: Icons.timer_outlined, label: 'Stopwatch'),
+    (icon: Icons.insights_rounded, label: 'Insights'),
   ];
 
   static bool _isDesktop(BuildContext context) {
@@ -146,8 +152,10 @@ class MainScaffold extends ConsumerWidget {
       index: currentTabIndex,
       children: const [
         HomeScreen(),
+        WorldClockScreen(),
+        TimerScreen(),
+        StopwatchScreen(),
         InsightsScreen(),
-        SettingsScreen(),
       ],
     );
 

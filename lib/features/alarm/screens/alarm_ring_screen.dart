@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 import 'dart:io';
 
@@ -839,18 +840,18 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                                       color: _personality.accentColor,
                                       border: Border.all(color: _personality.primaryColor, width: 2)),
                                     child: Center(
-                                      // Pip *is* the ringing alarm clock, and
-                                      // reacts to the swipe in progress.
-                                      child: PipMascot(
-                                        size: 118,
-                                        ringing: !_isDismissing,
-                                        mood: isDismissDir && dragProgress > 0.3
-                                            ? MascotMood.cheering
-                                            : isSnoozeDir && dragProgress > 0.3
-                                                ? MascotMood.sleepy
-                                                : _isBossMode
-                                                    ? MascotMood.worried
-                                                    : MascotMood.waving,
+                                      // A ringing bell that swings back and
+                                      // forth, like the system clock app.
+                                      child: Transform.rotate(
+                                        angle: _isDismissing
+                                            ? 0
+                                            : math.sin(_ringController.value * math.pi * 8) * 0.28,
+                                        alignment: Alignment.topCenter,
+                                        child: Icon(
+                                          Icons.notifications_active_rounded,
+                                          size: 56,
+                                          color: _personality.primaryColor,
+                                        ),
                                       ),
                                     ),
                                   ),

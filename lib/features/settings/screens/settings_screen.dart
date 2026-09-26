@@ -12,11 +12,12 @@ import 'package:alarm_plus/features/location/screens/location_alarm_screen.dart'
 import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
+import 'package:alarm_plus/core/services/backup_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
 import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
 import 'package:alarm_plus/features/mascot/screens/wardrobe_screen.dart';
 import 'package:alarm_plus/features/mascot/services/mascot_service.dart';
-import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
+import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -228,6 +229,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Navigator.of(context).pushNamed(WardrobeScreen.routeName),
             ),
           ),
+          _SettingTile(
+            title: 'Back Up Alarms & Settings',
+            subtitle: 'Save a file to Drive, email or anywhere',
+            trailing: const Icon(Icons.cloud_upload_outlined,
+                color: Color(0xFFAAAAAA), size: 20),
+            onTap: () => _backup(context),
+          ),
+          _SettingTile(
+            title: 'Restore From Backup',
+            subtitle: 'Replace your alarms with a saved backup',
+            trailing: const Icon(Icons.settings_backup_restore_rounded,
+                color: Color(0xFFAAAAAA), size: 20),
+            onTap: () => _restoreBackup(context),
+          ),
           ValueListenableBuilder<bool>(
             valueListenable: PremiumService.isPro,
             builder: (context, isPro, _) => isPro
@@ -267,6 +282,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _backup(BuildContext context) async {
+    try {
+      await BackupService.export();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _restoreBackup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final BackupData? data;
+    try {
+      data = await BackupService.pick();
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+      return;
+    }
+    if (data == null || !context.mounted) return;
+
+    final when = data.createdAt == null
+        ? ''
+        : ' from ${MaterialLocalizations.of(context).formatMediumDate(data.createdAt!)}';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore backup?'),
+        content: Text(
+          'This replaces all your current alarms with the '
+          '${data!.alarms.length} alarm${data.alarms.length == 1 ? '' : 's'} '
+          'in this backup$when, and restores its settings.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Restore')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await BackupService.restore(data);
+    await MascotService.init();
+    ref.invalidate(alarmsMapProvider);
+    _refreshAndRebuild();
+    messenger.showSnackBar(const SnackBar(content: Text('Backup restored')));
+  }
+
   Future<void> _restorePurchase(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
@@ -299,7 +370,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       applicationVersion: info != null
           ? 'v${info.version} (build ${info.buildNumber})'
           : '',
-      applicationIcon: const Icon(Icons.alarm_rounded, size: 48),
+      applicationIcon: const AlarmLogo(size: 56),
       children: [
         const SizedBox(height: 8),
         const Text(
@@ -482,8 +553,11 @@ class _ProCard extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: PremiumService.isPro,
       builder: (context, isPro, _) => Material(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFFFFBEB),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFDE68A)),
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () => isPro
@@ -494,12 +568,15 @@ class _ProCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
             child: Row(
               children: [
-                IgnorePointer(
-                  child: PipMascot(
-                    mood: isPro ? MascotMood.proud : MascotMood.waving,
-                    outfit: isPro ? null : MascotOutfit.royal,
-                    size: 68,
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFBBF24),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.workspace_premium_rounded,
+                      color: Color(0xFF0F172A), size: 30),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -509,7 +586,7 @@ class _ProCard extends StatelessWidget {
                       Text(
                         isPro ? 'Alarm+ Pro · Lifetime' : 'Upgrade to Alarm+ Pro',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF0F172A),
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -517,11 +594,11 @@ class _ProCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         isPro
-                            ? "Thanks for your support! Dress up Pip in the wardrobe."
-                            : 'Outfits for Pip, double streak freezes, Sleep Coach Pro. '
-                                'One payment of ${PremiumService.fallbackPriceLabel}.',
+                            ? 'Thanks for your support! All Pro features are unlocked.'
+                            : 'Sleep Coach Pro, double streak freezes, always-on wake '
+                                'challenge. One payment of ${PremiumService.fallbackPriceLabel}.',
                         style: const TextStyle(
-                          color: Color(0xFFCBD5E1),
+                          color: Color(0xFF475569),
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -531,7 +608,7 @@ class _ProCard extends StatelessWidget {
                 ),
                 Icon(
                   isPro ? Icons.verified_rounded : Icons.chevron_right_rounded,
-                  color: isPro ? const Color(0xFFFBBF24) : Colors.white,
+                  color: isPro ? const Color(0xFFD97706) : const Color(0xFF0F172A),
                 ),
               ],
             ),

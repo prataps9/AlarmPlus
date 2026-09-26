@@ -57,6 +57,9 @@ class AlarmsScreen extends ConsumerWidget {
                 onDelete: () {
                   ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
                 },
+                onSkipNext: (skip) => ref
+                    .read(alarmsMapProvider.notifier)
+                    .setSkipNext(alarm.id, skip: skip),
               );
             },
           );

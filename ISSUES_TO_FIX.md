@@ -7,7 +7,9 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - lock-screen notification (Open / Snooze buttons)
   - Hardcore mode swipe-away
   - a cold start caused by a ringing alarm
-  - the Android 12+ animated splash
+  - the Android 12+ animated splash (logo minute-hand sweep)
+  - the Timer's "time's up" notification ringing with the app closed
+  - Backup (share sheet) and Restore (file picker)
   - long-press launcher shortcuts
   - the wake-up check re-ring after killing the app
 - **Premium is a local SharedPreferences flag** with no receipt verification, and refunds never lock it again. Consider server-side verification or re-querying purchases at startup.
@@ -15,7 +17,7 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 ## 🟡 Medium Priority
 - **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
 - **Wind-Down can't be reached from the main UI**: nothing pushes `/wind-down`. Sleep Sounds is now reachable through the launcher shortcut, but not from Home.
-- **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the two `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`). The web and iOS launch screens are still the old white ones.
+- **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
 - **Silent Failures (catch blocks):** All empty `catch (_) {}` blocks now log via `debugPrint`.

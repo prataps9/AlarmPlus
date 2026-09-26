@@ -20,8 +20,9 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
-import 'package:alarm_plus/features/mascot/models/mascot_line.dart';
-import 'package:alarm_plus/features/mascot/widgets/pip_says.dart';
+import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
+import 'package:alarm_plus/features/sleep/widgets/bedtime_card.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -38,7 +39,7 @@ class HomeScreen extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  'Alarm+',
+                  'Alarm',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: 30,
@@ -46,6 +47,21 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const Spacer(),
                 IconButton(
+                  tooltip: 'Settings',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      // SettingsScreen draws its own "Settings" heading;
+                      // the bar only adds the back button.
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(),
+                        body: const SettingsScreen(),
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.settings_outlined, size: 28),
+                ),
+                IconButton(
+                  tooltip: 'New alarm',
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -57,9 +73,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            _PipGreeting(alarms: alarms),
-            const SizedBox(height: 14),
+            _NextAlarmLine(alarms: alarms),
+            const SizedBox(height: 18),
             // Streak / XP hero widget
             FutureBuilder<(AlarmStats, int)>(
               future: Future.wait([
@@ -73,7 +88,7 @@ class HomeScreen extends ConsumerWidget {
                   stats: stats,
                   xp: xp,
                   onTap: () =>
-                      ref.read(currentTabIndexProvider.notifier).state = 1,
+                      ref.read(currentTabIndexProvider.notifier).state = AppTab.insights,
                 );
               },
             ),
@@ -178,9 +193,14 @@ class HomeScreen extends ConsumerWidget {
                     onToggle: (value) => ref
                         .read(alarmsMapProvider.notifier)
                         .toggleAlarm(alarm.id, value),
+                    onSkipNext: (skip) => ref
+                        .read(alarmsMapProvider.notifier)
+                        .setSkipNext(alarm.id, skip: skip),
                   ),
                 ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 14),
+            BedtimeCard(alarms: alarms),
+            const SizedBox(height: 8),
             // Sleep Insights summary card
             FutureBuilder<int>(
               future: SleepAnalyticsService.weeklyScore(),
@@ -336,43 +356,29 @@ class HomeScreen extends ConsumerWidget {
 
 /// Pip's contextual line at the top of Home: greets new users, nags when a
 /// streak has no alarm protecting it, and cheers in the morning.
-class _PipGreeting extends StatelessWidget {
-  const _PipGreeting({required this.alarms});
+/// "Alarm in 7 hr 20 min" — the line every clock app shows, refreshed
+/// each minute.
+class _NextAlarmLine extends StatelessWidget {
+  const _NextAlarmLine({required this.alarms});
 
   final List<AlarmModel> alarms;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final upcoming = alarms.where((a) => a.isEnabled).toList()
-      ..sort((a, b) =>
-          a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)));
-    final next = upcoming.isEmpty ? null : upcoming.first;
-
-    return FutureBuilder<AlarmStats>(
-      future: SmartAlarmService.getStats(),
-      builder: (context, snap) {
-        // Hold the space until stats load so Pip doesn't flash a
-        // "no streak" line and then switch moods.
-        if (!snap.hasData) return const SizedBox(height: 84);
-        final streak = snap.data!.currentStreak;
-        final line = MascotLines.homeGreeting(
-          now: now,
-          streak: streak,
-          hasUpcomingAlarm: next != null,
-          nextMilestone: SmartAlarmService.getStreakMilestoneNext(streak),
-          nextAlarmLabel:
-              next == null ? null : '${next.timeLabel} ${next.periodLabel}',
-        );
-        return PipSays(
-          line: line,
-          onTap: next == null
-              ? () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const AlarmsScreen(),
-                    ),
-                  )
-              : null,
+    return StreamBuilder<void>(
+      stream: Stream<void>.periodic(const Duration(seconds: 30)),
+      builder: (context, _) {
+        final now = DateTime.now();
+        DateTime? next;
+        for (final a in alarms.where((a) => a.isEnabled)) {
+          final t = a.nextDateTimeFrom(now);
+          if (next == null || t.isBefore(next)) next = t;
+        }
+        return Text(
+          TimeFormat.alarmIn(next?.difference(now)),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
         );
       },
     );

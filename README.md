@@ -10,7 +10,8 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
 - **Smart alarms** — repeatable alarms with gentle-wake ramp, custom sounds,
   personalities, and per-alarm dismiss challenges (math, memory pattern,
   shake-to-wake, typing, barcode/QR scan, trivia, word scramble, step counter,
-  eye-open detection).
+  eye-open detection, squats, photo proof, read-aloud, and Color Clash, a
+  Stroop test where you tap the ink colour, not the word).
 - **Gamification** — XP, levels ("Sleeper" → "Early Bird" → "Dawn Warrior" →
   "Circadian Master" → "Flow Legend"), unlockable badges, and streaks with
   streak freezes and comeback bonuses.
@@ -24,13 +25,9 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
-- **Pip, the mascot** — a code-drawn, animated alarm-clock buddy (no image
-  assets). Pip has seven moods with their own motion: waving, a cheering
-  jump with ringing bells, a sleepy "z"-float, a worried shiver, a proud
-  sparkle. Pip also blinks, bobs, and wiggles when tapped. Pip greets you on
-  Home with a contextual line (streak at risk, bedtime, next alarm), and
-  appears on splash, onboarding, the celebration banner and the dismiss
-  sheet. Code lives in `lib/features/mascot/`.
+- **Pip, the mascot** — a code-drawn, animated alarm-clock character that
+  appears only in celebrations (level-ups, badges, the post-alarm sheet) and
+  in the Pro wardrobe. Code lives in `lib/features/mascot/`.
 - **Alarm+ Pro** — a one-time lifetime unlock (₹299 or the store's local
   price, no subscription). It includes Pip's Wardrobe (4 outfits), double
   streak freezes, Sleep Coach Pro, and an always-on wake challenge. It
@@ -44,7 +41,7 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 
 ## Tech stack
 
-- **Flutter / Dart** (Dart SDK `^3.7.0`)
+- **Flutter / Dart** (Flutter 3.47.5 in CI)
 - **State management:** Riverpod (`flutter_riverpod`) for app-level/theme
   state, plus `provider`-style singleton services for alarm/storage logic.
   Consolidating this mix is a known, deferred cleanup — see
@@ -62,8 +59,8 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 
 ## Getting started
 
-1. Install Flutter (matching the SDK constraint in `pubspec.yaml`,
-   currently Dart `^3.7.0`) and set up an Android/iOS toolchain.
+1. Install Flutter 3.47.5 (the version CI pins; dependencies need
+   Flutter ≥ 3.44) and set up an Android/iOS toolchain.
 2. Install dependencies:
    ```bash
    flutter pub get

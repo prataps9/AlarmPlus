@@ -25,6 +25,31 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
+- **Clean white UI** — a plain, standard alarm-app look built around the
+  Alarm+ line-clock logo (`lib/shared/widgets/alarm_logo.dart`, the same mark
+  as the launcher icon). On Android 12+ the system splash shows the logo with
+  its minute hand sweeping once (`res/drawable/splash_logo_animated.xml`), and
+  the Flutter splash continues from that exact frame.
+- **Clock tabs** — Alarm, Clock (world clock with city search), Timer (keypad
+  entry, presets, +1:00; rings through an insistent alarm-sound notification
+  even when the app is closed), Stopwatch (laps, with the fastest and slowest
+  highlighted; keeps running if the app is killed) and Insights. Settings
+  sits behind the gear on the Alarm tab.
+- **Reliability guardrails** — the Alarm tab warns, with a one-tap fix,
+  whenever notifications or exact alarms are off. Every alarm gets a
+  2-hours-ahead "Upcoming alarm" notice with **Dismiss now**. Times follow
+  the phone's 12/24-hour setting.
+- **Bedtime + sleep goal** — the Alarm tab works your bedtime back from the
+  next alarm ("Go to bed by 10:30 PM for 8 h of sleep"), with an optional
+  nightly reminder.
+- **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
+  off) without switching it off.
+- **Backup & restore** — export all alarms and settings to a JSON file via
+  the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Native Android touches** — predictive-back page animations (Android
+  14+), launcher long-press shortcuts (New alarm, Power nap, Sleep sounds,
+  Focus timer), a Quick Settings tile, a home-screen widget, and volume-key
+  snooze.
 - **Pip, the mascot** — a code-drawn, animated alarm-clock character that
   appears only in celebrations (level-ups, badges, the post-alarm sheet) and
   in the Pro wardrobe. Code lives in `lib/features/mascot/`.
@@ -33,6 +58,8 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   streak freezes, Sleep Coach Pro, and an always-on wake challenge. It
   has a full-screen paywall (`lib/features/premium/`), and the purchase
   listener runs for the whole app lifetime so pending payments aren't lost.
+  At startup it checks which purchases Google Play says the account owns,
+  so Pro restores itself after a reinstall and locks again after a refund.
 - **Sleep tools** — sleep diary, sleep insights, wind-down mode, bedtime
   setup, sleep sounds, location-based alarms, nap timer, focus timer.
 

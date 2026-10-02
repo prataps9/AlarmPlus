@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
+import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
@@ -33,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late Future<AlarmStats> _statsFuture;
   late Future<PackageInfo> _packageInfoFuture;
   late Future<String> _guardianWebhookFuture;
+  late Future<bool> _upcomingNoticeFuture;
 
   static const _privacyPolicyUrl =
       'https://sites.google.com/view/alarmplus-privacy/home';
@@ -50,6 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _statsFuture = SmartAlarmService.getStats();
     _packageInfoFuture = PackageInfo.fromPlatform();
     _guardianWebhookFuture = GuardianService.getWebhookUrl();
+    _upcomingNoticeFuture = AlarmService.upcomingNoticeEnabled();
   }
 
   void _refreshAndRebuild() {
@@ -90,6 +93,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: (v) =>
                   ref.read(vibrationEnabledProvider.notifier).state = v,
             ),
+          ),
+          FutureBuilder<bool>(
+            future: _upcomingNoticeFuture,
+            builder: (context, snapshot) {
+              final on = snapshot.data ?? true;
+              return _SettingTile(
+                title: 'Upcoming Alarm Notice',
+                subtitle: '2 hours before, with "Dismiss now"',
+                trailing: _AnimatedToggle(
+                  value: on,
+                  onChanged: (v) async {
+                    await AlarmService.setUpcomingNoticeEnabled(v);
+                    _refreshAndRebuild();
+                  },
+                ),
+              );
+            },
           ),
           FutureBuilder<DismissChallengeType>(
             future: _dismissChallengeFuture,

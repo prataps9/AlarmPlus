@@ -10,13 +10,14 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - the Android 12+ animated splash (logo minute-hand sweep)
   - the Timer's "time's up" notification ringing with the app closed
   - Backup (share sheet) and Restore (file picker)
+  - the "Upcoming alarm" notice and its **Dismiss now** button (app open and app closed)
+  - the Home reliability banner after revoking notification / exact-alarm permission
   - long-press launcher shortcuts
   - the wake-up check re-ring after killing the app
-- **Premium is a local SharedPreferences flag** with no receipt verification, and refunds never lock it again. Consider server-side verification or re-querying purchases at startup.
+- **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 
 ## 🟡 Medium Priority
 - **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
-- **Wind-Down can't be reached from the main UI**: nothing pushes `/wind-down`. Sleep Sounds is now reachable through the launcher shortcut, but not from Home.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
@@ -34,6 +35,12 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - A miss now spends an owned freeze (at most one per day) instead of resetting the streak.
   - A later miss no longer erases a day the user did wake up.
 - **Purchases could be lost (2026-09-25):** `purchaseStream` was only listened to during a purchase, so pending or late UPI purchases were never completed and were auto-refunded. A global listener now starts in `main()`.
+- **Completeness pass (2026-10-02):**
+  - **Silent failure when permissions are revoked:** Home now shows a banner whenever notifications or exact alarms are off, with a one-tap fix. It rechecks on resume and reschedules every alarm once access returns.
+  - **No upcoming-alarm notice:** each alarm now gets a 2-hours-ahead notice with **Dismiss now** (skips that occurrence, or turns off a one-off alarm). It can be switched off in Settings.
+  - **24-hour setting ignored:** alarm cards and the ring screen now follow the phone's 12/24-hour setting, and show "6:30", not "06:30".
+  - **Stale ring-screen time:** the ring screen shows the live time, which matters after a snooze.
+  - **Dead ends:** Wind-Down and Sleep Sounds are reachable from Home, bedtime setup is linked from the bedtime card, and tapping "Time's up" opens the Timer tab.
 - **Ring-flow reliability (2026-09-25, second pass):**
   - **Notification "Stop" skipped every challenge** (and still paid XP). The native notification now has **Open** (to the ring screen) instead, and a stray stop call opens the ring screen rather than dismissing.
   - **Snooze:** the notification's snooze shows the alarm's real snooze length and is hidden in Hardcore; volume-key snooze is ignored for Hardcore alarms.
@@ -59,4 +66,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-09-25*
+*Updated on 2026-10-02*

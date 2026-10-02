@@ -126,6 +126,9 @@ class AlarmRingFlow {
     if (payload.startsWith('wakecheck:')) {
       final id = int.tryParse(payload.substring('wakecheck:'.length));
       if (id != null) await cancelWakeUpCheck(id);
+    } else if (launch != null && int.tryParse(payload) == null) {
+      // "Dismiss now", "Time's up" and other non-alarm notifications.
+      AlarmService.handleNotificationResponse(launch);
     } else {
       final id = int.tryParse(payload);
       if (id != null && id > 0 && await Alarm.isRinging(id).catchError((_) => false)) {

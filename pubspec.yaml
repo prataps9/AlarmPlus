@@ -74,6 +74,7 @@ dependencies:
   flutter_timezone: ^5.1.0
   quick_actions: ^1.1.1
   file_picker: ^11.0.3
+  in_app_purchase_android: ^0.4.0
 
 dependency_overrides:
   vector_math: ">=2.2.0 <3.0.0"

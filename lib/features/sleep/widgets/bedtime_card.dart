@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
+import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
 
 /// "Go to bed by 10:30 PM for 8 h of sleep" — bedtime worked back from the
@@ -43,7 +44,7 @@ class _BedtimeCardState extends State<BedtimeCard> {
   }
 
   Future<void> _save(BedtimeSchedule s) async {
-    setState(() => _schedule = s);
+    if (mounted) setState(() => _schedule = s);
     await BedtimeService.save(s);
   }
 
@@ -83,6 +84,15 @@ class _BedtimeCardState extends State<BedtimeCard> {
                     'A nudge ${_current.windDownMinutes} min before bedtime'),
                 value: remind,
                 onChanged: (v) => setSheet(() => remind = v),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Wind-down length & bedtime settings'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName);
+                },
               ),
               const SizedBox(height: Spacing.sm),
               SizedBox(

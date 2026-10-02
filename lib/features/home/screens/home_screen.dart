@@ -11,12 +11,14 @@ import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart'
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
-import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
+import 'package:alarm_plus/features/alarm/widgets/reliability_banner.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
+import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
+import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
@@ -75,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             _NextAlarmLine(alarms: alarms),
             const SizedBox(height: 18),
+            const ReliabilityBanner(),
             // Streak / XP hero widget
             FutureBuilder<(AlarmStats, int)>(
               future: Future.wait([
@@ -250,17 +253,26 @@ class HomeScreen extends ConsumerWidget {
               builder: (context, snap) {
                 final schedule = snap.data;
                 final active = schedule != null && schedule.isEnabled;
+                // Wind-down session (with sleep sounds) — previously this
+                // card went to bedtime setup, leaving Wind-Down unreachable.
                 return ShortcutCard(
                   emoji: '\u{1F319}',
                   title: 'Wind Down',
                   subtitle: active
                       ? 'Bedtime ${BedtimeService.nextBedtimeLabel(schedule)} '
-                          '\u00b7 ${schedule.windDownMinutes}min wind-down'
-                      : 'Set up your bedtime routine',
+                          '\u00b7 relax with a guided wind-down'
+                      : 'Relax before bed with a guided wind-down',
                   onTap: () => Navigator.of(context)
-                      .pushNamed(BedtimeSetupScreen.routeName),
+                      .pushNamed(WindDownScreen.routeName),
                 );
               },
+            ),
+            ShortcutCard(
+              emoji: '\u{1F3B5}',
+              title: 'Sleep Sounds',
+              subtitle: 'Rain, ocean, fan, white noise and more',
+              onTap: () =>
+                  Navigator.of(context).pushNamed(SleepSoundsScreen.routeName),
             ),
             Row(
               children: [

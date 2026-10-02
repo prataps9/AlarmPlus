@@ -36,6 +36,34 @@ class AlarmService {
 
   static Stream<int> get ringIntents => _ringIntents.stream;
 
+  /// Fires when alarms change outside the UI (a notification action, a
+  /// restored backup), so the alarm list can reload from storage.
+  static final StreamController<void> _changes =
+      StreamController<void>.broadcast();
+  static Stream<void> get changes => _changes.stream;
+  static void notifyChanged() => _changes.add(null);
+
+  /// Bottom-nav tab requests from notifications (e.g. "Time's up" → Timer).
+  static final StreamController<String> _openRequests =
+      StreamController<String>.broadcast();
+  static Stream<String> get openRequests => _openRequests.stream;
+
+  static const _upcomingNoticeKey = 'alarm.upcoming_notice';
+
+  /// How long before an alarm its "Upcoming alarm" notice appears.
+  static const upcomingNoticeLead = Duration(hours: 2);
+
+  static Future<bool> upcomingNoticeEnabled() async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    return prefs.getBool(_upcomingNoticeKey) ?? true;
+  }
+
+  static Future<void> setUpcomingNoticeEnabled(bool on) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    await prefs.setBool(_upcomingNoticeKey, on);
+    await restoreEnabledAlarms();
+  }
+
   // Registered by AlarmRingFlow to handle wake-check notification taps
   static void Function(int alarmId)? _onWakeCheckTapped;
   static void registerWakeCheckHandler(void Function(int alarmId) handler) {
@@ -112,8 +140,26 @@ class AlarmService {
     }
   }
 
+  /// Routes a notification tap or action. Also used to replay the tap that
+  /// launched the app (see [takeLaunchResponse]).
+  static void handleNotificationResponse(NotificationResponse response) =>
+      _onNotificationResponse(response);
+
   static void _onNotificationResponse(NotificationResponse response) {
     final payload = response.payload?.trim() ?? '';
+
+    if (payload.startsWith('upcoming:')) {
+      final alarmId = int.tryParse(payload.substring('upcoming:'.length));
+      if (alarmId != null && response.actionId == 'dismiss_now') {
+        unawaited(dismissUpcoming(alarmId));
+      }
+      return;
+    }
+
+    if (payload == 'timer') {
+      _openRequests.add('timer');
+      return;
+    }
 
     // Wake-up check notification: user confirmed they're awake — cancel re-ring
     if (payload.startsWith('wakecheck:')) {
@@ -285,11 +331,58 @@ class AlarmService {
       );
     }
 
+    final noticeAt = targetTime.subtract(upcomingNoticeLead);
+    if (noticeAt.isAfter(DateTime.now()) && await upcomingNoticeEnabled()) {
+      await _notifications.zonedSchedule(
+        _upcomingNotificationId(alarm.id),
+        'Upcoming alarm',
+        [
+          DateFormat.jm().format(targetTime),
+          if (alarm.label.isNotEmpty) alarm.label,
+        ].join(' · '),
+        tz.TZDateTime.from(noticeAt, location),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'alarm_plus_upcoming',
+            'Upcoming alarms',
+            channelDescription:
+                'A heads-up before each alarm, with a Dismiss now button',
+            importance: Importance.low,
+            priority: Priority.low,
+            category: AndroidNotificationCategory.reminder,
+            actions: [
+              AndroidNotificationAction(
+                'dismiss_now',
+                'Dismiss now',
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+            ],
+          ),
+        ),
+        androidScheduleMode: scheduleMode,
+        payload: 'upcoming:$alarmId',
+      );
+    }
+
     if (persist) {
       await saveAlarm(alarm.copyWith(isEnabled: true));
     }
     unawaited(WidgetSyncService.refresh());
     unawaited(StreakReminderService.refresh());
+  }
+
+  /// "Dismiss now" on the upcoming-alarm notice: already up, so don't ring.
+  /// A repeating alarm skips just this occurrence; a one-off is switched off.
+  static Future<void> dismissUpcoming(int alarmIntId) async {
+    final alarm = findByIntId(alarmIntId);
+    if (alarm == null) return;
+    if (alarm.repeatDays.isNotEmpty) {
+      await setSkipNext(alarm.id, skip: true);
+    } else {
+      await toggleAlarm(alarm.id, false);
+    }
+    notifyChanged();
   }
 
   /// Exact scheduling when the user granted it, otherwise the inexact
@@ -344,6 +437,7 @@ class AlarmService {
     await Alarm.stop(alarmId);
     await _notifications.cancel(alarmId);
     await _notifications.cancel(_windDownNotificationId(id));
+    await _notifications.cancel(_upcomingNotificationId(id));
     final prefs = await sp.SharedPreferences.getInstance();
     await prefs.remove('$_nativeRingtoneKeyPrefix.$alarmId');
   }
@@ -454,6 +548,11 @@ class AlarmService {
   }
 
   static int alarmIntId(String id) => _idToInt(id);
+
+  static int _upcomingNotificationId(String id) {
+    final base = alarmIntId(id);
+    return ((base + 700000) % 1000000000) + 1;
+  }
 
   static int _windDownNotificationId(String id) {
     final base = alarmIntId(id);

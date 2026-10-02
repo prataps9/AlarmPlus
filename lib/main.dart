@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -113,8 +115,32 @@ class _AppWithTheme extends ConsumerWidget {
   }
 }
 
-class MainScaffold extends ConsumerWidget {
+class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({super.key});
+
+  @override
+  ConsumerState<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  StreamSubscription<String>? _openRequests;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tapping "Time's up" opens the Timer tab, on top of whatever was open.
+    _openRequests = AlarmService.openRequests.listen((what) {
+      if (what != 'timer' || !mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst || r.settings.name == '/app');
+      ref.read(currentTabIndexProvider.notifier).state = AppTab.timer;
+    });
+  }
+
+  @override
+  void dispose() {
+    _openRequests?.cancel();
+    super.dispose();
+  }
 
   // Order must match AppTab. Settings is behind the gear on the Alarm tab,
   // as in the stock clock app.
@@ -142,7 +168,7 @@ class MainScaffold extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final currentTabIndex = ref.watch(currentTabIndexProvider);
 
     // IndexedStack keeps each tab alive across switches. Previously the tabs

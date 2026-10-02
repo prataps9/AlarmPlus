@@ -37,6 +37,7 @@ import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/core/services/celebration_event.dart';
 import 'package:alarm_plus/core/services/share_service.dart';
 import 'package:alarm_plus/shared/widgets/share_card_widget.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/features/mascot/models/mascot_mood.dart';
 import 'package:alarm_plus/features/mascot/widgets/pip_mascot.dart';
 
@@ -796,12 +797,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                         ),
                       ),
                     const SizedBox(height: 10),
-                    Text(alarm?.timeLabel ?? '06:30',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontSize: 90, fontWeight: FontWeight.w400, color: _personality.primaryColor)),
-                    Text(alarm?.periodLabel ?? 'AM',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontSize: 52, color: _personality.primaryColor.withValues(alpha: 0.5))),
+                    // The current time, live — after a snooze the alarm's
+                    // set time would be stale.
+                    _LiveClock(color: _personality.primaryColor),
                     const SizedBox(height: 12),
                     Text(
                       alarm?.tag == 'nap_timer'
@@ -1045,4 +1043,45 @@ class _RadiatingRing extends StatelessWidget {
 
 extension on DateTime {
   int get _dayOfYear => difference(DateTime(year, 1, 1)).inDays;
+}
+
+/// The current time in big type, ticking every second, in the phone's
+/// 12/24-hour format.
+class _LiveClock extends StatefulWidget {
+  const _LiveClock({required this.color});
+
+  final Color color;
+
+  @override
+  State<_LiveClock> createState() => _LiveClockState();
+}
+
+class _LiveClockState extends State<_LiveClock> {
+  late final Timer _timer =
+      Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final c = TimeFormat.clock(now.hour, now.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(c.time,
+            style: theme.textTheme.headlineLarge?.copyWith(
+                fontSize: 90, fontWeight: FontWeight.w400, color: widget.color)),
+        if (c.period != null)
+          Text(c.period!,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: 52, color: widget.color.withValues(alpha: 0.5))),
+      ],
+    );
+  }
 }

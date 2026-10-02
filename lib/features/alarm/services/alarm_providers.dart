@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,7 +23,22 @@ final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 /// Provider for alarms map state
 class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
-  AlarmsNotifier() : super(_loadInitialAlarms());
+  AlarmsNotifier() : super(_loadInitialAlarms()) {
+    _external = AlarmService.changes.listen((_) => reload());
+  }
+
+  StreamSubscription<void>? _external;
+
+  /// Re-reads alarms from storage after a change made outside the UI.
+  void reload() {
+    state = Future.value({for (final a in AlarmService.getAllAlarms()) a.id: a});
+  }
+
+  @override
+  void dispose() {
+    _external?.cancel();
+    super.dispose();
+  }
 
   static Future<Map<String, AlarmModel>> _loadInitialAlarms() async {
     final alarms = AlarmService.getAllAlarms();

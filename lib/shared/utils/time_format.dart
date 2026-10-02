@@ -2,6 +2,26 @@
 class TimeFormat {
   const TimeFormat._();
 
+  /// A clock time the way the phone shows it: "6:30" + "AM", or "06:30"
+  /// with no period when the system is set to 24-hour time. Pass
+  /// `MediaQuery.alwaysUse24HourFormatOf(context)` as [use24h].
+  static ({String time, String? period}) clock(
+    int hour,
+    int minute, {
+    required bool use24h,
+  }) {
+    final mm = minute.toString().padLeft(2, '0');
+    if (use24h) return (time: '${hour.toString().padLeft(2, '0')}:$mm', period: null);
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    return (time: '$h12:$mm', period: hour < 12 ? 'AM' : 'PM');
+  }
+
+  /// [clock] as one string: "6:30 AM" / "06:30".
+  static String clockLabel(int hour, int minute, {required bool use24h}) {
+    final c = clock(hour, minute, use24h: use24h);
+    return c.period == null ? c.time : '${c.time} ${c.period}';
+  }
+
   /// "Alarm in 7 hr 20 min", the line standard clock apps show under the
   /// alarm list. Rounds up to the next minute so "in 0 min" never appears.
   static String alarmIn(Duration? untilNext) {

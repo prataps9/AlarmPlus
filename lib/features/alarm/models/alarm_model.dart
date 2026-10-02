@@ -79,7 +79,9 @@ class AlarmModel {
   String get timeLabel {
     final now = DateTime.now();
     final date = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    return DateFormat('hh:mm').format(date);
+    // "6:30", not "06:30". UI that can see the 24-hour setting should
+    // use TimeFormat.clock instead.
+    return DateFormat('h:mm').format(date);
   }
 
   String get periodLabel {

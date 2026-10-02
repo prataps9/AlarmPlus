@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class AlarmCard extends StatelessWidget {
   const AlarmCard({
@@ -56,9 +57,10 @@ class AlarmCard extends StatelessWidget {
   }
 
   Future<bool?> _confirmDelete(BuildContext context) {
-    final subtitle = alarm.label.isNotEmpty
-        ? '${alarm.timeLabel} ${alarm.periodLabel} — ${alarm.label}'
-        : '${alarm.timeLabel} ${alarm.periodLabel}';
+    final time = TimeFormat.clockLabel(alarm.time.hour, alarm.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final subtitle =
+        alarm.label.isNotEmpty ? '$time — ${alarm.label}' : time;
 
     return showDialog<bool>(
       context: context,
@@ -85,6 +87,8 @@ class AlarmCard extends StatelessWidget {
   Widget _buildCard(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final clock = TimeFormat.clock(alarm.time.hour, alarm.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
 
     // A disabled alarm reads as muted rather than a different design.
     final timeColor =
@@ -125,9 +129,10 @@ class AlarmCard extends StatelessWidget {
                               height: 0.95,
                             ),
                             children: [
-                              TextSpan(text: alarm.timeLabel),
-                              TextSpan(
-                                text: ' ${alarm.periodLabel}',
+                              TextSpan(text: clock.time),
+                              if (clock.period != null)
+                                TextSpan(
+                                text: ' ${clock.period}',
                                 style: theme.textTheme.headlineSmall?.copyWith(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w400,

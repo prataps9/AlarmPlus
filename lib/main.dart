@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,9 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
+import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/features/clock/screens/stopwatch_screen.dart';
+import 'package:alarm_plus/features/clock/screens/timer_screen.dart';
+import 'package:alarm_plus/features/clock/screens/world_clock_screen.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
@@ -22,7 +28,6 @@ import 'package:alarm_plus/features/mascot/services/mascot_service.dart';
 import 'package:alarm_plus/features/location/screens/location_picker_screen.dart';
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
-import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/morning_check_in_screen.dart';
@@ -31,6 +36,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
+import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
@@ -52,6 +58,7 @@ Future<void> main() async {
   await WidgetCommandService.drainPending();
   await NapService.checkMissedNap();
   await LocationAlarmService.startMonitoring();
+  await AppShortcutsService.init();
   runApp(const AlarmPlusApp());
 }
 
@@ -88,6 +95,7 @@ class _AppWithTheme extends ConsumerWidget {
           OnboardingScreen.routeName: (_) => const OnboardingScreen(),
           FocusTimerScreen.routeName: (_) => const FocusTimerScreen(),
           AlarmRingScreen.routeName: (_) => const AlarmRingScreen(),
+          AlarmsScreen.routeName: (_) => const AlarmsScreen(),
           MorningMissionsScreen.routeName: (_) => const MorningMissionsScreen(),
           SplashScreen.routeName: (_) => const SplashScreen(),
           WakeRoutineScreen.routeName: (_) => const WakeRoutineScreen(),
@@ -107,13 +115,41 @@ class _AppWithTheme extends ConsumerWidget {
   }
 }
 
-class MainScaffold extends ConsumerWidget {
+class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({super.key});
 
+  @override
+  ConsumerState<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  StreamSubscription<String>? _openRequests;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tapping "Time's up" opens the Timer tab, on top of whatever was open.
+    _openRequests = AlarmService.openRequests.listen((what) {
+      if (what != 'timer' || !mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst || r.settings.name == '/app');
+      ref.read(currentTabIndexProvider.notifier).state = AppTab.timer;
+    });
+  }
+
+  @override
+  void dispose() {
+    _openRequests?.cancel();
+    super.dispose();
+  }
+
+  // Order must match AppTab. Settings is behind the gear on the Alarm tab,
+  // as in the stock clock app.
   static const _destinations = [
-    (icon: Icons.alarm_rounded, label: 'ALARMS'),
-    (icon: Icons.insights_rounded, label: 'INSIGHTS'),
-    (icon: Icons.settings_rounded, label: 'SETTINGS'),
+    (icon: Icons.alarm_rounded, label: 'Alarm'),
+    (icon: Icons.public_rounded, label: 'Clock'),
+    (icon: Icons.hourglass_bottom_rounded, label: 'Timer'),
+    (icon: Icons.timer_outlined, label: 'Stopwatch'),
+    (icon: Icons.insights_rounded, label: 'Insights'),
   ];
 
   static bool _isDesktop(BuildContext context) {
@@ -132,7 +168,7 @@ class MainScaffold extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final currentTabIndex = ref.watch(currentTabIndexProvider);
 
     // IndexedStack keeps each tab alive across switches. Previously the tabs
@@ -142,8 +178,10 @@ class MainScaffold extends ConsumerWidget {
       index: currentTabIndex,
       children: const [
         HomeScreen(),
+        WorldClockScreen(),
+        TimerScreen(),
+        StopwatchScreen(),
         InsightsScreen(),
-        SettingsScreen(),
       ],
     );
 

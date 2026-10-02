@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/premium/screens/paywall_screen.dart';
@@ -64,6 +66,46 @@ class PremiumService {
       // No store on this platform (desktop, web, tests).
       debugPrint('IAP unavailable: $e');
     }
+    // Don't hold up startup on the store.
+    unawaited(_verifyWithStore());
+  }
+
+  /// Squares the local flag with what Google Play says this account owns:
+  /// a reinstall or new phone unlocks Pro without tapping Restore, and a
+  /// refunded purchase locks it again.
+  static Future<void> _verifyWithStore() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final android = InAppPurchase.instance
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final response = await android.queryPastPurchases();
+      final owned = verifiedOwnership(
+        queryFailed: response.error != null,
+        purchases: [
+          for (final p in response.pastPurchases) (id: p.productID, status: p.status),
+        ],
+      );
+      if (owned == true && !isPro.value) await unlockLifetimePremium();
+      if (owned == false && isPro.value) await lockLifetimePremium();
+    } catch (e) {
+      // Sideloaded/debug builds without Play, no account, etc.
+      debugPrint('Pro verification skipped: $e');
+    }
+  }
+
+  /// Whether the store says Pro is owned; null when it couldn't be checked
+  /// (offline, no Play services) — then the local flag is left alone, so a
+  /// flaky connection never locks a paying user out.
+  @visibleForTesting
+  static bool? verifiedOwnership({
+    required bool queryFailed,
+    required List<({String id, PurchaseStatus status})> purchases,
+  }) {
+    if (queryFailed) return null;
+    return purchases.any((p) =>
+        p.id == _productId &&
+        (p.status == PurchaseStatus.purchased ||
+            p.status == PurchaseStatus.restored));
   }
 
   // ─── Local unlock state ──────────────────────────────────────────────────────

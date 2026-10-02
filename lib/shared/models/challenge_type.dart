@@ -11,5 +11,6 @@ enum ChallengeType {
   squatReps,
   photoProof,
   voiceRepeat,
+  colorClash,
   random,
 }

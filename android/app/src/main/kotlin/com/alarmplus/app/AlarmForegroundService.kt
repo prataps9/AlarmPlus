@@ -36,6 +36,8 @@ class AlarmForegroundService : Service() {
         const val ACTION_SNOOZE_FROM_NOTIFICATION = "alarmplus.SNOOZE_FROM_NOTIFICATION"
         const val ACTION_STOP_FROM_NOTIFICATION = "alarmplus.STOP_FROM_NOTIFICATION"
         const val EXTRA_ALARM_ID = "alarm_id"
+        const val EXTRA_HARDCORE = "hardcore"
+        const val EXTRA_SNOOZE_MINUTES = "snooze_minutes"
         const val METHOD_CHANNEL = "alarmplus/alarm_controls"
     }
 
@@ -43,6 +45,8 @@ class AlarmForegroundService : Service() {
     private var volumeReceiver: BroadcastReceiver? = null
     private var actionReceiver: BroadcastReceiver? = null
     private var alarmId: Int = 0
+    private var hardcore: Boolean = false
+    private var snoozeMinutes: Int = 5
     private var ringtone: Ringtone? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var mediaSession: MediaSession? = null
@@ -58,6 +62,8 @@ class AlarmForegroundService : Service() {
             return START_NOT_STICKY
         }
         alarmId = intent?.getIntExtra(EXTRA_ALARM_ID, 0) ?: 0
+        hardcore = intent?.getBooleanExtra(EXTRA_HARDCORE, false) ?: false
+        snoozeMinutes = intent?.getIntExtra(EXTRA_SNOOZE_MINUTES, 5) ?: 5
 
         startForeground(NOTIFICATION_ID, buildNotification(alarmId))
         acquireWakeLock()
@@ -71,10 +77,17 @@ class AlarmForegroundService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // User swiped app away — restart the alarm service so it keeps ringing
+        // Only Hardcore alarms fight being swiped away; a normal alarm
+        // swiped away is the user's choice.
+        if (!hardcore) {
+            super.onTaskRemoved(rootIntent)
+            return
+        }
         val restartIntent = Intent(applicationContext, AlarmForegroundService::class.java).apply {
             action = ACTION_START
             putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_HARDCORE, true)
+            putExtra(EXTRA_SNOOZE_MINUTES, snoozeMinutes)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(restartIntent)
@@ -191,27 +204,29 @@ class AlarmForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Stop action
-        val stopPi = PendingIntent.getBroadcast(
-            this, 2,
-            Intent(ACTION_STOP_FROM_NOTIFICATION).setPackage(packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Alarm Ringing")
-            .setContentText("Tap to dismiss • Swipe for options")
+        // There is deliberately no "Stop" action: dismissing from the
+        // notification skipped the wake challenge. "Open" goes to the ring
+        // screen, where the challenge has to be solved.
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Alarm ringing")
+            .setContentText("Open Alarm+ and beat the challenge to stop it")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreenPi, true)
-            .addAction(android.R.drawable.ic_media_pause, "Snooze 5 min", snoozePi)
-            .addAction(android.R.drawable.ic_delete, "Stop", stopPi)
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(fullScreenPi)
-            .build()
+        if (!hardcore) {
+            builder.addAction(
+                android.R.drawable.ic_media_pause,
+                "Snooze $snoozeMinutes min",
+                snoozePi
+            )
+        }
+        builder.addAction(android.R.drawable.ic_menu_view, "Open", fullScreenPi)
+        return builder.build()
     }
 
     private fun createNotificationChannel() {

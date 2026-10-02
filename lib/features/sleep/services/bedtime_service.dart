@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
 class BedtimeService {
   static const _key = 'bedtime_schedule';
@@ -81,7 +82,7 @@ class BedtimeService {
       'Your bedtime is in ${schedule.windDownMinutes} minutes. Start relaxing.',
       tzBedtime,
       details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: await AlarmService.exactScheduleMode(),
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

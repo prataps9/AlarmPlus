@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 class AlarmCard extends StatelessWidget {
   const AlarmCard({
@@ -10,6 +12,7 @@ class AlarmCard extends StatelessWidget {
     required this.onToggle,
     this.onTap,
     this.onDelete,
+    this.onSkipNext,
   });
 
   final AlarmModel alarm;
@@ -18,6 +21,10 @@ class AlarmCard extends StatelessWidget {
   /// Opens the alarm for editing.
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
+  /// Skips (true) or restores (false) the next occurrence. Only offered for
+  /// enabled, repeating alarms.
+  final ValueChanged<bool>? onSkipNext;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +57,10 @@ class AlarmCard extends StatelessWidget {
   }
 
   Future<bool?> _confirmDelete(BuildContext context) {
-    final subtitle = alarm.label.isNotEmpty
-        ? '${alarm.timeLabel} ${alarm.periodLabel} — ${alarm.label}'
-        : '${alarm.timeLabel} ${alarm.periodLabel}';
+    final time = TimeFormat.clockLabel(alarm.time.hour, alarm.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final subtitle =
+        alarm.label.isNotEmpty ? '$time — ${alarm.label}' : time;
 
     return showDialog<bool>(
       context: context,
@@ -79,6 +87,8 @@ class AlarmCard extends StatelessWidget {
   Widget _buildCard(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final clock = TimeFormat.clock(alarm.time.hour, alarm.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
 
     // A disabled alarm reads as muted rather than a different design.
     final timeColor =
@@ -119,9 +129,10 @@ class AlarmCard extends StatelessWidget {
                               height: 0.95,
                             ),
                             children: [
-                              TextSpan(text: alarm.timeLabel),
-                              TextSpan(
-                                text: ' ${alarm.periodLabel}',
+                              TextSpan(text: clock.time),
+                              if (clock.period != null)
+                                TextSpan(
+                                text: ' ${clock.period}',
                                 style: theme.textTheme.headlineSmall?.copyWith(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w400,
@@ -174,6 +185,10 @@ class AlarmCard extends StatelessWidget {
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
+                    if (onSkipNext != null &&
+                        alarm.isEnabled &&
+                        alarm.repeatDays.isNotEmpty)
+                      _SkipChip(alarm: alarm, onChanged: onSkipNext!),
                     if (onTap != null)
                       Icon(
                         Icons.chevron_right_rounded,
@@ -187,6 +202,38 @@ class AlarmCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Skip next" / "Skips Mon, 29 Sep ✕" for a repeating alarm.
+class _SkipChip extends StatelessWidget {
+  const _SkipChip({required this.alarm, required this.onChanged});
+
+  final AlarmModel alarm;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final skipping = alarm.isSkippingFrom(DateTime.now());
+    if (!skipping) {
+      return TextButton(
+        onPressed: () => onChanged(true),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+        ),
+        child: const Text('Skip next'),
+      );
+    }
+    return InputChip(
+      label: Text('Skips ${DateFormat('EEE, d MMM').format(alarm.skipDate!)}'),
+      avatar: const Icon(Icons.event_busy_rounded, size: 18),
+      onDeleted: () => onChanged(false),
+      deleteButtonTooltipMessage: 'Undo skip',
+      backgroundColor: const Color(0xFFFEF3C7),
+      side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/features/alarm/challenges/barcode_challenge_widget.dart';
+import 'package:alarm_plus/features/alarm/challenges/color_clash_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/eye_open_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/memory_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/shake_challenge_widget.dart';
@@ -186,6 +187,11 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
           onPassed: _onStepPassed,
           onFailed: _onStepFailed,
         );
+      case ChallengeType.colorClash:
+        return ColorClashChallengeWidget(
+          onPassed: _onStepPassed,
+          onFailed: _onStepFailed,
+        );
       case ChallengeType.photoProof:
         // Photo proof needs a registered scene, which quest steps don't carry;
         // it isn't offered in the builder, but the switch must be total.
@@ -295,6 +301,8 @@ class _QuestStepBar extends StatelessWidget {
         return Icons.photo_camera_rounded;
       case ChallengeType.voiceRepeat:
         return Icons.record_voice_over_rounded;
+      case ChallengeType.colorClash:
+        return Icons.palette_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
     }

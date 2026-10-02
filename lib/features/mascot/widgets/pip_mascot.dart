@@ -23,6 +23,7 @@ class PipMascot extends StatefulWidget {
     this.size = 96,
     this.outfit,
     this.animate = true,
+    this.ringing = false,
     this.onTap,
   });
 
@@ -34,6 +35,10 @@ class PipMascot extends StatefulWidget {
   final MascotOutfit? outfit;
 
   final bool animate;
+
+  /// Alarm going off: bells shake hard and Pip jitters, whatever the mood.
+  final bool ringing;
+
   final VoidCallback? onTap;
 
   @override
@@ -190,6 +195,11 @@ class _PipMascotState extends State<PipMascot> with TickerProviderStateMixin {
         case MascotMood.proud:
           armSwing = wave;
       }
+    }
+
+    if (_moving && widget.ringing) {
+      bellShake += math.sin(p * math.pi * 48) * 0.32;
+      dx += math.sin(p * math.pi * 72) * 0.7;
     }
 
     if (_action.isAnimating) {

@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 
 /// Keeps the Android home screen widget (`AlarmWidgetProvider.kt`) in sync
 /// with the current streak and next scheduled alarm. Call [refresh] after
@@ -65,6 +67,10 @@ class WidgetSyncService {
       (a, b) => a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)),
     );
     final next = enabled.first;
-    return '${next.timeLabel} ${next.periodLabel}';
+    return TimeFormat.clockLabel(
+      next.time.hour,
+      next.time.minute,
+      use24h: WidgetsBinding.instance.platformDispatcher.alwaysUse24HourFormat,
+    );
   }
 }

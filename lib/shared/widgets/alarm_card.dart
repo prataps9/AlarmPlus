@@ -57,38 +57,44 @@ class AlarmCard extends StatelessWidget {
   }
 
   Future<bool?> _confirmDelete(BuildContext context) {
-    final time = TimeFormat.clockLabel(alarm.time.hour, alarm.time.minute,
-        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
-    final subtitle =
-        alarm.label.isNotEmpty ? '$time — ${alarm.label}' : time;
+    final time = TimeFormat.clockLabel(
+      alarm.time.hour,
+      alarm.time.minute,
+      use24h: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+    final subtitle = alarm.label.isNotEmpty ? '$time — ${alarm.label}' : time;
 
     return showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete alarm?'),
-        content: Text('$subtitle will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete alarm?'),
+            content: Text('$subtitle will be permanently removed.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildCard(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final clock = TimeFormat.clock(alarm.time.hour, alarm.time.minute,
-        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final clock = TimeFormat.clock(
+      alarm.time.hour,
+      alarm.time.minute,
+      use24h: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
 
     // A disabled alarm reads as muted rather than a different design.
     final timeColor =
@@ -132,13 +138,14 @@ class AlarmCard extends StatelessWidget {
                               TextSpan(text: clock.time),
                               if (clock.period != null)
                                 TextSpan(
-                                text: ' ${clock.period}',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w400,
-                                  color: scheme.onSurfaceVariant,
+                                  text: ' ${clock.period}',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w400,
+                                        color: scheme.onSurfaceVariant,
+                                      ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -160,35 +167,43 @@ class AlarmCard extends StatelessWidget {
                 const SizedBox(height: Spacing.md),
                 Row(
                   children: [
-                    if (alarm.tag.isNotEmpty) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Spacing.md,
-                          vertical: Spacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(Radii.pill),
-                        ),
-                        child: Text(
-                          alarm.tag,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: Spacing.md),
-                    ],
+                    // Wrap, not a squeezed Row: with a tag, a repeat label
+                    // and "Skip next" together, "Weekdays" used to break
+                    // mid-word. Now the pieces move to a second line instead.
                     Expanded(
-                      child: Text(
-                        alarm.repeatLabel,
-                        style: theme.textTheme.bodyMedium,
+                      child: Wrap(
+                        spacing: Spacing.md,
+                        runSpacing: Spacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (alarm.tag.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Spacing.md,
+                                vertical: Spacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(Radii.pill),
+                              ),
+                              child: Text(
+                                alarm.tag,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          Text(
+                            alarm.repeatLabel,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          if (onSkipNext != null &&
+                              alarm.isEnabled &&
+                              alarm.repeatDays.isNotEmpty)
+                            _SkipChip(alarm: alarm, onChanged: onSkipNext!),
+                        ],
                       ),
                     ),
-                    if (onSkipNext != null &&
-                        alarm.isEnabled &&
-                        alarm.repeatDays.isNotEmpty)
-                      _SkipChip(alarm: alarm, onChanged: onSkipNext!),
                     if (onTap != null)
                       Icon(
                         Icons.chevron_right_rounded,

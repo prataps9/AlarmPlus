@@ -18,6 +18,8 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 
 ## 🟡 Medium Priority
 - **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
+- **The alarm editor's time picker is always 12-hour** (hour 1–12 plus AM/PM), even when the phone is set to 24-hour time. Everything that *displays* times already follows the setting.
+- **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
@@ -35,6 +37,12 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - A miss now spends an owned freeze (at most one per day) instead of resetting the streak.
   - A later miss no longer erases a day the user did wake up.
 - **Purchases could be lost (2026-09-25):** `purchaseStream` was only listened to during a purchase, so pending or late UPI purchases were never completed and were auto-refunded. A global listener now starts in `main()`.
+- **Polish pass (2026-10-19):** every main screen was rendered and stress-tested at 412dp and at 320dp with 1.3× text (the combination many real users run).
+  - **Layout overflows fixed:**
+    - the alarm editor's day-of-week circles ran off the edge of a normal 412dp phone;
+    - the editor's time picker and "Max snoozes" row, the Insights stat tiles and streak line, and Home's "Upcoming alarms / View all" header overflowed at small sizes or large text.
+  - **Alarm cards:** "Weekdays" no longer breaks mid-word. The tag, repeat label and Skip next now flow onto a second line when space runs out.
+  - **Labels:** a one-time alarm now says "Once" instead of "Custom", and custom days read "Mon, Wed, Fri". The Home "Today" tiles and the home-screen widget now follow the phone's 12/24-hour setting.
 - **Completeness pass (2026-10-02):**
   - **Silent failure when permissions are revoked:** Home now shows a banner whenever notifications or exact alarms are off, with a one-tap fix. It rechecks on resume and reschedules every alarm once access returns.
   - **No upcoming-alarm notice:** each alarm now gets a 2-hours-ahead notice with **Dismiss now** (skips that occurrence, or turns off a one-off alarm). It can be switched off in Settings.
@@ -66,4 +74,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-10-02*
+*Updated on 2026-10-19*

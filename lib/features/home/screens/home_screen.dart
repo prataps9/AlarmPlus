@@ -163,13 +163,18 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 26),
             Row(
               children: [
-                Text(
-                  'UPCOMING ALARMS',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(letterSpacing: 2.8),
+                // Expanded (not Text + Spacer) so a large system font
+                // shrinks the label instead of pushing "View all" off-screen.
+                Expanded(
+                  child: Text(
+                    'UPCOMING ALARMS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(letterSpacing: 2.8),
+                  ),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -345,11 +350,15 @@ class HomeScreen extends ConsumerWidget {
 
     final tiles = <Widget>[];
     for (final alarm in todayAlarms.take(2)) {
+      final clock = TimeFormat.clock(alarm.time.hour, alarm.time.minute,
+          use24h: MediaQuery.alwaysUse24HourFormatOf(context));
       tiles.add(
         _TimelineTile(
-          time: alarm.timeLabel,
+          time: clock.time,
           title: alarm.label.isEmpty ? 'Wake Alarm' : alarm.label,
-          subtitle: '${alarm.periodLabel} · ${alarm.repeatLabel}',
+          subtitle: clock.period == null
+              ? alarm.repeatLabel
+              : '${clock.period} · ${alarm.repeatLabel}',
         ),
       );
     }

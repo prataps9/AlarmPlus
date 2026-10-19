@@ -89,6 +89,7 @@ class AlarmModel {
   }
 
   String get repeatLabel {
+    if (repeatDays.isEmpty) return 'Once';
     if (repeatDays.length == 7) {
       return 'Daily';
     }
@@ -104,7 +105,10 @@ class AlarmModel {
     if (days.length == weekends.length && days.containsAll(weekends)) {
       return 'Weekends';
     }
-    return 'Custom';
+    // "Mon, Wed, Fri" says more than "Custom" ever did.
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final sorted = days.where((d) => d >= 1 && d <= 7).toList()..sort();
+    return sorted.map((d) => names[d - 1]).join(', ');
   }
 
   DateTime nextDateTimeFrom(DateTime from) {

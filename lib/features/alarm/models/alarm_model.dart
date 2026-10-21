@@ -33,6 +33,7 @@ class AlarmModel {
     this.vibrationPattern = VibrationPatternType.standard,
     this.skipDate,
     this.pausedUntil,
+    this.date,
   });
 
   final String id;
@@ -75,6 +76,19 @@ class AlarmModel {
   /// date; it resumes on its first repeat day on or after it.
   final DateTime? pausedUntil;
 
+  /// The calendar day a one-off alarm rings on ("Thu, 30 Oct"). Null means
+  /// the next time the clock shows [time]. Ignored for repeating alarms.
+  final DateTime? date;
+
+  /// A dated one-off whose moment has passed: it will never ring again, so
+  /// it must not be scheduled (the plugin rings past times immediately).
+  bool isExpiredAt(DateTime now) {
+    final d = date;
+    if (d == null || repeatDays.isNotEmpty) return false;
+    return !DateTime(d.year, d.month, d.day, time.hour, time.minute)
+        .isAfter(now);
+  }
+
   /// Whether a pause is still holding back occurrences.
   bool isPausedAt(DateTime now) {
     final until = pausedUntil;
@@ -101,7 +115,10 @@ class AlarmModel {
   }
 
   String get repeatLabel {
-    if (repeatDays.isEmpty) return 'Once';
+    if (repeatDays.isEmpty) {
+      final d = date;
+      return d == null ? 'Once' : DateFormat('EEE, d MMM').format(d);
+    }
     if (repeatDays.length == 7) {
       return 'Daily';
     }
@@ -133,6 +150,11 @@ class AlarmModel {
     );
 
     if (repeatDays.isEmpty) {
+      final d = date;
+      if (d != null) {
+        // Fixed day: never rolled forward. Check isExpiredAt before use.
+        return DateTime(d.year, d.month, d.day, time.hour, time.minute);
+      }
       if (candidate.isBefore(from)) {
         candidate = _nextDay(candidate);
       }
@@ -218,6 +240,7 @@ class AlarmModel {
       'skipDate': skipDate == null
           ? null
           : '${skipDate!.year}-${skipDate!.month}-${skipDate!.day}',
+      'date': date == null ? null : '${date!.year}-${date!.month}-${date!.day}',
       'pausedUntil': pausedUntil == null
           ? null
           : '${pausedUntil!.year}-${pausedUntil!.month}-${pausedUntil!.day}',
@@ -284,6 +307,7 @@ class AlarmModel {
           VibrationPatternType.standard,
       skipDate: _parseDate(map['skipDate']),
       pausedUntil: _parseDate(map['pausedUntil']),
+      date: _parseDate(map['date']),
     );
   }
 
@@ -322,6 +346,7 @@ class AlarmModel {
     VibrationPatternType? vibrationPattern,
     Object? skipDate = _sentinel,
     Object? pausedUntil = _sentinel,
+    Object? date = _sentinel,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -355,6 +380,7 @@ class AlarmModel {
       pausedUntil: identical(pausedUntil, _sentinel)
           ? this.pausedUntil
           : pausedUntil as DateTime?,
+      date: identical(date, _sentinel) ? this.date : date as DateTime?,
     );
   }
 }

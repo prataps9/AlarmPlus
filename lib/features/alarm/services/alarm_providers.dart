@@ -90,6 +90,11 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       map[alarm.id] = alarm;
       if (alarm.isEnabled) {
         await AlarmService.scheduleAlarm(alarm);
+        // Scheduling can switch an expired dated alarm off; storage wins.
+        map[alarm.id] = AlarmService.getAllAlarms()
+                .where((a) => a.id == alarm.id)
+                .firstOrNull ??
+            alarm;
       }
       state = Future.value(Map.from(map));
     } catch (e) {
@@ -109,6 +114,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     if (alarm.isEnabled) {
       // scheduleAlarm clears the previous schedule for this id first.
       await AlarmService.scheduleAlarm(alarm);
+      map[alarm.id] = AlarmService.getAllAlarms()
+              .where((a) => a.id == alarm.id)
+              .firstOrNull ??
+          alarm;
     } else {
       await AlarmService.cancelAlarm(alarm.id);
     }
@@ -116,7 +125,7 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   }
 
   /// Add a new alarm
-  Future<void> addAlarm({
+  Future<AlarmModel> addAlarm({
     required TimeOfDay time,
     required String label,
     required List<int> repeatDays,
@@ -140,8 +149,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    DateTime? date,
   }) async {
     final alarm = AlarmService.createAlarm(
+      date: date,
       time: time,
       label: label,
       repeatDays: repeatDays,
@@ -167,6 +178,7 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       hardcoreMode: hardcoreMode,
     );
     await saveAlarm(alarm);
+    return alarm;
   }
 
   /// Toggle alarm on/off

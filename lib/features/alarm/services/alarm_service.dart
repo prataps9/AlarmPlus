@@ -211,6 +211,16 @@ class AlarmService {
   }) async {
     await _cancelScheduledArtifacts(alarm.id);
 
+    // A dated one-off whose day has gone (phone was off, restored from a
+    // backup): the plugin would ring a past time at once, so switch it off.
+    if (at == null && alarm.isExpiredAt(DateTime.now())) {
+      await saveAlarm(alarm.copyWith(isEnabled: false));
+      notifyChanged();
+      unawaited(WidgetSyncService.refresh());
+      unawaited(StreakReminderService.refresh());
+      return;
+    }
+
     if (!_supportsNativeAlarmOps) {
       if (persist) {
         await saveAlarm(alarm.copyWith(isEnabled: true));
@@ -513,9 +523,11 @@ class AlarmService {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    DateTime? date,
   }) {
     return AlarmModel(
       id: _uuid.v4(),
+      date: repeatDays.isEmpty ? date : null,
       time: time,
       label: label,
       repeatDays: repeatDays,

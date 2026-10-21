@@ -44,6 +44,9 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   nightly reminder.
 - **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
   off) without switching it off.
+- **One-off alarms on a date** — with no repeat days, pick the day it rings
+  ("Thu, 30 Oct"). A dated alarm whose moment has passed is switched off
+  instead of ringing late.
 - **Pause until a date** — vacation mode: hold every repeating alarm until a
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
 - **Undo & duplicate** — swiping an alarm away deletes it with an Undo

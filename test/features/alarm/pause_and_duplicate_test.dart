@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 
-AlarmModel _alarm({List<int> days = const [1, 2, 3, 4, 5], DateTime? pausedUntil, bool on = true}) =>
+AlarmModel _alarm({List<int> days = const [1, 2, 3, 4, 5], DateTime? pausedUntil, DateTime? date, bool on = true}) =>
     AlarmModel(
       id: 'p',
       time: const TimeOfDay(hour: 7, minute: 0),
@@ -14,6 +14,7 @@ AlarmModel _alarm({List<int> days = const [1, 2, 3, 4, 5], DateTime? pausedUntil
       isEnabled: on,
       repeatDays: days,
       pausedUntil: pausedUntil,
+      date: date,
     );
 
 void main() {
@@ -68,6 +69,42 @@ void main() {
         ], now),
         DateTime(2025, 10, 30),
       );
+    });
+  });
+
+  group('one-off alarm on a date', () {
+    test('rings on that day, not the next time the clock matches', () {
+      final a = _alarm(days: const [], date: DateTime(2025, 10, 30));
+      expect(a.nextDateTimeFrom(now), DateTime(2025, 10, 30, 7));
+      expect(a.repeatLabel, 'Thu, 30 Oct');
+      expect(a.isExpiredAt(now), isFalse);
+    });
+
+    test('expires once its moment passes, and is never rolled forward', () {
+      final a = _alarm(days: const [], date: DateTime(2025, 10, 22));
+      // 07:00 today, and it is 09:00.
+      expect(a.isExpiredAt(now), isTrue);
+      expect(a.nextDateTimeFrom(now), DateTime(2025, 10, 22, 7));
+    });
+
+    test('an undated one-off still means the next 07:00', () {
+      final a = _alarm(days: const []);
+      expect(a.repeatLabel, 'Once');
+      expect(a.isExpiredAt(now), isFalse);
+      expect(a.nextDateTimeFrom(now), DateTime(2025, 10, 23, 7));
+    });
+
+    test('repeat days win over a stale date', () {
+      final a = _alarm(date: DateTime(2025, 10, 1));
+      expect(a.isExpiredAt(now), isFalse);
+      expect(a.repeatLabel, 'Weekdays');
+      expect(a.nextDateTimeFrom(now), DateTime(2025, 10, 23, 7));
+    });
+
+    test('survives storage and backups', () {
+      final a = _alarm(days: const [], date: DateTime(2025, 12, 31));
+      expect(AlarmModel.fromMap(a.toMap()).date, DateTime(2025, 12, 31));
+      expect(a.copyWith(date: null).date, isNull);
     });
   });
 }

@@ -17,6 +17,7 @@ import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
 import 'package:alarm_plus/core/services/ringtone_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
@@ -398,7 +399,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   String _sound = 'default';
   String _soundTitle = 'Default Alarm';
   String _personality = 'gentle';
-  final Set<int> _repeatDays = {2, 3, 4, 5, 6};
+  // DateTime weekdays: 1 = Monday. This used to be {2..6}, which made every
+  // new alarm Tue–Sat.
+  final Set<int> _repeatDays = {1, 2, 3, 4, 5};
+
+  /// Day a one-off rings on; null = next time the clock shows the time.
+  DateTime? _date;
   bool _gentleWake = false;
   int _gentleWakeDuration = 60;
   ChallengeType? _challengeType;
@@ -446,6 +452,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _repeatDays
       ..clear()
       ..addAll(alarm.repeatDays);
+    _date = alarm.date;
     _gentleWake = alarm.gentleWake;
     _gentleWakeDuration = alarm.gentleWakeDurationSeconds;
     _challengeType = alarm.challengeType;
@@ -686,6 +693,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   );
                 }),
               ),
+              if (_repeatDays.isEmpty) ...[
+                const SizedBox(height: 12),
+                _buildDateRow(context),
+              ],
               const SizedBox(height: 24),
               InkWell(
                 onTap: _openSoundPicker,
@@ -1239,13 +1250,76 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     });
   }
 
+  /// "Rings: Tomorrow" / "Rings: Thu, 30 Oct" for a one-off alarm.
+  Widget _buildDateRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final rings = _previewAlarm(_hour24, now).nextDateTimeFrom(now);
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(rings.year, rings.month, rings.day);
+    final label = switch (day.difference(today).inDays) {
+      0 => 'Today',
+      1 => 'Tomorrow',
+      _ => DateFormat('EEE, d MMM').format(day),
+    };
+    return Row(
+      children: [
+        const Icon(Icons.event_outlined, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _date == null ? 'Rings $label' : 'Rings on $label',
+            style: theme.textTheme.bodyLarge,
+          ),
+        ),
+        if (_date != null)
+          IconButton(
+            tooltip: 'Clear date',
+            onPressed: () => setState(() => _date = null),
+            icon: const Icon(Icons.close_rounded, size: 20),
+          ),
+        TextButton(
+          onPressed: _pickDate,
+          child: Text(_date == null ? 'Pick a date' : 'Change'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date != null && !_date!.isBefore(today) ? _date! : today,
+      firstDate: today,
+      lastDate: DateTime(now.year + 2, now.month, now.day),
+    );
+    if (picked != null && mounted) setState(() => _date = picked);
+  }
+
+  int get _hour24 => _isAm ? _hour % 12 : _hour % 12 + 12;
+
+  /// What would be saved, enough to ask it when it next rings.
+  AlarmModel _previewAlarm(int hour24, DateTime now) => AlarmModel(
+        id: '',
+        time: TimeOfDay(hour: hour24, minute: _minute),
+        label: '',
+        tag: '',
+        sound: '',
+        isEnabled: true,
+        repeatDays: _repeatDays.toList(),
+        date: _repeatDays.isEmpty ? _date : null,
+      );
+
   String _suggestedBedtimeLabel() {
     final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
     final bedtime = SmartAlarmService.suggestBedtime(
       wakeTime: TimeOfDay(hour: hour24, minute: _minute),
       sleepHours: _sleepGoalHours,
     );
-    return '${_formatHour(bedtime.hour)}:${bedtime.minute.toString().padLeft(2, '0')} ${bedtime.hour >= 12 ? 'PM' : 'AM'}';
+    return TimeFormat.clockLabel(bedtime.hour, bedtime.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
   }
 
   String _soundLabel() => _soundTitle;
@@ -1269,12 +1343,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       _tag = parsed.dayOffset > 0
           ? 'Quick add for tomorrow'
           : 'Quick add for today';
-      if (parsed.dayOffset > 0) {
-        final tomorrow = DateTime.now().add(const Duration(days: 1)).weekday;
-        _repeatDays
-          ..clear()
-          ..add(tomorrow);
-      }
+      // "Tomorrow at 6" is one alarm, not a weekly one. It used to set
+      // tomorrow's weekday as a repeat day.
+      _repeatDays.clear();
+      final now = DateTime.now();
+      _date = parsed.dayOffset > 0
+          ? DateTime(now.year, now.month, now.day + parsed.dayOffset)
+          : null;
     });
   }
 
@@ -1402,34 +1477,29 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     );
   }
 
-  /// "Alarm set for 6:30 AM · in 8h 12m" — so saving confirms something
-  /// concrete rather than just closing the sheet.
-  String _confirmationText(TimeOfDay time, List<int> repeatDays) {
+  /// "Alarm set for 6:30 AM · in 8 hr 12 min" — so saving confirms
+  /// something concrete rather than just closing the sheet. Asks the saved
+  /// alarm itself, so skips, pauses and dates are all accounted for.
+  String _confirmationText(AlarmModel saved) {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-
-    if (repeatDays.isNotEmpty) {
-      while (!repeatDays.contains(next.weekday)) {
-        next = next.add(const Duration(days: 1));
-      }
-    }
-
-    final until = next.difference(now);
-    final hours = until.inHours;
-    final minutes = until.inMinutes % 60;
-    final away = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
-
-    final hh = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final mm = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-
-    return 'Alarm set for $hh:$mm $period · in $away';
+    final time = TimeFormat.clockLabel(saved.time.hour, saved.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final away = TimeFormat.alarmIn(saved.nextDateTimeFrom(now).difference(now))
+        .replaceFirst('Alarm in', 'in');
+    return 'Alarm set for $time · $away';
   }
 
   Future<void> _saveAlarm() async {
     try {
       final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
+
+      // A dated one-off set in the past would never ring.
+      if (_setAlarm && _previewAlarm(hour24, DateTime.now()).isExpiredAt(DateTime.now())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('That time has already passed. Pick a later time or date.'),
+        ));
+        return;
+      }
 
       await SmartAlarmService.saveTeenSleepProfile(
         targetSleepHours: _sleepGoalHours,
@@ -1440,11 +1510,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           ? 'Work Morning'
           : _labelController.text.trim();
       final repeatDays = _repeatDays.toList()..sort();
+      final date = repeatDays.isEmpty ? _date : null;
       final notifier = ref.read(alarmsMapProvider.notifier);
 
+      final AlarmModel saved;
       if (_isEditing) {
-        await notifier.updateAlarm(
-          widget.initial!.copyWith(
+        saved = widget.initial!.copyWith(
+            date: date,
             time: time,
             label: label,
             repeatDays: repeatDays,
@@ -1468,10 +1540,11 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             maxSnoozes: _maxSnoozes,
             alarmVolume: _alarmVolume,
             vibrationPattern: _vibrationPattern,
-          ),
-        );
+          );
+        await notifier.updateAlarm(saved);
       } else {
-        await notifier.addAlarm(
+        saved = await notifier.addAlarm(
+          date: date,
           time: time,
           label: label,
           repeatDays: repeatDays,
@@ -1510,7 +1583,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
 
       if (_setAlarm) {
         messenger.showSnackBar(
-          SnackBar(content: Text(_confirmationText(time, repeatDays))),
+          SnackBar(content: Text(_confirmationText(saved))),
         );
       }
     } catch (e) {

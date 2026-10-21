@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
@@ -19,20 +20,162 @@ import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
-class AlarmsScreen extends ConsumerWidget {
+class AlarmsScreen extends ConsumerStatefulWidget {
   const AlarmsScreen({super.key});
 
   static const routeName = '/alarms';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlarmsScreen> createState() => _AlarmsScreenState();
+
+  static void _showAlarmSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    AlarmModel? initial,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+    );
+  }
+}
+
+class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
+  /// Swiped away but maybe not yet gone from the provider. A dismissed
+  /// Dismissible must leave the tree on the very next frame.
+  final _swiped = <String>{};
+
+  Future<void> _delete(AlarmModel alarm) async {
+    setState(() => _swiped.add(alarm.id));
+    final messenger = ScaffoldMessenger.of(context);
+    final notifier = ref.read(alarmsMapProvider.notifier);
+    // Stays hidden until Undo: the provider can lag a frame behind.
+    await notifier.cancelAlarm(alarm.id);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(alarm.label.isEmpty ? 'Alarm deleted' : '"${alarm.label}" deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          // Saving it back reschedules it, if it was on.
+          onPressed: () async {
+            await notifier.saveAlarm(alarm);
+            if (mounted) setState(() => _swiped.remove(alarm.id));
+          },
+        ),
+      ));
+  }
+
+  Future<void> _duplicate(AlarmModel alarm) async {
+    final copy =
+        await ref.read(alarmsMapProvider.notifier).duplicateAlarm(alarm.id);
+    if (copy == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Alarm duplicated')));
+    // Straight into the copy: a duplicate is almost always about to change.
+    AlarmsScreen._showAlarmSheet(context, ref, initial: copy);
+  }
+
+  void _showActions(AlarmModel alarm) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(ctx);
+                AlarmsScreen._showAlarmSheet(context, ref, initial: alarm);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Duplicate'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _duplicate(alarm);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded,
+                  color: Theme.of(ctx).colorScheme.error),
+              title: Text('Delete',
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _delete(alarm);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickPause() async {
+    final now = DateTime.now();
+    final until = await showDatePicker(
+      context: context,
+      helpText: 'Repeating alarms resume on',
+      initialDate: DateTime(now.year, now.month, now.day + 7),
+      firstDate: DateTime(now.year, now.month, now.day + 1),
+      lastDate: DateTime(now.year + 1, now.month, now.day),
+    );
+    if (until == null || !mounted) return;
+    await ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(until);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+            'Repeating alarms paused until ${DateFormat('EEE, d MMM').format(until)}'),
+      ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final alarmsAsync = ref.watch(alarmsListProvider);
+    final pausedUntil = pauseInForce(alarmsAsync.valueOrNull ?? const [], DateTime.now());
+    final hasRepeating =
+        (alarmsAsync.valueOrNull ?? const []).any((a) => a.repeatDays.isNotEmpty);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alarms')),
+      appBar: AppBar(
+        title: const Text('Alarms'),
+        actions: [
+          if (hasRepeating)
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'pause') _pickPause();
+                if (v == 'resume') {
+                  ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(null);
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'pause',
+                  child: Text(pausedUntil == null
+                      ? 'Pause repeating alarms…'
+                      : 'Change pause end…'),
+                ),
+                if (pausedUntil != null)
+                  const PopupMenuItem(value: 'resume', child: Text('Resume now')),
+              ],
+            ),
+        ],
+      ),
       body: alarmsAsync.when(
-        data: (alarms) {
+        data: (all) {
+          final alarms = [for (final a in all) if (!_swiped.contains(a.id)) a];
           if (alarms.isEmpty) return _EmptyAlarms(ref: ref);
+          final banner = pausedUntil == null ? 0 : 1;
 
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(
@@ -42,21 +185,28 @@ class AlarmsScreen extends ConsumerWidget {
               // Clears the FAB.
               Spacing.xxxl * 2.5,
             ),
-            itemCount: alarms.length,
+            itemCount: alarms.length + banner,
             itemBuilder: (context, index) {
-              final alarm = alarms[index];
+              if (index < banner) {
+                return _PauseBanner(
+                  until: pausedUntil!,
+                  onResume: () => ref
+                      .read(alarmsMapProvider.notifier)
+                      .pauseRepeatingUntil(null),
+                );
+              }
+              final alarm = alarms[index - banner];
               return AlarmCard(
                 key: ValueKey(alarm.id),
                 alarm: alarm,
-                onTap: () => _showAlarmSheet(context, ref, initial: alarm),
+                onTap: () => AlarmsScreen._showAlarmSheet(context, ref, initial: alarm),
+                onLongPress: () => _showActions(alarm),
                 onToggle: (enabled) {
                   ref
                       .read(alarmsMapProvider.notifier)
                       .toggleAlarm(alarm.id, enabled);
                 },
-                onDelete: () {
-                  ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
-                },
+                onDelete: () => _delete(alarm),
                 onSkipNext: (skip) => ref
                     .read(alarmsMapProvider.notifier)
                     .setSkipNext(alarm.id, skip: skip),
@@ -70,23 +220,60 @@ class AlarmsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAlarmSheet(context, ref),
+        onPressed: () => AlarmsScreen._showAlarmSheet(context, ref),
         icon: const Icon(Icons.add_rounded),
         label: const Text('New alarm'),
       ),
     );
   }
+}
 
-  static void _showAlarmSheet(
-    BuildContext context,
-    WidgetRef ref, {
-    AlarmModel? initial,
-  }) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+/// The latest date any enabled repeating alarm is paused until, or null.
+@visibleForTesting
+DateTime? pauseInForce(List<AlarmModel> alarms, DateTime now) {
+  DateTime? until;
+  for (final a in alarms) {
+    if (!a.isEnabled || !a.isPausedAt(now)) continue;
+    if (until == null || a.pausedUntil!.isAfter(until)) until = a.pausedUntil;
+  }
+  return until;
+}
+
+class _PauseBanner extends StatelessWidget {
+  const _PauseBanner({required this.until, required this.onResume});
+
+  final DateTime until;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.lg),
+      child: Material(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              Spacing.lg, Spacing.sm, Spacing.sm, Spacing.sm),
+          child: Row(
+            children: [
+              Icon(Icons.beach_access_rounded,
+                  color: scheme.onTertiaryContainer),
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: Text(
+                  'Repeating alarms paused until ${DateFormat('EEE, d MMM').format(until)}',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onTertiaryContainer),
+                ),
+              ),
+              TextButton(onPressed: onResume, child: const Text('Resume')),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1105,16 +1292,31 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   }
 
   Widget _buildTimePickerRow(BuildContext context) {
+    // Follows the phone's 24-hour setting, like the alarm cards do. The
+    // state stays 12-hour (_hour + _isAm); only the picker changes.
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final hour24 = _isAm ? _hour % 12 : _hour % 12 + 12;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _pickerNumber(
-          value: _hour,
-          min: 1,
-          max: 12,
-          onChanged: (value) => setState(() => _hour = value),
-        ),
+        if (use24h)
+          _pickerNumber(
+            value: hour24,
+            min: 0,
+            max: 23,
+            onChanged: (value) => setState(() {
+              _isAm = value < 12;
+              _hour = _formatHour(value);
+            }),
+          )
+        else
+          _pickerNumber(
+            value: _hour,
+            min: 1,
+            max: 12,
+            onChanged: (value) => setState(() => _hour = value),
+          ),
         const SizedBox(width: 16),
         Text(
           ':',
@@ -1130,22 +1332,24 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           max: 59,
           onChanged: (value) => setState(() => _minute = value),
         ),
-        const SizedBox(width: 20),
-        Column(
-          children: [
-            _periodButton(
-              label: 'AM',
-              active: _isAm,
-              onTap: () => setState(() => _isAm = true),
-            ),
-            const SizedBox(height: 8),
-            _periodButton(
-              label: 'PM',
-              active: !_isAm,
-              onTap: () => setState(() => _isAm = false),
-            ),
-          ],
-        ),
+        if (!use24h) ...[
+          const SizedBox(width: 20),
+          Column(
+            children: [
+              _periodButton(
+                label: 'AM',
+                active: _isAm,
+                onTap: () => setState(() => _isAm = true),
+              ),
+              const SizedBox(height: 8),
+              _periodButton(
+                label: 'PM',
+                active: !_isAm,
+                onTap: () => setState(() => _isAm = false),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

@@ -406,6 +406,9 @@ class AlarmService {
     unawaited(StreakReminderService.refresh());
   }
 
+  /// A fresh id for a new alarm.
+  static String newAlarmId() => _uuid.v4();
+
   static Future<void> deleteAlarm(String id) async {
     await _cancelScheduledArtifacts(id);
     await StorageService.deleteAlarm(id);
@@ -467,6 +470,19 @@ class AlarmService {
         skip ? alarm.skipNext(DateTime.now()) : alarm.copyWith(skipDate: null);
     await saveAlarm(updated);
     if (updated.isEnabled) await scheduleAlarm(updated);
+  }
+
+  /// Vacation mode: holds every repeating alarm until [until] (a date), or
+  /// lifts the pause when [until] is null. One-off alarms are left alone;
+  /// switch those off instead.
+  static Future<void> pauseRepeatingUntil(DateTime? until) async {
+    final day = until == null ? null : DateTime(until.year, until.month, until.day);
+    for (final alarm in getAllAlarms().where((a) => a.repeatDays.isNotEmpty)) {
+      if (alarm.pausedUntil == day) continue;
+      final updated = alarm.copyWith(pausedUntil: day);
+      await saveAlarm(updated);
+      if (updated.isEnabled) await scheduleAlarm(updated);
+    }
   }
 
   static List<AlarmModel> getAllAlarms() {

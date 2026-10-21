@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -187,6 +188,43 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final updated = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull;
     if (updated != null) map[id] = updated;
     state = Future.value(Map.from(map));
+  }
+
+  /// Copies an alarm (settings, challenges and all) under a new id and
+  /// returns the copy. A voice memo is copied too, so deleting it from one
+  /// alarm doesn't silence the other.
+  Future<AlarmModel?> duplicateAlarm(String id) async {
+    final map = await state;
+    final source = map[id];
+    if (source == null) return null;
+    final copy = source.copyWith(
+      id: AlarmService.newAlarmId(),
+      skipDate: null,
+      voiceMemoPath: await _copyMemo(source.voiceMemoPath),
+    );
+    await saveAlarm(copy);
+    return copy;
+  }
+
+  static Future<String?> _copyMemo(String? path) async {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (!await file.exists()) return null;
+      final dot = path.lastIndexOf('.');
+      final ext = dot == -1 ? '' : path.substring(dot);
+      final target = '${file.parent.path}/memo_${DateTime.now().microsecondsSinceEpoch}$ext';
+      return (await file.copy(target)).path;
+    } catch (e) {
+      debugPrint('Voice memo not copied: $e');
+      return null;
+    }
+  }
+
+  /// Vacation mode for every repeating alarm; null resumes them.
+  Future<void> pauseRepeatingUntil(DateTime? until) async {
+    await AlarmService.pauseRepeatingUntil(until);
+    reload();
   }
 
   /// Cancel alarm and remove it

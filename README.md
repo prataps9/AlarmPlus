@@ -44,6 +44,12 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   nightly reminder.
 - **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
   off) without switching it off.
+- **Pause until a date** — vacation mode: hold every repeating alarm until a
+  chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
+- **Undo & duplicate** — swiping an alarm away deletes it with an Undo
+  snackbar; long-press an alarm to duplicate it (voice memo included).
+- **24-hour editor** — the alarm time picker follows the phone's 24-hour
+  setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
 - **Native Android touches** — predictive-back page animations (Android

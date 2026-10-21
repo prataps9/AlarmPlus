@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources the shrinker can't see being used, so it must not delete them.
+
+     The launcher-shortcut icons are looked up by *name* at runtime (Dart
+     passes 'ic_shortcut_nap' etc. to quick_actions, which resolves it with
+     Resources.getIdentifier). Nothing references them statically, so release
+     builds were stripping them and the shortcuts showed no icon.
+     See AppShortcutsService, and tool/check_apk.py which fails CI if any of
+     these is missing from the built APK. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_shortcut_*" />

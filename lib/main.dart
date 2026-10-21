@@ -39,6 +39,7 @@ import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/core/startup.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_command_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
@@ -46,19 +47,25 @@ import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await StorageService.init();
-  await PremiumService.init();
-  await MascotService.init();
-  await AlarmService.init();
-  await AlarmService.restoreEnabledAlarms();
-  await WidgetSyncService.refresh();
-  await StreakReminderService.refresh();
-  await AlarmRingFlow.bindNativeAlarmEvents();
-  WidgetCommandService.bind();
-  await WidgetCommandService.drainPending();
-  await NapService.checkMissedNap();
-  await LocationAlarmService.startMonitoring();
-  await AppShortcutsService.init();
+  // Every step is isolated (see runStartupStep): a plugin that fails or hangs
+  // on someone's phone costs that feature, never the whole app. Order matters
+  // only where noted.
+  await runStartupStep('storage', StorageService.init);
+  await runStartupStep('premium', PremiumService.init);
+  await runStartupStep('mascot', MascotService.init);
+  await runStartupStep('alarm engine', AlarmService.init);
+  await runStartupStep('restore alarms', AlarmService.restoreEnabledAlarms);
+  await runStartupStep('widget sync', WidgetSyncService.refresh);
+  await runStartupStep('streak reminder', StreakReminderService.refresh);
+  // Bound early so a ring event that launched the app isn't missed.
+  await runStartupStep('ring events', AlarmRingFlow.bindNativeAlarmEvents);
+  await runStartupStep('widget commands', () async {
+    WidgetCommandService.bind();
+    await WidgetCommandService.drainPending();
+  });
+  await runStartupStep('missed nap', NapService.checkMissedNap);
+  await runStartupStep('location alarms', LocationAlarmService.startMonitoring);
+  await runStartupStep('shortcuts', AppShortcutsService.init);
   runApp(const AlarmPlusApp());
 }
 

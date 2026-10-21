@@ -130,6 +130,14 @@ Without `android/key.properties`, release builds fall back to the debug
 signing key (with a Gradle warning) — fine for local testing, but not
 suitable for distribution.
 
+### APK sanity check
+
+`tool/check_apk.py` inspects a built release APK (manifest classes, resources
+that are looked up by name, engine libraries, assets, version). CI runs it on
+every pull request and `release.yml` runs it before publishing. To run it
+yourself: `pip install androguard`, then
+`python tool/check_apk.py build/app/outputs/flutter-apk/app-release.apk`.
+
 ## Continuous integration & releases
 
 Two workflows live in `.github/workflows/`:

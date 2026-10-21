@@ -3,7 +3,7 @@
 This document tracks identified issues, deprecations, and potential logic bugs in the **AlarmPlus** project that need fixing.
 
 ## 🔴 High Priority
-- **Needs on-device verification (2026-09-25 ring-flow fixes).** The Kotlin and Android resource changes below were only checked for syntax, not built: there was no Android SDK in the environment. Run `flutter build apk` and test on a phone:
+- **Needs on-device verification (2026-09-25 ring-flow fixes).** The Android code now *builds* (CI and the release workflow produce a real APK), and the APK is inspected automatically. But nothing has been **run** on a phone: this environment has no emulator or device. Install the release APK and test:
   - lock-screen notification (Open / Snooze buttons)
   - Hardcore mode swipe-away
   - a cold start caused by a ringing alarm
@@ -37,6 +37,10 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - A miss now spends an owned freeze (at most one per day) instead of resetting the streak.
   - A later miss no longer erases a day the user did wake up.
 - **Purchases could be lost (2026-09-25):** `purchaseStream` was only listened to during a purchase, so pending or late UPI purchases were never completed and were auto-refunded. A global listener now starts in `main()`.
+- **Inspection of the shipped v1.2.0 APK (2026-10-21):** the release file was downloaded, checksummed against the release, and taken apart. It is structurally sound: all 44 manifest components have their classes in the code, the Flutter engine and compiled Dart are present for 3 CPU types, all assets are bundled, it is not debuggable, and it supports Android 7+. It also turned up two real problems, both fixed in 1.2.1:
+  - **The four launcher-shortcut icons were stripped from the APK** by Android's resource shrinker, because they are looked up by name at runtime. `res/raw/keep.xml` now protects them.
+  - **One failing plugin could keep the app from opening.** `main()` ran 13 awaited init steps before `runApp`, none individually protected. Each step now has its own error handling and a time limit (`runStartupStep`), so a failure costs one feature, never the whole app.
+  - **Prevention:** `tool/check_apk.py` now runs on every pull request and before every release, against the APK that was actually built. It checks the manifest classes, the name-looked-up resources, the engine libraries, the assets, the debuggable flag and the version. It was run against the broken v1.2.0 APK and fails on exactly the four stripped icons.
 - **Polish pass (2026-10-19):** every main screen was rendered and stress-tested at 412dp and at 320dp with 1.3× text (the combination many real users run).
   - **Layout overflows fixed:**
     - the alarm editor's day-of-week circles ran off the edge of a normal 412dp phone;
@@ -74,4 +78,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-10-19*
+*Updated on 2026-10-21*

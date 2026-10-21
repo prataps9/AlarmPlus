@@ -72,3 +72,11 @@ jobs:
       # Debug-key signed (no key.properties here): fine for a build check.
       - name: Build release APK
         run: flutter build apk --release --no-tree-shake-icons
+
+      # Inspects the APK that was just built (see tool/check_apk.py for what
+      # it guards): manifest classes present, name-looked-up resources not
+      # stripped, engine libraries and assets bundled.
+      - name: Check the built APK
+        run: |
+          pip install --quiet androguard
+          python tool/check_apk.py build/app/outputs/flutter-apk/app-release.apk

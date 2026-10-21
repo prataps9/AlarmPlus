@@ -46,7 +46,9 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "startAlarmService" -> {
                         val alarmId = call.argument<Int>("alarmId") ?: 0
-                        startAlarmForegroundService(alarmId)
+                        val hardcore = call.argument<Boolean>("hardcore") ?: false
+                        val snoozeMinutes = call.argument<Int>("snoozeMinutes") ?: 5
+                        startAlarmForegroundService(alarmId, hardcore, snoozeMinutes)
                         result.success(null)
                     }
                     "stopAlarmService" -> {
@@ -114,10 +116,12 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun startAlarmForegroundService(alarmId: Int) {
+    private fun startAlarmForegroundService(alarmId: Int, hardcore: Boolean, snoozeMinutes: Int) {
         val intent = Intent(this, AlarmForegroundService::class.java).apply {
             action = AlarmForegroundService.ACTION_START
             putExtra(AlarmForegroundService.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmForegroundService.EXTRA_HARDCORE, hardcore)
+            putExtra(AlarmForegroundService.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

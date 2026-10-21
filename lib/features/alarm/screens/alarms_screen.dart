@@ -22,6 +22,8 @@ import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 class AlarmsScreen extends ConsumerWidget {
   const AlarmsScreen({super.key});
 
+  static const routeName = '/alarms';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alarmsAsync = ref.watch(alarmsListProvider);
@@ -55,6 +57,9 @@ class AlarmsScreen extends ConsumerWidget {
                 onDelete: () {
                   ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
                 },
+                onSkipNext: (skip) => ref
+                    .read(alarmsMapProvider.notifier)
+                    .setSkipNext(alarm.id, skip: skip),
               );
             },
           );
@@ -434,48 +439,58 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 ),
               ),
               const SizedBox(height: 12),
+              // Seven equal slots: a fixed 46px circle plus gap overflowed
+              // the sheet on ordinary 412dp phones.
               Row(
                 children: List.generate(7, (index) {
                   final weekday = index + 1;
                   const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
                   final selected = _repeatDays.contains(weekday);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (selected) {
-                            _repeatDays.remove(weekday);
-                          } else {
-                            _repeatDays.add(weekday);
-                          }
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeInOut,
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFF111111)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(23),
-                          border: Border.all(
-                            color: selected
-                                ? const Color(0xFF111111)
-                                : const Color(0xFFD4D7DD),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            labels[index],
-                            style: TextStyle(
-                              color: selected
-                                  ? Colors.white
-                                  : const Color(0xFF888888),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 46),
+                          child: AspectRatio(
+                            aspectRatio: 1,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (selected) {
+                                    _repeatDays.remove(weekday);
+                                  } else {
+                                    _repeatDays.add(weekday);
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeInOut,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: selected
+                                      ? const Color(0xFF111111)
+                                      : Colors.white,
+                                  border: Border.all(
+                                    color: selected
+                                        ? const Color(0xFF111111)
+                                        : const Color(0xFFD4D7DD),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    labels[index],
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : const Color(0xFF888888),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -608,9 +623,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               Text('Wake Challenge', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 10),
               DropdownButtonFormField<ChallengeType?>(
-                // `value` rather than `initialValue`: the latter needs Flutter 3.32+,
-                // but CI pins 3.29.0 (and `value` stays in sync with state).
-                value: _challengeType,
+                initialValue: _challengeType,
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Math (default)')),
                   ...ChallengeType.values.map((t) => DropdownMenuItem(value: t, child: Text(ChallengeService.label(t)))),
@@ -852,14 +865,16 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 Icon(Icons.replay_rounded,
                     size: 20, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: Spacing.sm),
-                Text(
-                    _maxSnoozes == 0
-                        ? 'Max snoozes: unlimited'
-                        : 'Max snoozes: $_maxSnoozes',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(
+                      _maxSnoozes == 0
+                          ? 'Max snoozes: unlimited'
+                          : 'Max snoozes: $_maxSnoozes',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                ),
               ]),
               Slider(
                 value: _maxSnoozes.toDouble(),
@@ -1082,7 +1097,16 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   }
 
   Widget _buildTimePicker(BuildContext context) {
+    // Scales down rather than overflowing on narrow screens / big text.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: _buildTimePickerRow(context),
+    );
+  }
+
+  Widget _buildTimePickerRow(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _pickerNumber(

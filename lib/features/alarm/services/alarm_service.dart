@@ -5,6 +5,7 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -35,6 +36,34 @@ class AlarmService {
 
   static Stream<int> get ringIntents => _ringIntents.stream;
 
+  /// Fires when alarms change outside the UI (a notification action, a
+  /// restored backup), so the alarm list can reload from storage.
+  static final StreamController<void> _changes =
+      StreamController<void>.broadcast();
+  static Stream<void> get changes => _changes.stream;
+  static void notifyChanged() => _changes.add(null);
+
+  /// Bottom-nav tab requests from notifications (e.g. "Time's up" → Timer).
+  static final StreamController<String> _openRequests =
+      StreamController<String>.broadcast();
+  static Stream<String> get openRequests => _openRequests.stream;
+
+  static const _upcomingNoticeKey = 'alarm.upcoming_notice';
+
+  /// How long before an alarm its "Upcoming alarm" notice appears.
+  static const upcomingNoticeLead = Duration(hours: 2);
+
+  static Future<bool> upcomingNoticeEnabled() async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    return prefs.getBool(_upcomingNoticeKey) ?? true;
+  }
+
+  static Future<void> setUpcomingNoticeEnabled(bool on) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    await prefs.setBool(_upcomingNoticeKey, on);
+    await restoreEnabledAlarms();
+  }
+
   // Registered by AlarmRingFlow to handle wake-check notification taps
   static void Function(int alarmId)? _onWakeCheckTapped;
   static void registerWakeCheckHandler(void Function(int alarmId) handler) {
@@ -48,8 +77,20 @@ class AlarmService {
 
   static bool get _supportsNativeAlarmOps => _isMobilePlatform;
 
+  /// A notification tap that launched the app from a terminated state.
+  /// Held until [AlarmRingFlow] has its listeners bound, because a response
+  /// emitted before that would be dropped.
+  static NotificationResponse? _launchResponse;
+
+  static NotificationResponse? takeLaunchResponse() {
+    final r = _launchResponse;
+    _launchResponse = null;
+    return r;
+  }
+
   static Future<void> init() async {
     tz_data.initializeTimeZones();
+    await _setLocalTimezone();
     if (_supportsNativeAlarmOps) {
       await Alarm.init();
     }
@@ -74,11 +115,51 @@ class AlarmService {
       debugPrint('Error initializing notifications: $e');
       return false;
     });
-    await requestPermissions();
+    try {
+      final launch = await _notifications.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        _launchResponse = launch!.notificationResponse;
+      }
+    } catch (e) {
+      debugPrint('Notification launch details unavailable: $e');
+    }
+    // Permissions are requested from UI (onboarding's permissions page, or
+    // the splash for returning users), not here: this runs before runApp,
+    // so the prompts appeared over a blank screen with no explanation.
   }
+
+  /// Without this `tz.local` is UTC, so notifications that repeat by wall
+  /// clock (`matchDateTimeComponents`) fire at UTC times.
+  static Future<void> _setLocalTimezone() async {
+    if (kIsWeb) return;
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      debugPrint('Could not resolve local timezone, staying on UTC: $e');
+    }
+  }
+
+  /// Routes a notification tap or action. Also used to replay the tap that
+  /// launched the app (see [takeLaunchResponse]).
+  static void handleNotificationResponse(NotificationResponse response) =>
+      _onNotificationResponse(response);
 
   static void _onNotificationResponse(NotificationResponse response) {
     final payload = response.payload?.trim() ?? '';
+
+    if (payload.startsWith('upcoming:')) {
+      final alarmId = int.tryParse(payload.substring('upcoming:'.length));
+      if (alarmId != null && response.actionId == 'dismiss_now') {
+        unawaited(dismissUpcoming(alarmId));
+      }
+      return;
+    }
+
+    if (payload == 'timer') {
+      _openRequests.add('timer');
+      return;
+    }
 
     // Wake-up check notification: user confirmed they're awake — cancel re-ring
     if (payload.startsWith('wakecheck:')) {
@@ -119,9 +200,14 @@ class AlarmService {
     await StorageService.saveAlarm(alarm);
   }
 
+  /// Schedules [alarm] at its next occurrence — or exactly at [at] when
+  /// given (snooze, wake-up-check re-ring). Pass [at] rather than rewriting
+  /// `alarm.time`: a [TimeOfDay] drops the seconds, so "now + 5 s" rounds
+  /// into the past and `nextDateTimeFrom` pushes it to tomorrow.
   static Future<void> scheduleAlarm(
     AlarmModel alarm, {
     bool persist = true,
+    DateTime? at,
   }) async {
     await _cancelScheduledArtifacts(alarm.id);
 
@@ -134,7 +220,7 @@ class AlarmService {
       return;
     }
 
-    final targetTime = alarm.nextDateTimeFrom(DateTime.now());
+    final targetTime = at ?? alarm.nextDateTimeFrom(DateTime.now());
     final alarmId = alarmIntId(alarm.id);
     var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
@@ -177,6 +263,9 @@ class AlarmService {
       warningNotificationOnKill:
           !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       androidFullScreenIntent: true,
+      // Hardcore alarms keep ringing when the app is swiped away; the
+      // plugin's default stops the audio on task removal.
+      androidStopAlarmOnTermination: !alarm.hardcoreMode,
     );
 
     try {
@@ -189,12 +278,7 @@ class AlarmService {
 
     final location = tz.local;
     final zoned = tz.TZDateTime.from(targetTime, location);
-    final bool isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    final scheduleMode = isAndroid
-        ? ((await Permission.scheduleExactAlarm.status).isGranted
-              ? AndroidScheduleMode.exactAllowWhileIdle
-              : AndroidScheduleMode.inexactAllowWhileIdle)
-        : AndroidScheduleMode.exactAllowWhileIdle;
+    final scheduleMode = await exactScheduleMode();
 
     await _notifications.zonedSchedule(
       alarmId,
@@ -217,9 +301,9 @@ class AlarmService {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: scheduleMode,
-      matchDateTimeComponents: alarm.repeatDays.isNotEmpty
-          ? DateTimeComponents.time
-          : null,
+      // One-shot at the next occurrence. A daily `DateTimeComponents.time`
+      // repeat fired on every day, including a weekday alarm's weekends;
+      // the next occurrence is rescheduled on every dismiss and app start.
       payload: '$alarmId',
     );
 
@@ -247,11 +331,73 @@ class AlarmService {
       );
     }
 
+    final noticeAt = targetTime.subtract(upcomingNoticeLead);
+    if (noticeAt.isAfter(DateTime.now()) && await upcomingNoticeEnabled()) {
+      await _notifications.zonedSchedule(
+        _upcomingNotificationId(alarm.id),
+        'Upcoming alarm',
+        [
+          DateFormat.jm().format(targetTime),
+          if (alarm.label.isNotEmpty) alarm.label,
+        ].join(' · '),
+        tz.TZDateTime.from(noticeAt, location),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'alarm_plus_upcoming',
+            'Upcoming alarms',
+            channelDescription:
+                'A heads-up before each alarm, with a Dismiss now button',
+            importance: Importance.low,
+            priority: Priority.low,
+            category: AndroidNotificationCategory.reminder,
+            actions: [
+              AndroidNotificationAction(
+                'dismiss_now',
+                'Dismiss now',
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+            ],
+          ),
+        ),
+        androidScheduleMode: scheduleMode,
+        payload: 'upcoming:$alarmId',
+      );
+    }
+
     if (persist) {
       await saveAlarm(alarm.copyWith(isEnabled: true));
     }
     unawaited(WidgetSyncService.refresh());
     unawaited(StreakReminderService.refresh());
+  }
+
+  /// "Dismiss now" on the upcoming-alarm notice: already up, so don't ring.
+  /// A repeating alarm skips just this occurrence; a one-off is switched off.
+  static Future<void> dismissUpcoming(int alarmIntId) async {
+    final alarm = findByIntId(alarmIntId);
+    if (alarm == null) return;
+    if (alarm.repeatDays.isNotEmpty) {
+      await setSkipNext(alarm.id, skip: true);
+    } else {
+      await toggleAlarm(alarm.id, false);
+    }
+    notifyChanged();
+  }
+
+  /// Exact scheduling when the user granted it, otherwise the inexact
+  /// fallback Android allows without the permission.
+  static Future<AndroidScheduleMode> exactScheduleMode() async {
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    if (!isAndroid) return AndroidScheduleMode.exactAllowWhileIdle;
+    try {
+      return (await Permission.scheduleExactAlarm.status).isGranted
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+    } catch (_) {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
   }
 
   static Future<void> cancelAlarm(String id) async {
@@ -291,6 +437,7 @@ class AlarmService {
     await Alarm.stop(alarmId);
     await _notifications.cancel(alarmId);
     await _notifications.cancel(_windDownNotificationId(id));
+    await _notifications.cancel(_upcomingNotificationId(id));
     final prefs = await sp.SharedPreferences.getInstance();
     await prefs.remove('$_nativeRingtoneKeyPrefix.$alarmId');
   }
@@ -309,6 +456,17 @@ class AlarmService {
     } else {
       await cancelAlarm(id);
     }
+  }
+
+  /// Skips (or, with [skip] false, un-skips) the next occurrence of a
+  /// repeating alarm and reschedules it.
+  static Future<void> setSkipNext(String id, {required bool skip}) async {
+    final alarm = StorageService.getAlarm(id);
+    if (alarm == null || alarm.repeatDays.isEmpty) return;
+    final updated =
+        skip ? alarm.skipNext(DateTime.now()) : alarm.copyWith(skipDate: null);
+    await saveAlarm(updated);
+    if (updated.isEnabled) await scheduleAlarm(updated);
   }
 
   static List<AlarmModel> getAllAlarms() {
@@ -390,6 +548,11 @@ class AlarmService {
   }
 
   static int alarmIntId(String id) => _idToInt(id);
+
+  static int _upcomingNotificationId(String id) {
+    final base = alarmIntId(id);
+    return ((base + 700000) % 1000000000) + 1;
+  }
 
   static int _windDownNotificationId(String id) {
     final base = alarmIntId(id);

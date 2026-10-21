@@ -10,7 +10,8 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
 - **Smart alarms** — repeatable alarms with gentle-wake ramp, custom sounds,
   personalities, and per-alarm dismiss challenges (math, memory pattern,
   shake-to-wake, typing, barcode/QR scan, trivia, word scramble, step counter,
-  eye-open detection).
+  eye-open detection, squats, photo proof, read-aloud, and Color Clash, a
+  Stroop test where you tap the ink colour, not the word).
 - **Gamification** — XP, levels ("Sleeper" → "Early Bird" → "Dawn Warrior" →
   "Circadian Master" → "Flow Legend"), unlockable badges, and streaks with
   streak freezes and comeback bonuses.
@@ -24,18 +25,41 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
-- **Pip, the mascot** — a code-drawn, animated alarm-clock buddy (no image
-  assets). Pip has seven moods with their own motion: waving, a cheering
-  jump with ringing bells, a sleepy "z"-float, a worried shiver, a proud
-  sparkle. Pip also blinks, bobs, and wiggles when tapped. Pip greets you on
-  Home with a contextual line (streak at risk, bedtime, next alarm), and
-  appears on splash, onboarding, the celebration banner and the dismiss
-  sheet. Code lives in `lib/features/mascot/`.
+- **Clean white UI** — a plain, standard alarm-app look built around the
+  Alarm+ line-clock logo (`lib/shared/widgets/alarm_logo.dart`, the same mark
+  as the launcher icon). On Android 12+ the system splash shows the logo with
+  its minute hand sweeping once (`res/drawable/splash_logo_animated.xml`), and
+  the Flutter splash continues from that exact frame.
+- **Clock tabs** — Alarm, Clock (world clock with city search), Timer (keypad
+  entry, presets, +1:00; rings through an insistent alarm-sound notification
+  even when the app is closed), Stopwatch (laps, with the fastest and slowest
+  highlighted; keeps running if the app is killed) and Insights. Settings
+  sits behind the gear on the Alarm tab.
+- **Reliability guardrails** — the Alarm tab warns, with a one-tap fix,
+  whenever notifications or exact alarms are off. Every alarm gets a
+  2-hours-ahead "Upcoming alarm" notice with **Dismiss now**. Times follow
+  the phone's 12/24-hour setting.
+- **Bedtime + sleep goal** — the Alarm tab works your bedtime back from the
+  next alarm ("Go to bed by 10:30 PM for 8 h of sleep"), with an optional
+  nightly reminder.
+- **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
+  off) without switching it off.
+- **Backup & restore** — export all alarms and settings to a JSON file via
+  the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Native Android touches** — predictive-back page animations (Android
+  14+), launcher long-press shortcuts (New alarm, Power nap, Sleep sounds,
+  Focus timer), a Quick Settings tile, a home-screen widget, and volume-key
+  snooze.
+- **Pip, the mascot** — a code-drawn, animated alarm-clock character that
+  appears only in celebrations (level-ups, badges, the post-alarm sheet) and
+  in the Pro wardrobe. Code lives in `lib/features/mascot/`.
 - **Alarm+ Pro** — a one-time lifetime unlock (₹299 or the store's local
   price, no subscription). It includes Pip's Wardrobe (4 outfits), double
   streak freezes, Sleep Coach Pro, and an always-on wake challenge. It
   has a full-screen paywall (`lib/features/premium/`), and the purchase
   listener runs for the whole app lifetime so pending payments aren't lost.
+  At startup it checks which purchases Google Play says the account owns,
+  so Pro restores itself after a reinstall and locks again after a refund.
 - **Sleep tools** — sleep diary, sleep insights, wind-down mode, bedtime
   setup, sleep sounds, location-based alarms, nap timer, focus timer.
 
@@ -44,7 +68,7 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 
 ## Tech stack
 
-- **Flutter / Dart** (Dart SDK `^3.7.0`)
+- **Flutter / Dart** (Flutter 3.47.5 in CI)
 - **State management:** Riverpod (`flutter_riverpod`) for app-level/theme
   state, plus `provider`-style singleton services for alarm/storage logic.
   Consolidating this mix is a known, deferred cleanup — see
@@ -62,8 +86,8 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 
 ## Getting started
 
-1. Install Flutter (matching the SDK constraint in `pubspec.yaml`,
-   currently Dart `^3.7.0`) and set up an Android/iOS toolchain.
+1. Install Flutter 3.47.5 (the version CI pins; dependencies need
+   Flutter ≥ 3.44) and set up an Android/iOS toolchain.
 2. Install dependencies:
    ```bash
    flutter pub get

@@ -892,7 +892,10 @@ class SmartAlarmService {
     return palette[date.weekday % palette.length];
   }
 
-  static Future<AlarmReliabilityStatus> getReliabilityStatus() async {
+  /// Permission state that decides whether alarms can ring. Cached briefly;
+  /// pass [force] after the user may have changed it (e.g. on app resume).
+  static Future<AlarmReliabilityStatus> getReliabilityStatus({bool force = false}) async {
+    if (force) _reliabilityCache = null;
     final now = DateTime.now();
     final cacheAge = _reliabilityCacheAt == null
         ? null

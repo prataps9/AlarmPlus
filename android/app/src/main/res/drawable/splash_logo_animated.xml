@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ launch icon: the Alarm+ logo (same artwork as the launcher
+     icon) with the minute hand making one sweep. Geometry matches
+     lib/shared/widgets/alarm_logo.dart (1400-unit box), so the Flutter splash
+     continues from exactly this frame. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="240dp"
+            android:height="240dp"
+            android:viewportWidth="1400"
+            android:viewportHeight="1400">
+            <path
+                android:pathData="M800.6,1015 A320,320 0 1,1 876.6,437.6"
+                android:strokeColor="#FF0F172A"
+                android:strokeWidth="20"
+                android:strokeLineCap="round" />
+            <path
+                android:pathData="M1016.1,626.2 A320,320 0 0,1 1009.6,813.2"
+                android:strokeColor="#FF0F172A"
+                android:strokeWidth="20"
+                android:strokeLineCap="round" />
+            <path
+                android:pathData="M707,709 L810.4,795.8"
+                android:strokeColor="#FF0F172A"
+                android:strokeWidth="32"
+                android:strokeLineCap="round" />
+            <group
+                android:name="minute_hand"
+                android:pivotX="707"
+                android:pivotY="709">
+                <path
+                    android:pathData="M707,709 L707,541"
+                    android:strokeColor="#FF0F172A"
+                    android:strokeWidth="32"
+                    android:strokeLineCap="round" />
+            </group>
+            <path
+                android:pathData="M677,709 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0 z"
+                android:fillColor="#FF0F172A" />
+            <path
+                android:pathData="M861,948 L1001,948 M931,878 L931,1018"
+                android:strokeColor="#FF0F172A"
+                android:strokeWidth="32"
+                android:strokeLineCap="round" />
+        </vector>
+    </aapt:attr>
+    <target android:name="minute_hand">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:valueType="floatType"
+                android:duration="900"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+</animated-vector>

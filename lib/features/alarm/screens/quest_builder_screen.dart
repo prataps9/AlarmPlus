@@ -154,9 +154,8 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _steps.length,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         setState(() {
-          if (newIndex > oldIndex) newIndex--;
           final item = _steps.removeAt(oldIndex);
           _steps.insert(newIndex, item);
         });
@@ -246,6 +245,8 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
         return Icons.photo_camera_rounded;
       case ChallengeType.voiceRepeat:
         return Icons.record_voice_over_rounded;
+      case ChallengeType.colorClash:
+        return Icons.palette_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
     }

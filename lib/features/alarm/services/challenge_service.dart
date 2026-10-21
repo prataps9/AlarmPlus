@@ -24,6 +24,7 @@ class ChallengeService {
     ChallengeType.trivia,
     ChallengeType.wordScramble,
     ChallengeType.voiceRepeat,
+    ChallengeType.colorClash,
   ];
 
   /// Types offered when building a multi-step quest. Broader than [pickable]
@@ -37,6 +38,7 @@ class ChallengeService {
     ChallengeType.wordScramble,
     ChallengeType.squatReps,
     ChallengeType.voiceRepeat,
+    ChallengeType.colorClash,
   ];
 
   static ChallengeType randomChallenge() {
@@ -69,6 +71,8 @@ class ChallengeService {
         return 'Photo Proof';
       case ChallengeType.voiceRepeat:
         return 'Read Aloud';
+      case ChallengeType.colorClash:
+        return 'Color Clash';
       case ChallengeType.random:
         return 'Random';
     }

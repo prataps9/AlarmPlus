@@ -149,9 +149,13 @@ class _WakeScoreHero extends StatelessWidget {
                       color: semantics.streakTier(streak),
                     ),
                     const SizedBox(width: Spacing.xs),
-                    Text(
-                      streak == 1 ? '1 day streak' : '$streak day streak',
-                      style: theme.textTheme.titleMedium,
+                    Flexible(
+                      child: Text(
+                        streak == 1 ? '1 day streak' : '$streak day streak',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
                     ),
                   ],
                 ),
@@ -279,14 +283,24 @@ class _StatGrid extends StatelessWidget {
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: Spacing.md,
-      mainAxisSpacing: Spacing.md,
-      childAspectRatio: 1.7,
-      children: tiles,
+    // Two rows sized by their content. A fixed-aspect grid overflowed as
+    // soon as the system font size went up.
+    Widget row(Widget a, Widget b) => IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: a),
+              const SizedBox(width: Spacing.md),
+              Expanded(child: b),
+            ],
+          ),
+        );
+    return Column(
+      children: [
+        row(tiles[0], tiles[1]),
+        const SizedBox(height: Spacing.md),
+        row(tiles[2], tiles[3]),
+      ],
     );
   }
 }

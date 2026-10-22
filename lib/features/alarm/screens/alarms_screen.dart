@@ -510,6 +510,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -527,7 +528,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   width: 48,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCCCCCC),
+                    color: scheme.outline,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -544,15 +545,15 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 decoration: InputDecoration(
                   hintText: 'Alarm label...',
                   hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF94A3B8),
+                    color: scheme.onSurfaceVariant,
                     fontSize: 20,
                   ),
                   contentPadding: EdgeInsets.zero,
-                  border: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: scheme.outlineVariant),
                   ),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: scheme.outlineVariant),
                   ),
                 ),
               ),
@@ -596,9 +597,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,12 +665,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: selected
-                                      ? const Color(0xFF111111)
-                                      : Colors.white,
+                                      ? scheme.onSurface
+                                      : scheme.surfaceContainer,
                                   border: Border.all(
                                     color: selected
-                                        ? const Color(0xFF111111)
-                                        : const Color(0xFFD4D7DD),
+                                        ? scheme.onSurface
+                                        : scheme.outline,
                                   ),
                                 ),
                                 child: Center(
@@ -677,8 +678,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                     labels[index],
                                     style: TextStyle(
                                       color: selected
-                                          ? Colors.white
-                                          : const Color(0xFF888888),
+                                          ? scheme.surface
+                                          : scheme.onSurfaceVariant,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -713,13 +714,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text(
                       _soundLabel(),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: const Color(0xFF94A3B8),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
-                      color: Color(0xFF94A3B8),
+                      color: scheme.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -746,10 +747,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                         margin: const EdgeInsets.only(right: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: selected ? config.primaryColor : const Color(0xFFF8FAFC),
+                          color: selected ? config.primaryColor : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selected ? config.primaryColor : const Color(0xFFE2E8F0),
+                            color: selected ? config.primaryColor : scheme.outlineVariant,
                             width: 2,
                           ),
                         ),
@@ -762,7 +763,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: selected ? Colors.white : const Color(0xFF0F172A),
+                                color: selected ? Colors.white : scheme.onSurface,
                               ),
                             ),
                           ],
@@ -804,9 +805,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             return ChoiceChip(
                               label: Text('${s}s'),
                               selected: selected,
-                              selectedColor: const Color(0xFF111111),
+                              selectedColor: scheme.onSurface,
                               labelStyle: TextStyle(
-                                  color: selected ? Colors.white : const Color(0xFF111111),
+                                  color: selected ? scheme.surface : scheme.onSurface,
                                   fontWeight: FontWeight.w600),
                               onSelected: (_) =>
                                   setState(() => _gentleWakeDuration = s),
@@ -832,8 +833,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
 
               // ── Quest Mode toggle ──────────────────────────────────────
               Row(children: [
-                const Icon(Icons.rocket_launch_rounded,
-                    color: Color(0xFF444444), size: 20),
+                Icon(Icons.rocket_launch_rounded,
+                    color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -841,8 +842,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Wake Quest Mode',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Chain multiple challenges in order',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Chain multiple challenges in order',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -884,8 +885,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                   .map((t) => ChallengeService.label(t))
                                   .join(' → ')),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF111111),
-                            side: const BorderSide(color: Color(0xFF444444)),
+                            foregroundColor: scheme.onSurface,
+                            side: BorderSide(color: scheme.onSurfaceVariant),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -929,7 +930,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             fontSize: 13,
                             color: _savedQrCode != null
                                 ? const Color(0xFF10B981)
-                                : const Color(0xFF94A3B8),
+                                : scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -940,7 +941,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                           : Icons.chevron_right_rounded,
                       color: _savedQrCode != null
                           ? const Color(0xFF10B981)
-                          : const Color(0xFFCBD5E1),
+                          : scheme.outline,
                     ),
                   ]),
                 ),
@@ -1116,7 +1117,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               const SizedBox(height: 12),
               // Wake-Up Check toggle
               Row(children: [
-                const Icon(Icons.alarm_on_rounded, color: Color(0xFF444444), size: 20),
+                Icon(Icons.alarm_on_rounded, color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1124,8 +1125,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Wake-Up Check',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Re-rings if you don\'t confirm you\'re awake',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Re-rings if you don\'t confirm you\'re awake',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -1146,9 +1147,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             return ChoiceChip(
                               label: Text('$min min'),
                               selected: sel,
-                              selectedColor: const Color(0xFF111111),
+                              selectedColor: scheme.onSurface,
                               labelStyle: TextStyle(
-                                color: sel ? Colors.white : const Color(0xFF111111),
+                                color: sel ? scheme.surface : scheme.onSurface,
                                 fontWeight: FontWeight.w600,
                               ),
                               onSelected: (_) =>
@@ -1162,7 +1163,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               const SizedBox(height: 12),
               // Hardcore Mode toggle
               Row(children: [
-                const Icon(Icons.lock_rounded, color: Color(0xFF444444), size: 20),
+                Icon(Icons.lock_rounded, color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1170,8 +1171,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Hardcore Mode',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Disables back button while alarm is ringing',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Disables back button while alarm is ringing',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -1202,8 +1203,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 child: ElevatedButton(
                   onPressed: _saveAlarm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF020617),
-                    foregroundColor: Colors.white,
+                    backgroundColor: scheme.brightness == Brightness.dark
+                        ? scheme.onSurface
+                        : const Color(0xFF020617),
+                    foregroundColor: scheme.brightness == Brightness.dark
+                        ? scheme.surface
+                        : Colors.white,
                     minimumSize: const Size(double.infinity, 62),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
@@ -1471,7 +1476,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w700,
-          color: active ? Colors.black : const Color(0xFFB0B0B0),
+          color: active
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
         ),
       ),
     );
@@ -1702,6 +1709,7 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -1719,7 +1727,7 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFCCCCCC),
+                  color: scheme.outline,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1754,19 +1762,19 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.chevron_right_rounded,
-                        color: Color(0xFFAAAAAA), size: 20),
+                    : Icon(Icons.chevron_right_rounded,
+                        color: scheme.onSurfaceVariant, size: 20),
                 onTap: _pickNative,
               ),
             ],
 
             const SizedBox(height: 16),
-            const Text('AMBIENT SOUNDS',
+            Text('AMBIENT SOUNDS',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 2.0,
-                    color: Color(0xFF888888))),
+                    color: scheme.onSurfaceVariant)),
             const SizedBox(height: 10),
 
             // Bundled sounds with preview
@@ -1783,18 +1791,18 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: isPreviewing
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF111111)),
+                                color: scheme.onSurface),
                           )
                         : Icon(
                             Icons.play_circle_outline_rounded,
                             color: isSelected
-                                ? const Color(0xFF111111)
-                                : const Color(0xFFAAAAAA),
+                                ? scheme.onSurface
+                                : scheme.onSurfaceVariant,
                             size: 24,
                           ),
                   ),
@@ -1827,17 +1835,19 @@ class _SoundRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0F0F0) : Colors.white,
+          color: isSelected
+              ? scheme.surfaceContainerHighest
+              : scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF111111) : const Color(0xFFE8E8E8),
+            color: isSelected ? scheme.onSurface : scheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -1845,8 +1855,8 @@ class _SoundRow extends StatelessWidget {
             Icon(icon,
                 size: 20,
                 color: isSelected
-                    ? const Color(0xFF111111)
-                    : const Color(0xFF888888)),
+                    ? scheme.onSurface
+                    : scheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1858,19 +1868,19 @@ class _SoundRow extends StatelessWidget {
                               ? FontWeight.w700
                               : FontWeight.w500,
                           fontSize: 15,
-                          color: const Color(0xFF111111))),
+                          color: scheme.onSurface)),
                   if (subtitle != null)
                     Text(subtitle!,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF888888))),
+                        style: TextStyle(
+                            fontSize: 12, color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),
             if (trailing != null)
               trailing!
             else if (isSelected)
-              const Icon(Icons.check_rounded,
-                  color: Color(0xFF111111), size: 18),
+              Icon(Icons.check_rounded,
+                  color: scheme.onSurface, size: 18),
           ],
         ),
       ),
@@ -1887,6 +1897,12 @@ class _AnimatedToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Light keeps the near-black "on" track; in dark that would vanish into
+    // the sheet, so the brand green carries "on" instead.
+    final onTrack = scheme.brightness == Brightness.dark
+        ? scheme.primary
+        : const Color(0xFF111111);
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -1895,7 +1911,7 @@ class _AnimatedToggle extends StatelessWidget {
         width: 52,
         height: 28,
         decoration: BoxDecoration(
-          color: value ? const Color(0xFF111111) : const Color(0xFFE0E0E0),
+          color: value ? onTrack : scheme.outlineVariant,
           borderRadius: BorderRadius.circular(14),
         ),
         child: AnimatedAlign(

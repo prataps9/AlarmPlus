@@ -72,9 +72,8 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
     final total = widget.quest.steps.length;
     final step = widget.quest.steps[_currentStep];
 
-    final cardBg = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E293B)
-        : Colors.white;
+    final scheme = Theme.of(context).colorScheme;
+    final cardBg = scheme.surfaceContainer;
 
     return Container(
       decoration: BoxDecoration(
@@ -97,8 +96,8 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
                         color: Color(0xFF6366F1))),
                 const Spacer(),
                 Text('${_currentStep + 1} / $total',
-                    style: const TextStyle(
-                        color: Color(0xFF94A3B8),
+                    style: TextStyle(
+                        color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600)),
               ]),
               const SizedBox(height: 12),
@@ -220,6 +219,7 @@ class _QuestStepBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: List.generate(steps.length, (i) {
         final isActive = i == currentStep;
@@ -238,10 +238,10 @@ class _QuestStepBar extends StatelessWidget {
           icon = Icon(_iconFor(steps[i].challengeType),
               color: Colors.white, size: 16);
         } else {
-          bg = const Color(0xFFF8FAFC);
-          border = const Color(0xFFE2E8F0);
+          bg = scheme.surfaceContainerHighest;
+          border = scheme.outlineVariant;
           icon = Icon(_iconFor(steps[i].challengeType),
-              color: const Color(0xFFCBD5E1), size: 16);
+              color: scheme.outline, size: 16);
         }
 
         return Expanded(
@@ -267,7 +267,7 @@ class _QuestStepBar extends StatelessWidget {
                 height: 2,
                 color: isDone
                     ? const Color(0xFF22C55E)
-                    : const Color(0xFFE2E8F0),
+                    : scheme.outlineVariant,
               ),
           ]),
         );

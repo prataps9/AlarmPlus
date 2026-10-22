@@ -150,11 +150,12 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
   @override
   Widget build(BuildContext context) {
     final timerFraction = _timeLeft / _timeLimitSeconds;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
         boxShadow: const [
           BoxShadow(color: Color(0x18000000), blurRadius: 20, offset: Offset(0, 8)),
@@ -192,7 +193,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: i <= _currentQuestion ? const Color(0xFF22C55E) : const Color(0xFFE2E8F0),
+                  color: i <= _currentQuestion ? const Color(0xFF22C55E) : scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -201,7 +202,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
           const SizedBox(height: 6),
           Text(
             'Question ${_currentQuestion + 1} of $_totalQuestions',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           // Timer ring
@@ -214,7 +215,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                 CircularProgressIndicator(
                   value: timerFraction,
                   strokeWidth: 5,
-                  backgroundColor: const Color(0xFFE2E8F0),
+                  backgroundColor: scheme.outlineVariant,
                   valueColor: AlwaysStoppedAnimation(
                     timerFraction > 0.4 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
                   ),
@@ -250,14 +251,14 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                     ? const Color(0xFF22C55E)
                     : _showWrong
                     ? const Color(0xFFEF4444)
-                    : const Color(0xFFCBD5E1),
+                    : scheme.outline,
                 width: 2,
               ),
               color: _showCorrect
-                  ? const Color(0xFFF0FDF4)
+                  ? const Color(0xFF22C55E).withValues(alpha: 0.12)
                   : _showWrong
-                  ? const Color(0xFFFEF2F2)
-                  : Colors.white,
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                  : scheme.surfaceContainer,
             ),
             child: TextField(
               controller: _controller,
@@ -292,8 +293,8 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               child: ElevatedButton(
                 onPressed: _checkAnswer,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.onSurface,
+                  foregroundColor: scheme.surface,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
                 ),

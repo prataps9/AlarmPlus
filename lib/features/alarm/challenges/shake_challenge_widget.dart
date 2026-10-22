@@ -103,22 +103,21 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E293B)
-        : Colors.white;
+    final scheme = Theme.of(context).colorScheme;
+    final cardBg = scheme.surfaceContainer;
 
     if (_noSensor) {
       return Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(24)),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('📳', style: TextStyle(fontSize: 48)),
-            SizedBox(height: 12),
-            Text('No sensor detected', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            SizedBox(height: 6),
-            Text('Auto-passing…', style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
+            const Text('📳', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            const Text('No sensor detected', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            const SizedBox(height: 6),
+            Text('Auto-passing…', style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
           ],
         ),
       );
@@ -145,7 +144,7 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
                     CircularProgressIndicator(
                       value: timerFraction,
                       strokeWidth: 3,
-                      backgroundColor: const Color(0xFFE2E8F0),
+                      backgroundColor: scheme.outlineVariant,
                       valueColor: AlwaysStoppedAnimation(
                         timerFraction > 0.4 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
                       ),
@@ -166,7 +165,7 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
           const SizedBox(height: 8),
           Text(
             '$_shakeCount / ${ShakeChallengeWidget._requiredShakes} shakes',
-            style: const TextStyle(fontSize: 16, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 20),
           ClipRRect(
@@ -174,7 +173,7 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
               minHeight: 12,
-              backgroundColor: const Color(0xFFE2E8F0),
+              backgroundColor: scheme.outlineVariant,
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
             ),
           ),

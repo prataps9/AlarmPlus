@@ -71,10 +71,11 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -103,7 +104,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
                   height: active ? 48 : 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i < _showIndex ? _colors[_sequence[i]] : const Color(0xFFE2E8F0),
+                    color: i < _showIndex ? _colors[_sequence[i]] : scheme.outlineVariant,
                   ),
                 );
               }),
@@ -111,7 +112,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
           ] else ...[
             Text(
               '${_userInput.length} / ${_sequence.length}',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             GridView.count(

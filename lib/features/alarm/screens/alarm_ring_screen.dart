@@ -492,12 +492,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     final checkInDoneToday = mood != null &&
         mood.at.year == now.year && mood.at.month == now.month && mood.at.day == now.day;
     if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     await showModalBottomSheet<void>(
       context: context,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surfaceContainer,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
@@ -505,7 +507,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2))),
+              decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             PipMascot(
               mood: (reward != null &&
@@ -528,7 +530,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   style: const TextStyle(fontSize: 14, color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Text(SmartAlarmService.levelLabel(reward.totalXp),
-                style: const TextStyle(fontSize: 16, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
               const SizedBox(height: 14),
               if (reward.hitStreakMilestone != null)
                 Container(
@@ -551,23 +553,27 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFC7D2FE))),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.35))),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Text('💫', style: TextStyle(fontSize: 20)),
                     const SizedBox(width: 8),
                     Text('Comeback Bonus +${reward.comebackBonus} XP!',
-                      style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w700)),
+                      style: TextStyle(color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5), fontWeight: FontWeight.w700)),
                   ]),
                 ).animate().fadeIn(duration: 300.ms),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: reward.stats.currentStreak >= 7 ? const Color(0xFFFFF7ED) : const Color(0xFFF8FAFC),
+                  color: reward.stats.currentStreak >= 7
+                      ? const Color(0xFFF97316).withValues(alpha: 0.12)
+                      : scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(
-                    color: reward.stats.currentStreak >= 7 ? const Color(0xFFFED7AA) : const Color(0xFFE2E8F0))),
+                    color: reward.stats.currentStreak >= 7
+                        ? const Color(0xFFF97316).withValues(alpha: 0.35)
+                        : scheme.outlineVariant)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(reward.stats.currentStreak >= 30 ? '🔥🔥🔥'
                     : reward.stats.currentStreak >= 7 ? '🔥🔥'
@@ -588,9 +594,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEFCE8),
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFDE68A))),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4))),
                     child: Row(children: [
                       const Text('🏅', style: TextStyle(fontSize: 20)),
                       const SizedBox(width: 10),
@@ -630,7 +636,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             ],
             const SizedBox(height: 18),
             Text('"$affirmation"', textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: Color(0xFF475467))),
+              style: TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: scheme.onSurfaceVariant)),
             const SizedBox(height: 20),
             if (!checkInDoneToday) ...[
               OutlinedButton(
@@ -647,8 +653,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.onSurface,
+                  foregroundColor: scheme.surface,
                   minimumSize: const Size(double.infinity, 52),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
                 child: const Text('Start Your Day', style: TextStyle(fontWeight: FontWeight.w700))),
@@ -685,12 +691,28 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     final isDismissDir = _dragDx > 0;
     final isSnoozeDir = _dragDx < 0;
     final dragProgress = (_dragDx.abs() / dismissThreshold).clamp(0.0, 1.0);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // The personality's pastel tint is a light-only colour; in dark mode use
+    // its main hue at low alpha so the chip and bell disc don't glow.
+    final accentFill = isDark
+        ? _personality.primaryColor.withValues(alpha: 0.2)
+        : _personality.accentColor;
 
-    Color bgColor = const Color(0xFFF8FAFC);
+    // Light keeps its slate-50 page; dark sits on the theme surface. The
+    // swipe tints are the green/red hues at low alpha so they work on both.
+    final baseBg = isDark ? scheme.surface : const Color(0xFFF8FAFC);
+    final dismissBg = isDark
+        ? Color.alphaBlend(const Color(0xFF22C55E).withValues(alpha: 0.18), baseBg)
+        : const Color(0xFFDCFCE7);
+    final snoozeBg = isDark
+        ? Color.alphaBlend(const Color(0xFFEF4444).withValues(alpha: 0.18), baseBg)
+        : const Color(0xFFFEF2F2);
+    Color bgColor = baseBg;
     if (isDismissDir) {
-      bgColor = Color.lerp(const Color(0xFFF8FAFC), const Color(0xFFDCFCE7), dragProgress)!;
+      bgColor = Color.lerp(baseBg, dismissBg, dragProgress)!;
     } else if (isSnoozeDir) {
-      bgColor = Color.lerp(const Color(0xFFF8FAFC), const Color(0xFFFEF2F2), dragProgress)!;
+      bgColor = Color.lerp(baseBg, snoozeBg, dragProgress)!;
     }
 
     Widget body = GestureDetector(
@@ -805,11 +827,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                       alarm?.tag == 'nap_timer'
                           ? 'Nap Over! 😴'
                           : (alarm?.label ?? 'Wake Up'),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 24, color: const Color(0xFF667085))),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 24, color: scheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: _personality.accentColor, borderRadius: BorderRadius.circular(999)),
+                      decoration: BoxDecoration(color: accentFill, borderRadius: BorderRadius.circular(999)),
                       child: Text('${_personality.emoji} ${_personality.name} · ${alarm?.repeatLabel ?? 'Once'}',
                         style: TextStyle(fontSize: 13, color: _personality.primaryColor, fontWeight: FontWeight.w600)),
                     ),
@@ -835,7 +857,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                                     width: 140, height: 140,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: _personality.accentColor,
+                                      color: accentFill,
                                       border: Border.all(color: _personality.primaryColor, width: 2)),
                                     child: Center(
                                       // A ringing bell that swings back and
@@ -864,9 +886,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(children: [
-                          Icon(Icons.chevron_left_rounded, color: Color(0xFFCBD5E1), size: 24),
-                          Text('Snooze', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1), letterSpacing: 1)),
+                        Column(children: [
+                          Icon(Icons.chevron_left_rounded, color: scheme.outline, size: 24),
+                          Text('Snooze', style: TextStyle(fontSize: 11, color: scheme.outline, letterSpacing: 1)),
                         ]),
                         Column(children: [
                           Icon(Icons.chevron_right_rounded, color: _personality.primaryColor.withValues(alpha: 0.4), size: 24),
@@ -895,7 +917,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                                   },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size.fromHeight(62),
-                              side: const BorderSide(color: Colors.black, width: 1.5),
+                              side: BorderSide(color: scheme.onSurface, width: 1.5),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
                             child: Text(snoozeLimitReached
                                 ? 'No more snoozes'
@@ -951,14 +973,16 @@ class _WakeScoreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = score.total >= 80 ? const Color(0xFF22C55E)
         : score.total >= 50 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0))),
+        border: Border.all(color: scheme.outlineVariant)),
       child: Column(children: [
         Row(children: [
           const Text('Wake Score', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -967,10 +991,11 @@ class _WakeScoreCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEFCE8),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(40),
-                border: Border.all(color: const Color(0xFFFDE68A))),
-              child: const Text('New Best!', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF92400E)))),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4))),
+              child: Text('New Best!', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                  color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF92400E)))),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -979,7 +1004,7 @@ class _WakeScoreCard extends StatelessWidget {
             child: Stack(alignment: Alignment.center, children: [
               CircularProgressIndicator(
                 value: score.total / 100.0, strokeWidth: 6,
-                backgroundColor: const Color(0xFFE2E8F0),
+                backgroundColor: scheme.outlineVariant,
                 valueColor: AlwaysStoppedAnimation(color)),
               Text('${score.total}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: color)),
             ])),
@@ -1005,15 +1030,16 @@ class _ScoreBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(children: [
-        SizedBox(width: 44, child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
+        SizedBox(width: 44, child: Text(label, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))),
         Expanded(child: ClipRRect(
           borderRadius: BorderRadius.circular(2),
           child: LinearProgressIndicator(
             value: value / max,
-            backgroundColor: const Color(0xFFE2E8F0),
+            backgroundColor: scheme.outlineVariant,
             valueColor: AlwaysStoppedAnimation(color),
             minHeight: 6))),
         const SizedBox(width: 6),

@@ -49,14 +49,15 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'SLEEP INSIGHTS',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: scheme.onSurfaceVariant),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
       ),
       body: FutureBuilder<_InsightsData>(
@@ -90,6 +91,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
   }
 
   Widget _buildScoreCard(_InsightsData data) {
+    final scheme = Theme.of(context).colorScheme;
     final color = data.weeklyScore >= 80
         ? const Color(0xFF22C55E)
         : data.weeklyScore >= 60
@@ -111,7 +113,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Weekly Score', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF64748B))),
+              Text('Weekly Score', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 4),
               Text(
                 '${data.weeklyScore}',
@@ -161,6 +163,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
   }
 
   Widget _buildChartSection(_InsightsData data) {
+    final scheme = Theme.of(context).colorScheme;
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final now = DateTime.now();
     final labelStart = now.subtract(const Duration(days: 6)).weekday - 1;
@@ -180,7 +183,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                 final idx = ((labelStart + value.toInt()) % 7).clamp(0, 6);
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(dayLabels[idx], style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  child: Text(dayLabels[idx], style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                 );
               },
             ),
@@ -196,7 +199,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                   ? const Color(0xFFF59E0B)
                   : score > 0
                       ? const Color(0xFFEF4444)
-                      : const Color(0xFFE2E8F0);
+                      : scheme.outlineVariant;
           return BarChartGroupData(
             x: i,
             barRods: [BarChartRodData(toY: score > 0 ? score : 5, color: color, width: 20, borderRadius: BorderRadius.circular(6))],
@@ -213,14 +216,14 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
             borderRadius: BorderRadius.circular(16),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Container(color: Colors.white.withValues(alpha: 0.6)),
+              child: Container(color: scheme.surface.withValues(alpha: 0.6)),
             ),
           ),
-          const Center(
+          Center(
             child: Text(
               'Unlock Full Trends\nwith Pro',
               textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: scheme.onSurface),
             ),
           ),
         ],
@@ -230,7 +233,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('7-Day Trend', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        Text('7-Day Trend', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: scheme.onSurface)),
         const SizedBox(height: 12),
         SizedBox(height: 180, child: chart),
       ],
@@ -240,23 +243,24 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
   Widget _buildQualityTrendSection(_InsightsData data) {
     final entries = data.diaryEntries;
     final hasData = entries.any((e) => e != null);
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Sleep Quality Trend',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        Text('Sleep Quality Trend',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: scheme.onSurface)),
         const SizedBox(height: 12),
         if (!hasData)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: scheme.outlineVariant),
             ),
-            child: const Center(
+            child: Center(
               child: Text('No diary entries yet — start logging!',
-                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14)),
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
             ),
           )
         else
@@ -282,7 +286,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(label,
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
                         );
                       },
                     ),
@@ -315,11 +319,12 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
   }
 
   Widget _buildDiaryNotesSection(BuildContext context, _InsightsData data) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Recent Notes',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        Text('Recent Notes',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: scheme.onSurface)),
         const SizedBox(height: 12),
         if (data.diaryNotes.isEmpty)
           GestureDetector(
@@ -327,9 +332,9 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: scheme.outlineVariant),
               ),
               child: const Row(
                 children: [
@@ -348,35 +353,37 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Text(note,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+                    style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
               )),
       ],
     );
   }
 
   Widget _buildPremiumBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const accent = Color(0xFFF97316);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
+        color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFED7AA)),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
           const Text('⭐', style: TextStyle(fontSize: 28)),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Unlock Your Full Sleep Trends', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('See your daily wake scores with Alarm+ Pro', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                Text('Unlock Your Full Sleep Trends', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: scheme.onSurface)),
+                Text('See your daily wake scores with Alarm+ Pro', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -401,18 +408,19 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: scheme.onSurface)),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+          Text(label, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
         ],
       ),
     );

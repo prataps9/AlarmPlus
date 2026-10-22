@@ -208,6 +208,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       setState(() => _isDismissing = true);
       final reward = await AlarmRingFlow.stopAlarm(alarmId);
       if (!mounted) return;
+      if (alarm != null && alarm.isSystem) {
+        // Nap over / arrived: no wake score, celebration or morning routine.
+        AlarmRingFlow.completeRingScreenDismiss();
+        return;
+      }
       final dismissMs = DateTime.now().millisecondsSinceEpoch - _dismissStartMs;
       final mood = await SmartAlarmService.getLatestMoodCheckIn();
       final now = DateTime.now();
@@ -824,7 +829,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     _LiveClock(color: _personality.primaryColor),
                     const SizedBox(height: 12),
                     Text(
-                      alarm?.tag == 'nap_timer'
+                      alarm?.tag == AlarmModel.napTag
                           ? 'Nap Over! 😴'
                           : (alarm?.label ?? 'Wake Up'),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 24, color: scheme.onSurfaceVariant)),

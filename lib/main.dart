@@ -36,6 +36,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
+import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
@@ -131,12 +132,27 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
+class _MainScaffoldState extends ConsumerState<MainScaffold>
+    with WidgetsBindingObserver {
   StreamSubscription<String>? _openRequests;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_followTimezone());
+  }
+
+  /// After travelling, move every alarm and reminder to the new local time.
+  Future<void> _followTimezone() async {
+    if (!await AlarmService.rescheduleIfTimezoneChanged()) return;
+    final bedtime = await BedtimeService.load();
+    if (bedtime != null) await BedtimeService.save(bedtime);
+    await StreakReminderService.refresh();
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Tapping "Time's up" opens the Timer tab, on top of whatever was open.
     _openRequests = AlarmService.openRequests.listen((what) {
       if (what != 'timer' || !mounted) return;
@@ -147,6 +163,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _openRequests?.cancel();
     super.dispose();
   }

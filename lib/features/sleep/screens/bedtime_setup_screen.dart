@@ -40,12 +40,16 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
   }
 
   Future<void> _save() async {
-    final schedule = BedtimeSchedule(
+    // Start from what's saved: building a fresh schedule reset the sleep
+    // goal (set on the Bedtime card) to the 8-hour default.
+    final saved = await BedtimeService.load();
+    final base = saved ??
+        BedtimeSchedule(targetBedtime: _bedtime);
+    await BedtimeService.save(base.copyWith(
       targetBedtime: _bedtime,
       windDownMinutes: _windDownMinutes,
       isEnabled: _isEnabled,
-    );
-    await BedtimeService.save(schedule);
+    ));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Bedtime schedule saved!')),

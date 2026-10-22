@@ -76,6 +76,14 @@ class AlarmModel {
   /// date; it resumes on its first repeat day on or after it.
   final DateTime? pausedUntil;
 
+  /// Tags of alarms the app sets for itself (nap timer, location trigger).
+  /// They ring like any alarm but are kept out of the alarm list, backups,
+  /// streaks and notices, and are deleted once they have rung.
+  static const napTag = 'nap_timer';
+  static const locationTag = 'location_trigger';
+
+  bool get isSystem => tag == napTag || tag == locationTag;
+
   /// The calendar day a one-off alarm rings on ("Thu, 30 Oct"). Null means
   /// the next time the clock shows [time]. Ignored for repeating alarms.
   final DateTime? date;

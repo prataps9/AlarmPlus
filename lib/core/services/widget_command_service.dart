@@ -97,7 +97,7 @@ class WidgetCommandService {
     // switched it straight off again, so the toggle did nothing.
     final candidates = [
       for (final a in alarms)
-        if (!a.isExpiredAt(now)) a,
+        if (!a.isExpiredAt(now) && !a.isSystem) a,
     ];
     if (candidates.isEmpty) return;
     candidates.sort(

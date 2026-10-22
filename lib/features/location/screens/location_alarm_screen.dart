@@ -79,7 +79,8 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
                   Text('No location alarms', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: scheme.onSurface)),
                   const SizedBox(height: 8),
                   Text(
-                    'Tap + to add an alarm that\ntriggers when you arrive somewhere',
+                    'Tap + to add an alarm that\ntriggers when you arrive somewhere.\n'
+                    'Alarm+ needs to stay running for it to notice.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: scheme.onSurfaceVariant),
                   ),

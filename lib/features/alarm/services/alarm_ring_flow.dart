@@ -218,6 +218,21 @@ class AlarmRingFlow {
   static Future<void> _autoSilence(int alarmId) async {
     final alarm = AlarmService.findByIntId(alarmId);
     await Alarm.stop(alarmId);
+    if (alarm != null && alarm.isSystem) {
+      // An unanswered nap or arrival alarm isn't a missed wake-up.
+      await AlarmService.deleteAlarm(alarm.id);
+      _snoozedIds.remove(alarmId);
+      _snoozeSessionCount.remove(alarmId);
+      _guardianTimers.remove(alarmId)?.cancel();
+      _ringStartTimes.remove(alarmId);
+      await _stopEffects();
+      if (_ringScreenVisible) {
+        appNavigatorKey.currentState?.pop();
+        _ringScreenVisible = false;
+      }
+      _currentRingingId = 0;
+      return;
+    }
     if (alarm != null) {
       if (alarm.repeatDays.isNotEmpty && alarm.isEnabled) {
         await AlarmService.scheduleAlarm(alarm, persist: false);
@@ -320,6 +335,19 @@ class AlarmRingFlow {
     }
 
     await AlarmService.cancelAlarm(alarm.id);
+
+    if (alarm.isSystem) {
+      // A nap or arrival alarm: done once it has rung, and not a wake-up,
+      // so no streak, XP or wake-up check.
+      await AlarmService.deleteAlarm(alarm.id);
+      _snoozedIds.remove(alarmId);
+      _snoozeSessionCount.remove(alarmId);
+      _missedRecoveryTimers.remove(alarmId)?.cancel();
+      _guardianTimers.remove(alarmId)?.cancel();
+      _ringStartTimes.remove(alarmId);
+      await _stopEffects();
+      return null;
+    }
 
     if (alarm.repeatDays.isNotEmpty) {
       await AlarmService.scheduleAlarm(alarm);

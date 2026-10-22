@@ -61,7 +61,20 @@ class ClockService {
 
   /// Saves the timer and keeps its "time's up" notification in step:
   /// scheduled at `endsAt` while running, cancelled otherwise.
-  static Future<void> saveTimer(CountdownState? t) async {
+  static Future<void> saveTimer(CountdownState? t) {
+    // One save at a time: with overlapping saves, a Pause tapped while Start
+    // was still scheduling could cancel first and leave Start's "time's up"
+    // scheduled for a timer that was no longer running.
+    final next = _timerSaves.then((_) => _saveTimer(t));
+    _timerSaves = next.catchError((Object e) {
+      debugPrint('saveTimer failed: $e');
+    });
+    return next;
+  }
+
+  static Future<void> _timerSaves = Future<void>.value();
+
+  static Future<void> _saveTimer(CountdownState? t) async {
     final prefs = await SharedPreferences.getInstance();
     if (t == null) {
       await prefs.remove(_timerKey);

@@ -131,13 +131,35 @@ class AlarmService {
 
   /// Without this `tz.local` is UTC, so notifications that repeat by wall
   /// clock (`matchDateTimeComponents`) fire at UTC times.
+  static String? _zoneName;
+
   static Future<void> _setLocalTimezone() async {
     if (kIsWeb) return;
     try {
       final info = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(info.identifier));
+      _zoneName = info.identifier;
     } catch (e) {
       debugPrint('Could not resolve local timezone, staying on UTC: $e');
+    }
+  }
+
+  /// Alarms are scheduled as absolute instants, so after flying from New
+  /// York to London a 07:00 alarm would ring at 12:00. Called whenever the
+  /// app comes to the foreground: if the phone's zone changed, every alarm
+  /// is rescheduled for the new local time. Returns true when it did.
+  static Future<bool> rescheduleIfTimezoneChanged() async {
+    if (kIsWeb || _zoneName == null) return false;
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      if (info.identifier == _zoneName) return false;
+      debugPrint('Timezone changed $_zoneName -> ${info.identifier}; rescheduling');
+      await _setLocalTimezone();
+      await restoreEnabledAlarms();
+      return true;
+    } catch (e) {
+      debugPrint('Timezone check failed: $e');
+      return false;
     }
   }
 
@@ -321,11 +343,13 @@ class AlarmService {
       payload: '$alarmId',
     );
 
+    // Naps and location triggers get no bedtime-style notices: a 90-minute
+    // nap used to get "Wind-down reminder" a half hour before waking.
     final windDownMinutes = await SmartAlarmService.getWindDownMinutes();
     final windDownTime = targetTime.subtract(
       Duration(minutes: windDownMinutes),
     );
-    if (windDownTime.isAfter(DateTime.now())) {
+    if (!alarm.isSystem && windDownTime.isAfter(DateTime.now())) {
       await _notifications.zonedSchedule(
         _windDownNotificationId(alarm.id),
         'Wind-down reminder',
@@ -346,7 +370,9 @@ class AlarmService {
     }
 
     final noticeAt = targetTime.subtract(upcomingNoticeLead);
-    if (noticeAt.isAfter(DateTime.now()) && await upcomingNoticeEnabled()) {
+    if (!alarm.isSystem &&
+        noticeAt.isAfter(DateTime.now()) &&
+        await upcomingNoticeEnabled()) {
       await _notifications.zonedSchedule(
         _upcomingNotificationId(alarm.id),
         'Upcoming alarm',
@@ -431,7 +457,12 @@ class AlarmService {
   }
 
   static Future<void> restoreEnabledAlarms() async {
-    final alarms = getAllAlarms().where((alarm) => alarm.isEnabled);
+    // Nap and arrival alarms were set for an exact instant (seconds
+    // included) that the alarm plugin keeps on its own; rebuilding them from
+    // HH:mm could ring them early or, inside their last minute, mark them
+    // expired and switch them off.
+    final alarms =
+        getAllAlarms().where((alarm) => alarm.isEnabled && !alarm.isSystem);
     for (final alarm in alarms) {
       // Rescheduling starts with Alarm.stop(), so restoring an alarm that is
       // ringing right now (the app was cold-started by that very alarm)
@@ -600,21 +631,45 @@ class AlarmService {
     return null;
   }
 
-  static Future<void> scheduleNapAlarm(DateTime wakeTime) async {
-    final alarm = createAlarm(
-      time: TimeOfDay(hour: wakeTime.hour, minute: wakeTime.minute),
-      label: 'Nap Over! 😴',
-      repeatDays: const [],
+  /// Rings a one-off alarm the app sets for itself, at exactly [at]
+  /// (seconds included), under a fixed [id] so a second nap or a second
+  /// arrival replaces the first instead of piling up. It never touches the
+  /// user's alarms, and is deleted after it rings (see AlarmModel.isSystem).
+  static Future<void> ringSystemAlarm({
+    required String id,
+    required String label,
+    required String tag,
+    required DateTime at,
+  }) async {
+    final alarm = AlarmModel(
+      id: id,
+      time: TimeOfDay.fromDateTime(at),
+      label: label,
+      tag: tag,
+      sound: 'default',
       isEnabled: true,
-      tag: 'nap_timer',
+      repeatDays: const [],
+      date: DateTime(at.year, at.month, at.day),
     );
+    assert(alarm.isSystem, 'ringSystemAlarm needs a system tag');
     await saveAlarm(alarm);
-    await scheduleAlarm(alarm);
+    await scheduleAlarm(alarm, at: at);
   }
 
+  static const napAlarmId = 'system-nap';
+
+  static Future<void> scheduleNapAlarm(DateTime wakeTime) => ringSystemAlarm(
+        id: napAlarmId,
+        label: 'Nap Over! 😴',
+        tag: AlarmModel.napTag,
+        at: wakeTime,
+      );
+
+  /// Deletes every nap alarm. It used to delete the first `nap_timer` alarm
+  /// found, and finished naps stayed in storage, so cancelling often removed
+  /// an old one and the live nap rang anyway.
   static Future<void> cancelNapAlarm() async {
-    final nap = getAllAlarms().where((a) => a.tag == 'nap_timer').firstOrNull;
-    if (nap != null) {
+    for (final nap in getAllAlarms().where((a) => a.tag == AlarmModel.napTag)) {
       await deleteAlarm(nap.id);
     }
   }

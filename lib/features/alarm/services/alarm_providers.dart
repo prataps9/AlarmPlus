@@ -33,7 +33,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
 
   /// Re-reads alarms from storage after a change made outside the UI.
   void reload() {
-    state = Future.value({for (final a in AlarmService.getAllAlarms()) a.id: a});
+    state = Future.value({
+      for (final a in AlarmService.getAllAlarms())
+        if (!a.isSystem) a.id: a,
+    });
   }
 
   @override
@@ -43,7 +46,8 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   }
 
   static Future<Map<String, AlarmModel>> _loadInitialAlarms() async {
-    final alarms = AlarmService.getAllAlarms();
+    // Nap and location alarms are the app's own; they aren't listed.
+    final alarms = AlarmService.getAllAlarms().where((a) => !a.isSystem);
     final map = <String, AlarmModel>{};
     for (final alarm in alarms) {
       map[alarm.id] = alarm;

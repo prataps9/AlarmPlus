@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/location/models/location_alarm.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
@@ -54,9 +54,12 @@ class LocationAlarmService {
         permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
     }
-    // Location alarms require "always" permission to fire when the app is closed.
-    // "While in use" will silently fail for background geo-fence triggers.
-    return permission == LocationPermission.always;
+    // Android grants "while in use" first and never offers "always" from the
+    // same prompt, so requiring "always" here meant the picker could never
+    // find the user's position. Arrivals are detected while the app is
+    // running either way (see startMonitoring).
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
   }
 
   static Future<void> startMonitoring() async {
@@ -93,17 +96,15 @@ class LocationAlarmService {
     // Disable to prevent repeat triggering
     await save(locAlarm.copyWith(isEnabled: false));
 
-    final alarms = AlarmService.getAllAlarms();
-    if (alarms.isEmpty) return;
-
-    // Schedule the first enabled alarm immediately (2 seconds from now)
-    final target = alarms.firstWhere((a) => a.isEnabled, orElse: () => alarms.first);
-    final triggerTime = DateTime.now().add(const Duration(seconds: 2));
-    final updated = target.copyWith(
-      time: TimeOfDay(hour: triggerTime.hour, minute: triggerTime.minute),
-      isEnabled: true,
+    // Its own alarm, 2 s from now. This used to take over the user's first
+    // enabled alarm and rewrite its time to HH:mm (seconds dropped), which
+    // pushed it a day ahead and cancelled the user's real alarm.
+    await AlarmService.ringSystemAlarm(
+      id: 'system-location-${locAlarm.id}',
+      label: locAlarm.label.isEmpty ? "You've arrived" : locAlarm.label,
+      tag: AlarmModel.locationTag,
+      at: DateTime.now().add(const Duration(seconds: 2)),
     );
-    await AlarmService.scheduleAlarm(updated, persist: false);
   }
 
   static double _haversineMeters(double lat1, double lng1, double lat2, double lng2) {

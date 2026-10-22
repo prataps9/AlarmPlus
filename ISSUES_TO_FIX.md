@@ -17,6 +17,8 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 
 ## 🟡 Medium Priority
+- **Location alarms only work while Alarm+ is running.** Arrival is detected by a position stream in the app process; there is no location foreground service or OS geofence, so a swiped-away app never notices the arrival. The screen now says so. Fix: a foreground service with the `location` type (Android 14 needs `FOREGROUND_SERVICE_LOCATION`) or the platform geofencing API.
+- **A timezone change is picked up when the app opens or returns to the foreground**, not by a background receiver. A phone that changes zone and is never opened keeps its alarms at the old instants.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 

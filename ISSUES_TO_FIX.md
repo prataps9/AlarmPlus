@@ -18,6 +18,8 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 
 ## 🟡 Medium Priority
 - **Location alarms only work while Alarm+ is running.** Arrival is detected by a position stream in the app process; there is no location foreground service or OS geofence, so a swiped-away app never notices the arrival. The screen now says so. Fix: a foreground service with the `location` type (Android 14 needs `FOREGROUND_SERVICE_LOCATION`) or the platform geofencing API.
+- **A one-off alarm stopped outside the app** (swiped away from recents while ringing, which stops a non-Hardcore alarm natively) stays switched on and is rescheduled for the next day on the next app start. Fix: handle the plugin's alarm-stopped callback, or switch off past one-offs with no future plugin entry at startup.
+- **Dismissing a Wake-Up Check re-ring pays XP again** and records a second wake-up. It should count as part of the original wake-up.
 - **A timezone change is picked up when the app opens or returns to the foreground**, not by a background receiver. A phone that changes zone and is never opened keeps its alarms at the old instants.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).

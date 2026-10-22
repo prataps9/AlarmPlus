@@ -100,10 +100,23 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
     widget.onFailed();
   }
 
+  // Enter plus a tap (or a double tap) on the last answer used to call
+  // onCompleted twice; the second pop closed the ring screen underneath.
+  bool _checking = false;
+
   Future<void> _checkAnswer() async {
-    if (_isLocked) return;
+    if (_isLocked || _checking) return;
     final input = int.tryParse(_controller.text.trim());
     if (input == null) return;
+    _checking = true;
+    try {
+      await _check(input);
+    } finally {
+      _checking = false;
+    }
+  }
+
+  Future<void> _check(int input) async {
 
     final solveMs = DateTime.now().millisecondsSinceEpoch - _questionStartMs;
     _questionTimer?.cancel();

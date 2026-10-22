@@ -66,6 +66,15 @@ class AlarmForegroundService : Service() {
         snoozeMinutes = intent?.getIntExtra(EXTRA_SNOOZE_MINUTES, 5) ?: 5
 
         startForeground(NOTIFICATION_ID, buildNotification(alarmId))
+        // A repeat start (a second alarm, a notification tap, a cold-start
+        // replay) used to overwrite these without releasing them; the old
+        // looping ringtone kept sounding after Stop and the old media
+        // session kept turning volume keys into snoozes.
+        stopNativeRingtone()
+        releaseWakeLock()
+        unregisterVolumeReceiverSafe()
+        unregisterActionReceiverSafe()
+        stopMediaSession()
         acquireWakeLock()
         playNativeRingtoneIfSet(alarmId)
         registerVolumeReceiver()

@@ -37,6 +37,8 @@ class BackupCodec {
   static bool isPortable(String key) =>
       !key.startsWith('premium.') &&
       !key.startsWith('alarm.native_ringtone') &&
+      !key.startsWith('alarm.ring_override.') &&
+      !key.startsWith('alarms.') &&
       key != 'clock.stopwatch' &&
       key != 'clock.timer';
 

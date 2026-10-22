@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
@@ -53,12 +54,19 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       map[alarm.id] = alarm;
     }
 
-    if (map.isEmpty) {
+    // Starter alarms on the very first launch only. With no flag, a user
+    // who deleted every alarm got two enabled alarms back on the next start
+    // (and they rang).
+    final prefs = await SharedPreferences.getInstance();
+    if (map.isEmpty && !(prefs.getBool(_seededKey) ?? false)) {
       await _createDefaultAlarms(map);
     }
+    await prefs.setBool(_seededKey, true);
 
     return map;
   }
+
+  static const _seededKey = 'alarms.seeded';
 
   static Future<void> _createDefaultAlarms(Map<String, AlarmModel> map) async {
     final defaults = [
@@ -192,9 +200,11 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final alarm = map[id];
     if (alarm == null) return;
 
-    final updated = alarm.copyWith(isEnabled: on);
     await AlarmService.toggleAlarm(id, on);
-    map[id] = updated;
+    // Read back: switching on a dated one-off whose day has passed leaves it
+    // off, and the card must show that rather than a dead ON.
+    map[id] = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull ??
+        alarm.copyWith(isEnabled: on);
     state = Future.value(Map.from(map));
   }
 

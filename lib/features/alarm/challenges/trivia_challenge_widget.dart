@@ -87,6 +87,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final question = _triviaQuestions![_currentIndex];
     final correct = index == question.answerIndex;
+    // Stop the clock: hitting 0 during the 900 ms pause advanced twice.
+    _timer?.cancel();
     setState(() {
       _answered = true;
       _selectedOption = index;
@@ -101,6 +103,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final input = _wordController.text.trim().toLowerCase();
     if (input == _currentWord.toLowerCase()) {
+      _timer?.cancel();
       setState(() {
         _answered = true;
         _correctCount++;

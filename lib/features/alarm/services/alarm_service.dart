@@ -223,6 +223,46 @@ class AlarmService {
     await StorageService.saveAlarm(alarm);
   }
 
+  /// The alarm plugin stops any other alarm due in the same second
+  /// (`Alarm.set`), and every alarm here is due at :00, so two alarms at
+  /// 07:00 (or an alarm and its fresh duplicate) silently unscheduled each
+  /// other. Each one is nudged a second later until its second is free.
+  static Future<DateTime> _uniqueRingTime(int alarmId, DateTime target) async {
+    try {
+      final taken = {
+        for (final a in await Alarm.getAlarms())
+          if (a.id != alarmId) a.dateTime.millisecondsSinceEpoch ~/ 1000,
+      };
+      return uniqueSecond(target, taken);
+    } catch (e) {
+      debugPrint('Could not read scheduled alarms: $e');
+      return target;
+    }
+  }
+
+  @visibleForTesting
+  static DateTime uniqueSecond(DateTime target, Set<int> takenEpochSeconds) {
+    var when = target;
+    while (takenEpochSeconds.contains(when.millisecondsSinceEpoch ~/ 1000)) {
+      when = when.add(const Duration(seconds: 1));
+    }
+    return when;
+  }
+
+  // A snooze or wake-check re-ring is scheduled for an exact instant that
+  // isn't the alarm's own time. It is remembered here so that restoring
+  // alarms (every app start, settings changes, a timezone change) keeps it
+  // instead of moving the alarm to its next normal occurrence.
+  static String _overrideKey(int alarmId) => 'alarm.ring_override.$alarmId';
+
+  static Future<DateTime?> _pendingOverride(int alarmId) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    final ms = prefs.getInt(_overrideKey(alarmId));
+    if (ms == null) return null;
+    final at = DateTime.fromMillisecondsSinceEpoch(ms);
+    return at.isAfter(DateTime.now()) ? at : null;
+  }
+
   /// Schedules [alarm] at its next occurrence — or exactly at [at] when
   /// given (snooze, wake-up-check re-ring). Pass [at] rather than rewriting
   /// `alarm.time`: a [TimeOfDay] drops the seconds, so "now + 5 s" rounds
@@ -255,6 +295,12 @@ class AlarmService {
 
     final targetTime = at ?? alarm.nextDateTimeFrom(DateTime.now());
     final alarmId = alarmIntId(alarm.id);
+    final prefs = await sp.SharedPreferences.getInstance();
+    if (at != null && !alarm.isSystem) {
+      await prefs.setInt(_overrideKey(alarmId), at.millisecondsSinceEpoch);
+    } else {
+      await prefs.remove(_overrideKey(alarmId));
+    }
     var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
       alarm.sound,
@@ -284,7 +330,7 @@ class AlarmService {
 
     final settings = AlarmSettings(
       id: alarmId,
-      dateTime: targetTime,
+      dateTime: await _uniqueRingTime(alarmId, targetTime),
       assetAudioPath: audioPath,
       volumeSettings: VolumeSettings.fade(fadeDuration: Duration(seconds: 8)),
       notificationSettings: NotificationSettings(
@@ -302,6 +348,11 @@ class AlarmService {
       // Hardcore alarms keep ringing when the app is swiped away; the
       // plugin's default stops the audio on task removal.
       androidStopAlarmOnTermination: !alarm.hardcoreMode,
+      // A second alarm due while another still rings (7:00 and 7:05 for a
+      // heavy sleeper mid-challenge) used to be dropped by the plugin, and
+      // its next occurrence was never scheduled. Both ring; the ring screen
+      // takes them one at a time.
+      allowAlarmOverlap: true,
     );
 
     try {
@@ -417,6 +468,13 @@ class AlarmService {
   static Future<void> dismissUpcoming(int alarmIntId) async {
     final alarm = findByIntId(alarmIntId);
     if (alarm == null) return;
+    // A stale notice tapped while the alarm rings would skip tomorrow and
+    // silence today's ring without its challenge. Ringing alarms are
+    // dismissed on the ring screen only.
+    if (_supportsNativeAlarmOps &&
+        await Alarm.isRinging(alarmIntId).catchError((_) => false)) {
+      return;
+    }
     if (alarm.repeatDays.isNotEmpty) {
       await setSkipNext(alarm.id, skip: true);
     } else {
@@ -472,7 +530,11 @@ class AlarmService {
               .catchError((_) => false)) {
         continue;
       }
-      await scheduleAlarm(alarm, persist: false);
+      await scheduleAlarm(
+        alarm,
+        persist: false,
+        at: await _pendingOverride(alarmIntId(alarm.id)),
+      );
     }
   }
 
@@ -616,6 +678,23 @@ class AlarmService {
     final base = alarmIntId(id);
     return ((base + 700000) % 1000000000) + 1;
   }
+
+  /// Clears the "Upcoming alarm" notice; called when the alarm starts
+  /// ringing so its Dismiss now button can't outlive the occurrence.
+  static Future<void> cancelUpcomingNotice(int alarmIntId) async {
+    final alarm = findByIntId(alarmIntId);
+    if (alarm == null) return;
+    try {
+      await _notifications.cancel(_upcomingNotificationId(alarm.id));
+    } catch (e) {
+      debugPrint('cancelUpcomingNotice failed: $e');
+    }
+  }
+
+  /// "You slept through your alarm" gets its own id: it shared the alarm's
+  /// id, so the next reschedule of that alarm cancelled it.
+  static int missedNoticeId(int alarmIntId) =>
+      ((alarmIntId + 3000000) % 1000000000) + 1;
 
   static int _windDownNotificationId(String id) {
     final base = alarmIntId(id);

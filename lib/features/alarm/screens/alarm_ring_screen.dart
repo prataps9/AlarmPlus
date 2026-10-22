@@ -161,8 +161,17 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     super.dispose();
   }
 
+  /// Settings → Preview Alarm Screen opens this with no alarm. Dismissing a
+  /// preview must not pay XP or record a wake-up.
+  bool get _isPreview => _alarmId <= 0;
+
+  /// Set before the first await, so a double tap (or Stop during the voice
+  /// memo) can't open a second challenge and dismiss twice.
+  bool _dismissInFlight = false;
+
   Future<void> _triggerDismiss(int alarmId) async {
-    if (_isDismissing) return;
+    if (_isDismissing || _dismissInFlight) return;
+    _dismissInFlight = true;
     // Muted for the whole dismiss→celebration-sheet sequence so the global
     // celebration banner (level-up/badge) doesn't pop up behind or before
     // this screen's own detailed sheet. Confetti still fires either way.
@@ -206,6 +215,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
       _stopGentleWake();
       setState(() => _isDismissing = true);
+      if (_isPreview) {
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
       final reward = await AlarmRingFlow.stopAlarm(alarmId);
       if (!mounted) return;
       if (alarm != null && alarm.isSystem) {
@@ -242,13 +255,18 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       ));
 
       if (!mounted) return;
-      await _showCelebrationSheet(reward, wakeScore, prevBest);
+      final navigator = Navigator.of(context);
+      final next = await _showCelebrationSheet(reward, wakeScore, prevBest);
+      // Navigate once, after the sheet: the check-in button used to close the
+      // ring screen itself, and the second close here then popped the
+      // check-in it had just opened.
       AlarmRingFlow.completeRingScreenDismiss();
-      if (mounted) {
-        Navigator.of(context).pushNamed(WakeRoutineScreen.routeName);
-      }
+      navigator.pushNamed(next == _AfterWake.checkIn
+          ? '/morning-checkin'
+          : WakeRoutineScreen.routeName);
     } finally {
       CelebrationBus.mutePresentation = false;
+      _dismissInFlight = false;
     }
   }
 
@@ -325,7 +343,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (result['success'] == true) {
       _wrongAnswers = (result['wrongCount'] as int?) ?? 0;
       _quickSolveXp = (result['quickXp'] as int?) ?? 0;
-      if (_quickSolveXp > 0) await SmartAlarmService.addXp(_quickSolveXp);
+      if (_quickSolveXp > 0 && !_isPreview) {
+        await SmartAlarmService.addXp(_quickSolveXp);
+      }
       return true;
     }
     return false;
@@ -354,7 +374,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       barrierDismissible: false,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
-        child: ShakeChallengeWidget(onPassed: () => Navigator.pop(ctx, true)),
+        // After its time limit it reports a fail; without onFailed it just
+        // sat at "0" with no way on.
+        child: ShakeChallengeWidget(
+          onPassed: () => Navigator.pop(ctx, true),
+          onFailed: () => Navigator.pop(ctx, false),
+        ),
       ),
     );
     return result ?? false;
@@ -467,7 +492,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     return _showMathChallenge();
   }
 
-  Future<void> _showCelebrationSheet(DismissReward? reward, WakeScore wakeScore, int prevBest) async {
+  Future<_AfterWake?> _showCelebrationSheet(DismissReward? reward, WakeScore wakeScore, int prevBest) async {
     const affirmations = [
       'Today is yours. Own it.',
       'Small wins compound into big victories.',
@@ -496,11 +521,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     final now = DateTime.now();
     final checkInDoneToday = mood != null &&
         mood.at.year == now.year && mood.at.month == now.month && mood.at.day == now.day;
-    if (!mounted) return;
+    if (!mounted) return null;
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    await showModalBottomSheet<void>(
+    return showModalBottomSheet<_AfterWake>(
       context: context,
       isDismissible: false,
       enableDrag: false,
@@ -645,7 +670,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             const SizedBox(height: 20),
             if (!checkInDoneToday) ...[
               OutlinedButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(ctx, _AfterWake.checkIn),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
                   side: const BorderSide(color: Color(0xFF94A3B8)),
@@ -666,11 +691,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             ),
             const SizedBox(height: 10),
             TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                AlarmRingFlow.completeRingScreenDismiss();
-                Navigator.of(context).pushNamed('/morning-checkin');
-              },
+              onPressed: () => Navigator.pop(ctx, _AfterWake.checkIn),
               child: const Text('Quick Sleep Check-In',
                   style: TextStyle(color: Color(0xFF6366F1))),
             ),
@@ -960,14 +981,13 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       body = ColoredBox(color: bgColor, child: body);
     }
 
-    // Hardcore Mode: wrap with PopScope to block back navigation
-    if (isHardcore) {
-      return PopScope(
-        canPop: false,
-        child: Scaffold(body: body),
-      );
-    }
-    return Scaffold(body: body);
+    // A ringing alarm is ended by Stop or Snooze, never by Back: Back used
+    // to close the screen while the alarm kept ringing, with no way to get
+    // the screen back. (Hardcore already blocked it; a preview allows it.)
+    return PopScope(
+      canPop: _isPreview,
+      child: Scaffold(body: body),
+    );
   }
 }
 
@@ -1116,3 +1136,6 @@ class _LiveClockState extends State<_LiveClock> {
     );
   }
 }
+
+/// Where to go once the post-dismiss sheet closes.
+enum _AfterWake { checkIn }

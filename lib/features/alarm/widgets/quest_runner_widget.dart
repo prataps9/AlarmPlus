@@ -41,6 +41,11 @@ class QuestRunnerWidget extends StatefulWidget {
 
 class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
   int _currentStep = 0;
+  // Bumped on a failed attempt so the step's widget is rebuilt from scratch;
+  // a plain setState left a timed-out math or a finished trivia round
+  // locked with no controls.
+  int _attempt = 0;
+  bool _advancing = false;
   late List<bool> _completed;
 
   @override
@@ -50,6 +55,9 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
   }
 
   void _onStepPassed() {
+    // Once per step: a double callback used to skip the next step.
+    if (_advancing || _completed[_currentStep]) return;
+    _advancing = true;
     setState(() {
       _completed[_currentStep] = true;
     });
@@ -57,14 +65,20 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
       Future.delayed(const Duration(milliseconds: 600), widget.onCompleted);
     } else {
       Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) setState(() => _currentStep++);
+        if (mounted) {
+          setState(() {
+            _currentStep++;
+            _attempt = 0;
+          });
+        }
+        _advancing = false;
       });
     }
   }
 
   void _onStepFailed() {
-    // On fail, don't advance — re-show the same challenge
-    setState(() {});
+    // On fail, don't advance: start the same challenge again, fresh.
+    setState(() => _attempt++);
   }
 
   @override
@@ -116,7 +130,7 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
               transitionBuilder: (child, anim) =>
                   FadeTransition(opacity: anim, child: child),
               child: KeyedSubtree(
-                key: ValueKey(_currentStep),
+                key: ValueKey('$_currentStep-$_attempt'),
                 child: _buildCurrentChallenge(step.challengeType),
               ),
             ),

@@ -280,7 +280,8 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final now = DateTime.now();
-                        final day = now.subtract(Duration(days: 6 - value.toInt()));
+                        final day = DateTime(
+                            now.year, now.month, now.day - (6 - value.toInt()));
                         const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         final label = labels[(day.weekday - 1).clamp(0, 6)];
                         return Padding(
@@ -298,8 +299,11 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                   LineChartBarData(
                     spots: List.generate(7, (i) {
                       final entry = entries[i];
-                      return FlSpot(i.toDouble(),
-                          entry != null ? entry.sleepQuality.toDouble() : double.nan);
+                      // A day without an entry is a gap. FlSpot(x, NaN) made
+                      // fl_chart paint a dot at a NaN offset and crash.
+                      return entry != null
+                          ? FlSpot(i.toDouble(), entry.sleepQuality.toDouble())
+                          : FlSpot.nullSpot;
                     }),
                     isCurved: true,
                     color: const Color(0xFF6366F1),

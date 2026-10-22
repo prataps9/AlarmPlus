@@ -49,6 +49,7 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   instead of ringing late.
 - **Pause until a date** — vacation mode: hold every repeating alarm until a
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
+- **Dark mode** — Settings → Theme: Light, Dark or Match phone.
 - **Undo & duplicate** — swiping an alarm away deletes it with an Undo
   snackbar; long-press an alarm to duplicate it (voice memo included).
 - **24-hour editor** — the alarm time picker follows the phone's 24-hour

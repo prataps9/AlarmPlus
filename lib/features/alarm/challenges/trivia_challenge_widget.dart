@@ -156,7 +156,9 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         borderRadius: BorderRadius.circular(28),
       ),
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          // A bare Center grew to the full screen height in a dialog.
+          ? const SizedBox(
+              height: 160, child: Center(child: CircularProgressIndicator()))
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [

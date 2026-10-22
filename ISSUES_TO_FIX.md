@@ -17,12 +17,18 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 
 ## 🟡 Medium Priority
-- **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
-- **The alarm editor's time picker is always 12-hour** (hour 1–12 plus AM/PM), even when the phone is set to 24-hour time. Everything that *displays* times already follows the setting.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
+- **Dark mode (2026-10-22):** Settings → Theme offers Light, Dark or Match phone, saved and applied before the first frame. The hard-coded light colours were replaced with theme colours across the app: Home, the alarm list and editor, the ring screen and every wake challenge, Settings, Sleep, Missions, Onboarding and more. Each screen was rendered in light and dark and checked; two sheets that only appear mid-flow (the post-dismiss celebration and the Wake Routine completion sheet) were converted from the code without a screenshot. Wind-Down, Sleep Sounds, Nap and Morning Check-in stay dark on purpose, and the camera screens stay black.
+- **Sleep Insights crashed with a partly filled diary (2026-10-22):** days without an entry were drawn as `FlSpot(x, NaN)`, which makes the chart fail ("Offset argument contained a NaN value"). They are now gaps. A test renders the screen with two of seven days logged.
+- **Step-counter ring and Trivia loading card (2026-10-22):** the step ring drew as a 36px dot instead of filling its 160px circle, and while a trivia question loaded the card stretched to the full screen height.
+- **Vibration switches did nothing (2026-10-22):**
+  - the Settings "Vibration" switch was never saved and nothing read it. It is now saved, and it turns off vibration for every alarm;
+  - an alarm whose own vibration was set to **Off** still vibrated, because the alarm plugin was always told `vibrate: true`.
+- **Alarm editor time picker was always 12-hour (2026-10-21):** it now follows the phone's 24-hour setting.
+- **New alarms defaulted to Tue–Sat, and quick add "tomorrow" made a weekly alarm (2026-10-21).** Both fixed.
 - **Silent Failures (catch blocks):** All empty `catch (_) {}` blocks now log via `debugPrint`.
 - **Hardcoded Package Name:** Application ID changed from `com.example.lumio` → `com.alarmplus.app`; Kotlin source files moved to matching package directory.
 - **Flutter Deprecations:** All `MaterialStatePropertyAll`, `MaterialStateProperty`, `MaterialState` and `DropdownButtonFormField.value` usages replaced with `WidgetState*` / `initialValue` equivalents.
@@ -78,4 +84,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-10-21*
+*Updated on 2026-10-22*

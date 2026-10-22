@@ -99,11 +99,15 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
             width: 160,
             height: 160,
             child: Stack(alignment: Alignment.center, children: [
-              CircularProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                strokeWidth: 10,
-                backgroundColor: scheme.outlineVariant,
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+              // Fill the 160px box: a Stack passes loose constraints, so on
+              // its own the indicator shrank to its 36px default.
+              Positioned.fill(
+                child: CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: 10,
+                  backgroundColor: scheme.outlineVariant,
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+                ),
               ),
               Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(

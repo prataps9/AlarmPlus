@@ -34,6 +34,10 @@ class AppTheme {
             onSurfaceVariant: Palette.slate300,
             outline: Palette.slate600,
             outlineVariant: Palette.slate700,
+            // Tonal buttons; the derived default was a pale slate that
+            // glared on the dark surface.
+            secondaryContainer: Palette.slate700,
+            onSecondaryContainer: Colors.white,
             error: Palette.red500,
           )
         : const ColorScheme.light(

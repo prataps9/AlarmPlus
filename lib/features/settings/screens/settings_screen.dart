@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
@@ -62,6 +63,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final vibrationEnabled = ref.watch(vibrationEnabledProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final muted = scheme.onSurfaceVariant;
 
     return SafeArea(
       child: ListView(
@@ -81,8 +84,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingTile(
             title: 'Sound',
             subtitle: 'Wake tone and ring volume',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () => Navigator.of(context)
                 .pushNamed(SoundSettingsScreen.routeName),
           ),
@@ -91,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: _AnimatedToggle(
               value: vibrationEnabled,
               onChanged: (v) =>
-                  ref.read(vibrationEnabledProvider.notifier).state = v,
+                  setVibrationEnabled(ref, v),
             ),
           ),
           FutureBuilder<bool>(
@@ -119,8 +122,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return _SettingTile(
                 title: 'Wake Challenge',
                 subtitle: challenge.name.toUpperCase(),
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFFAAAAAA), size: 20),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: muted, size: 20),
                 onTap: () => _showChallengePicker(context, challenge),
               );
             },
@@ -132,8 +135,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return _SettingTile(
                 title: 'Pre-Alarm Wind-Down',
                 subtitle: '$minutes min before sleep',
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFFAAAAAA), size: 20),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: muted, size: 20),
                 onTap: () => _showWindDownPicker(context, minutes),
               );
             },
@@ -153,7 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : 'Action needed',
                 trailing: Icon(
                   ok ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
-                  color: ok ? const Color(0xFF111111) : const Color(0xFF888888),
+                  color: ok ? scheme.onSurface : muted,
                   size: 20,
                 ),
                 onTap: () => _showReliabilityDialog(context, status),
@@ -162,8 +165,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           _SettingTile(
             title: 'Preview Alarm Screen',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () =>
                 Navigator.of(context).pushNamed(AlarmRingScreen.routeName),
           ),
@@ -174,24 +177,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingTile(
             title: 'Sleep Insights',
             subtitle: 'Weekly score and trends',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () =>
                 Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
           ),
           _SettingTile(
             title: 'Wind Down / Bedtime',
             subtitle: 'Bedtime and wind-down reminders',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () =>
                 Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName),
           ),
           _SettingTile(
             title: 'Sleep Diary',
             subtitle: 'Log sleep quality daily',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () =>
                 Navigator.of(context).pushNamed(SleepDiaryScreen.routeName),
           ),
@@ -206,8 +209,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return _SettingTile(
                 title: 'Guardian Alert',
                 subtitle: url.isEmpty ? 'Not configured' : 'Webhook active',
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFFAAAAAA), size: 20),
+                trailing: Icon(Icons.chevron_right_rounded,
+                    color: muted, size: 20),
                 onTap: () => _showGuardianDialog(context, url),
               );
             },
@@ -215,8 +218,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingTile(
             title: 'Location Alarms',
             subtitle: 'Trigger on arrival',
-            trailing: const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.chevron_right_rounded,
+                color: muted, size: 20),
             onTap: () =>
                 Navigator.of(context).pushNamed(LocationAlarmScreen.routeName),
           ),
@@ -229,8 +232,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: stats == null
                     ? '…'
                     : 'Streak ${stats.currentStreak} · best ${stats.bestStreak}',
-                trailing: const Icon(Icons.insights_outlined,
-                    color: Color(0xFFAAAAAA), size: 20),
+                trailing: Icon(Icons.insights_outlined,
+                    color: muted, size: 20),
               );
             },
           ),
@@ -238,13 +241,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── APP section ────────────────────────────────────────
           _SectionHeader(label: 'APP'),
+          _SettingTile(
+            title: 'Theme',
+            subtitle: AppSettings.themeModeLabel(ref.watch(themeModeProvider)),
+            trailing: Icon(Icons.contrast_rounded,
+                color: muted, size: 20),
+            onTap: () => _showThemePicker(context),
+          ),
           ValueListenableBuilder<MascotOutfit>(
             valueListenable: MascotService.selectedOutfit,
             builder: (context, outfit, _) => _SettingTile(
               title: "Pip's Wardrobe",
               subtitle: outfit.label,
-              trailing: const Icon(Icons.checkroom_rounded,
-                  color: Color(0xFFAAAAAA), size: 20),
+              trailing: Icon(Icons.checkroom_rounded,
+                  color: muted, size: 20),
               onTap: () =>
                   Navigator.of(context).pushNamed(WardrobeScreen.routeName),
             ),
@@ -252,15 +262,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingTile(
             title: 'Back Up Alarms & Settings',
             subtitle: 'Save a file to Drive, email or anywhere',
-            trailing: const Icon(Icons.cloud_upload_outlined,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.cloud_upload_outlined,
+                color: muted, size: 20),
             onTap: () => _backup(context),
           ),
           _SettingTile(
             title: 'Restore From Backup',
             subtitle: 'Replace your alarms with a saved backup',
-            trailing: const Icon(Icons.settings_backup_restore_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.settings_backup_restore_rounded,
+                color: muted, size: 20),
             onTap: () => _restoreBackup(context),
           ),
           ValueListenableBuilder<bool>(
@@ -270,8 +280,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : _SettingTile(
                     title: 'Restore Purchase',
                     subtitle: 'Already bought Pro? Get it back here',
-                    trailing: const Icon(Icons.restore_rounded,
-                        color: Color(0xFFAAAAAA), size: 20),
+                    trailing: Icon(Icons.restore_rounded,
+                        color: muted, size: 20),
                     onTap: () => _restorePurchase(context),
                   ),
           ),
@@ -285,16 +295,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return _SettingTile(
                 title: 'About Alarm+',
                 subtitle: version,
-                trailing: const Icon(Icons.info_outline_rounded,
-                    color: Color(0xFFAAAAAA), size: 20),
+                trailing: Icon(Icons.info_outline_rounded,
+                    color: muted, size: 20),
                 onTap: () => _showAboutDialog(context, info),
               );
             },
           ),
           _SettingTile(
             title: 'Privacy Policy',
-            trailing: const Icon(Icons.open_in_new_rounded,
-                color: Color(0xFFAAAAAA), size: 20),
+            trailing: Icon(Icons.open_in_new_rounded,
+                color: muted, size: 20),
             onTap: () => _openPrivacyPolicy(context),
           ),
         ],
@@ -312,6 +322,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
+  }
+
+  void _showThemePicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => Consumer(
+        builder: (ctx, ref, _) {
+          final current = ref.watch(themeModeProvider);
+          return SafeArea(
+            child: RadioGroup<ThemeMode>(
+              groupValue: current,
+              onChanged: (mode) {
+                if (mode == null) return;
+                ref.read(themeModeProvider.notifier).state = mode;
+                AppSettings.setThemeMode(mode);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final mode in const [
+                    ThemeMode.light,
+                    ThemeMode.dark,
+                    ThemeMode.system,
+                  ])
+                    RadioListTile<ThemeMode>(
+                      value: mode,
+                      title: Text(AppSettings.themeModeLabel(mode)),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _restoreBackup(BuildContext context) async {
@@ -353,6 +398,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (ok != true) return;
     await BackupService.restore(data);
     await MascotService.init();
+    await AppSettings.load();
+    ref.read(themeModeProvider.notifier).state = AppSettings.themeMode;
+    ref.read(vibrationEnabledProvider.notifier).state =
+        AppSettings.vibrationEnabled;
     ref.invalidate(alarmsMapProvider);
     _refreshAndRebuild();
     messenger.showSnackBar(const SnackBar(content: Text('Backup restored')));
@@ -513,10 +562,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'If your alarm rings for 10+ minutes without being dismissed, '
               'Alarm+ will POST a JSON alert to this URL.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -570,13 +621,21 @@ class _ProCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const amber = Color(0xFFFBBF24);
     return ValueListenableBuilder<bool>(
       valueListenable: PremiumService.isPro,
       builder: (context, isPro, _) => Material(
-        color: const Color(0xFFFFFBEB),
+        color: isDark
+            ? amber.withValues(alpha: 0.12)
+            : const Color(0xFFFFFBEB),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFFDE68A)),
+          side: BorderSide(
+              color: isDark
+                  ? amber.withValues(alpha: 0.35)
+                  : const Color(0xFFFDE68A)),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
@@ -605,8 +664,8 @@ class _ProCard extends StatelessWidget {
                     children: [
                       Text(
                         isPro ? 'Alarm+ Pro · Lifetime' : 'Upgrade to Alarm+ Pro',
-                        style: const TextStyle(
-                          color: Color(0xFF0F172A),
+                        style: TextStyle(
+                          color: scheme.onSurface,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -617,8 +676,8 @@ class _ProCard extends StatelessWidget {
                             ? 'Thanks for your support! All Pro features are unlocked.'
                             : 'Sleep Coach Pro, double streak freezes, always-on wake '
                                 'challenge. One payment of ${PremiumService.fallbackPriceLabel}.',
-                        style: const TextStyle(
-                          color: Color(0xFF475569),
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -628,7 +687,9 @@ class _ProCard extends StatelessWidget {
                 ),
                 Icon(
                   isPro ? Icons.verified_rounded : Icons.chevron_right_rounded,
-                  color: isPro ? const Color(0xFFD97706) : const Color(0xFF0F172A),
+                  color: isPro
+                      ? (isDark ? amber : const Color(0xFFD97706))
+                      : scheme.onSurface,
                 ),
               ],
             ),
@@ -649,11 +710,11 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 2.0,
-          color: Color(0xFF888888),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -667,6 +728,7 @@ class _AnimatedToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -675,7 +737,7 @@ class _AnimatedToggle extends StatelessWidget {
         width: 52,
         height: 28,
         decoration: BoxDecoration(
-          color: value ? const Color(0xFF111111) : const Color(0xFFE0E0E0),
+          color: value ? scheme.onSurface : scheme.outlineVariant,
           borderRadius: BorderRadius.circular(14),
         ),
         child: AnimatedAlign(
@@ -687,7 +749,9 @@ class _AnimatedToggle extends StatelessWidget {
             height: 22,
             margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
-              color: Colors.white,
+              // On the "on" track (onSurface) the thumb takes the surface
+              // colour so it stays visible when the track inverts in dark.
+              color: value ? scheme.surface : Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -719,6 +783,7 @@ class _SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -729,9 +794,9 @@ class _SettingTile extends StatelessWidget {
           vertical: subtitle != null ? 12 : 14,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8E8E8)),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Row(
           children: [
@@ -742,19 +807,19 @@ class _SettingTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: Color(0xFF111111),
+                      color: scheme.onSurface,
                     ),
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF888888),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],

@@ -51,10 +51,10 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
         actions: [
           TextButton(
             onPressed: _saveAndPop,
-            child: const Text('Save',
+            child: Text('Save',
                 style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF6366F1),
+                    color: _accentOn(Theme.of(context).colorScheme),
                     fontSize: 16)),
           ),
         ],
@@ -72,7 +72,9 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
               const SizedBox(height: 4),
               Text(
                 '${_steps.length}/4 steps • Drag to reorder',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
               _buildStepList(),
@@ -131,21 +133,22 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
   }
 
   Widget _buildStepList() {
+    final scheme = Theme.of(context).colorScheme;
     if (_steps.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: scheme.outlineVariant),
         ),
-        child: const Column(children: [
+        child: Column(children: [
           Icon(Icons.playlist_add_rounded,
-              color: Color(0xFFCBD5E1), size: 36),
-          SizedBox(height: 8),
+              color: scheme.outline, size: 36),
+          const SizedBox(height: 8),
           Text('Add steps from the grid below',
-              style: TextStyle(color: Color(0xFF94A3B8))),
+              style: TextStyle(color: scheme.onSurfaceVariant)),
         ]),
       );
     }
@@ -173,6 +176,8 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
   }
 
   Widget _buildPickerGrid() {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = _accentOn(scheme);
     final canAdd = _steps.length < 4;
     return Wrap(
       spacing: 10,
@@ -188,29 +193,23 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: alreadyAdded
-                    ? const Color(0xFFEEF2FF)
-                    : const Color(0xFFF8FAFC),
+                    ? _indigo.withValues(alpha: 0.12)
+                    : scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: alreadyAdded
-                        ? const Color(0xFF6366F1)
-                        : const Color(0xFFE2E8F0),
+                    color: alreadyAdded ? accent : scheme.outlineVariant,
                     width: 1.5),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(_iconFor(type),
                     size: 16,
-                    color: alreadyAdded
-                        ? const Color(0xFF6366F1)
-                        : const Color(0xFF475467)),
+                    color: alreadyAdded ? accent : scheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Text(ChallengeService.label(type),
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: alreadyAdded
-                            ? const Color(0xFF6366F1)
-                            : const Color(0xFF475467))),
+                        color: alreadyAdded ? accent : scheme.onSurfaceVariant)),
               ]),
             ),
           ),
@@ -267,28 +266,30 @@ class _StepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = _accentOn(scheme);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(children: [
         Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+            color: _indigo.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
             child: Text('${index + 1}',
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
-                    color: Color(0xFF6366F1))),
+                    color: accent)),
           ),
         ),
         const SizedBox(width: 12),
@@ -298,16 +299,24 @@ class _StepTile extends StatelessWidget {
                   fontWeight: FontWeight.w600, fontSize: 14)),
         ),
         IconButton(
-          icon: const Icon(Icons.close_rounded,
-              color: Color(0xFF94A3B8), size: 20),
+          icon: Icon(Icons.close_rounded,
+              color: scheme.onSurfaceVariant, size: 20),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           onPressed: onRemove,
         ),
         const SizedBox(width: 8),
-        const Icon(Icons.drag_handle_rounded,
-            color: Color(0xFFCBD5E1), size: 20),
+        Icon(Icons.drag_handle_rounded,
+            color: scheme.outline, size: 20),
       ]),
     );
   }
 }
+
+const _indigo = Color(0xFF6366F1);
+
+/// Indigo for text/icons on a surface: the lighter indigo-400 in dark so it
+/// stays readable on slate.
+Color _accentOn(ColorScheme scheme) => scheme.brightness == Brightness.dark
+    ? const Color(0xFF818CF8)
+    : _indigo;

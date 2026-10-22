@@ -77,13 +77,20 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
     final s = _status;
     final problem = s == null ? null : reliabilityProblem(s);
     if (problem == null) return const SizedBox.shrink();
+    // Pale red in light; a red tint with light-red text in dark.
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Material(
-        color: const Color(0xFFFEF2F2),
+        color: dark
+            ? Palette.red500.withValues(alpha: 0.16)
+            : const Color(0xFFFEF2F2),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.lg),
-          side: const BorderSide(color: Color(0xFFFECACA)),
+          side: BorderSide(
+              color: dark
+                  ? Palette.red500.withValues(alpha: 0.4)
+                  : const Color(0xFFFECACA)),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.sm, Spacing.md),
@@ -93,8 +100,11 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: Text(problem,
-                    style: const TextStyle(
-                        color: Color(0xFF991B1B), fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        color: dark
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFF991B1B),
+                        fontWeight: FontWeight.w600)),
               ),
               TextButton(onPressed: _fix, child: const Text('Fix')),
             ],

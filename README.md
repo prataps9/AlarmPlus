@@ -44,6 +44,16 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   nightly reminder.
 - **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
   off) without switching it off.
+- **One-off alarms on a date** — with no repeat days, pick the day it rings
+  ("Thu, 30 Oct"). A dated alarm whose moment has passed is switched off
+  instead of ringing late.
+- **Pause until a date** — vacation mode: hold every repeating alarm until a
+  chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
+- **Dark mode** — Settings → Theme: Light, Dark or Match phone.
+- **Undo & duplicate** — swiping an alarm away deletes it with an Undo
+  snackbar; long-press an alarm to duplicate it (voice memo included).
+- **24-hour editor** — the alarm time picker follows the phone's 24-hour
+  setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
 - **Native Android touches** — predictive-back page animations (Android
@@ -129,6 +139,14 @@ flutter build apk --release
 Without `android/key.properties`, release builds fall back to the debug
 signing key (with a Gradle warning) — fine for local testing, but not
 suitable for distribution.
+
+### APK sanity check
+
+`tool/check_apk.py` inspects a built release APK (manifest classes, resources
+that are looked up by name, engine libraries, assets, version). CI runs it on
+every pull request and `release.yml` runs it before publishing. To run it
+yourself: `pip install androguard`, then
+`python tool/check_apk.py build/app/outputs/flutter-apk/app-release.apk`.
 
 ## Continuous integration & releases
 

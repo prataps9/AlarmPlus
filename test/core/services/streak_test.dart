@@ -33,8 +33,11 @@ void main() {
   });
 
   group('streak freezes', () {
+    // A streak built on earlier days; today has no wake-up yet.
+    const streakOf1 = {'smart.alarm.stats': '{"currentStreak":1,"bestStreak":1}'};
+
     test('a miss with no freeze resets the streak', () async {
-      await SmartAlarmService.recordDismissed();
+      SharedPreferences.setMockInitialValues(streakOf1);
       final saved = await SmartAlarmService.recordMissed();
 
       expect(saved, isFalse);
@@ -42,8 +45,8 @@ void main() {
     });
 
     test('an owned freeze is spent to keep the streak alive', () async {
-      SharedPreferences.setMockInitialValues({'smart.streak.freezes': 1});
-      await SmartAlarmService.recordDismissed();
+      SharedPreferences.setMockInitialValues(
+          {...streakOf1, 'smart.streak.freezes': 1});
 
       final saved = await SmartAlarmService.recordMissed();
 
@@ -53,14 +56,28 @@ void main() {
     });
 
     test('repeated misses on one day spend only one freeze', () async {
-      SharedPreferences.setMockInitialValues({'smart.streak.freezes': 2});
-      await SmartAlarmService.recordDismissed();
+      SharedPreferences.setMockInitialValues(
+          {...streakOf1, 'smart.streak.freezes': 2});
 
       await SmartAlarmService.recordMissed();
       await SmartAlarmService.recordMissed();
 
       expect(await SmartAlarmService.getStreakFreezesOwned(), 1);
       expect((await SmartAlarmService.getStats()).currentStreak, 1);
+    });
+
+    test('a miss after waking up today keeps the streak and the freezes',
+        () async {
+      SharedPreferences.setMockInitialValues(
+          {...streakOf1, 'smart.streak.freezes': 1});
+      await SmartAlarmService.recordDismissed(); // streak 2, today won
+
+      final kept = await SmartAlarmService.recordMissed(); // a later alarm
+
+      expect(kept, isTrue);
+      expect((await SmartAlarmService.getStats()).currentStreak, 2);
+      expect((await SmartAlarmService.getStats()).missedCount, 1);
+      expect(await SmartAlarmService.getStreakFreezesOwned(), 1);
     });
 
     test('no freeze is spent when there is no streak to protect', () async {

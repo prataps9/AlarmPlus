@@ -122,7 +122,7 @@ class HomeScreen extends ConsumerWidget {
                             shape: BoxShape.circle,
                             color: i < completed
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.outlineVariant,
+                                : Theme.of(context).colorScheme.outline,
                           ),
                         ),
                     ],
@@ -302,7 +302,7 @@ class HomeScreen extends ConsumerWidget {
                     label: const Text('Start Focus'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.onSurface,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                     ),
                   ),
                 ),
@@ -490,8 +490,8 @@ class _StreakHeroWidget extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: progress,
                           backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF111111)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.onSurface),
                           minHeight: 6,
                         ),
                       ),
@@ -521,8 +521,8 @@ class _StreakHeroWidget extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: milestoneProgress.clamp(0.0, 1.0),
                           backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF111111)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.onSurface),
                           minHeight: 4,
                         ),
                       ),
@@ -539,7 +539,7 @@ class _StreakHeroWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEEEEE),
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                       ),

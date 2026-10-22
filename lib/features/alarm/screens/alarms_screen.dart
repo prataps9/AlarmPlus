@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
@@ -16,23 +17,166 @@ import 'package:alarm_plus/features/alarm/screens/qr_spot_setup_screen.dart';
 import 'package:alarm_plus/core/services/ringtone_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
+import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
-class AlarmsScreen extends ConsumerWidget {
+class AlarmsScreen extends ConsumerStatefulWidget {
   const AlarmsScreen({super.key});
 
   static const routeName = '/alarms';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlarmsScreen> createState() => _AlarmsScreenState();
+
+  static void _showAlarmSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    AlarmModel? initial,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+    );
+  }
+}
+
+class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
+  /// Swiped away but maybe not yet gone from the provider. A dismissed
+  /// Dismissible must leave the tree on the very next frame.
+  final _swiped = <String>{};
+
+  Future<void> _delete(AlarmModel alarm) async {
+    setState(() => _swiped.add(alarm.id));
+    final messenger = ScaffoldMessenger.of(context);
+    final notifier = ref.read(alarmsMapProvider.notifier);
+    // Stays hidden until Undo: the provider can lag a frame behind.
+    await notifier.cancelAlarm(alarm.id);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(alarm.label.isEmpty ? 'Alarm deleted' : '"${alarm.label}" deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          // Saving it back reschedules it, if it was on.
+          onPressed: () async {
+            await notifier.saveAlarm(alarm);
+            if (mounted) setState(() => _swiped.remove(alarm.id));
+          },
+        ),
+      ));
+  }
+
+  Future<void> _duplicate(AlarmModel alarm) async {
+    final copy =
+        await ref.read(alarmsMapProvider.notifier).duplicateAlarm(alarm.id);
+    if (copy == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Alarm duplicated')));
+    // Straight into the copy: a duplicate is almost always about to change.
+    AlarmsScreen._showAlarmSheet(context, ref, initial: copy);
+  }
+
+  void _showActions(AlarmModel alarm) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(ctx);
+                AlarmsScreen._showAlarmSheet(context, ref, initial: alarm);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Duplicate'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _duplicate(alarm);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded,
+                  color: Theme.of(ctx).colorScheme.error),
+              title: Text('Delete',
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _delete(alarm);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickPause() async {
+    final now = DateTime.now();
+    final until = await showDatePicker(
+      context: context,
+      helpText: 'Repeating alarms resume on',
+      initialDate: DateTime(now.year, now.month, now.day + 7),
+      firstDate: DateTime(now.year, now.month, now.day + 1),
+      lastDate: DateTime(now.year + 1, now.month, now.day),
+    );
+    if (until == null || !mounted) return;
+    await ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(until);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+            'Repeating alarms paused until ${DateFormat('EEE, d MMM').format(until)}'),
+      ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final alarmsAsync = ref.watch(alarmsListProvider);
+    final pausedUntil = pauseInForce(alarmsAsync.valueOrNull ?? const [], DateTime.now());
+    final hasRepeating =
+        (alarmsAsync.valueOrNull ?? const []).any((a) => a.repeatDays.isNotEmpty);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alarms')),
+      appBar: AppBar(
+        title: const Text('Alarms'),
+        actions: [
+          if (hasRepeating)
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'pause') _pickPause();
+                if (v == 'resume') {
+                  ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(null);
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'pause',
+                  child: Text(pausedUntil == null
+                      ? 'Pause repeating alarms…'
+                      : 'Change pause end…'),
+                ),
+                if (pausedUntil != null)
+                  const PopupMenuItem(value: 'resume', child: Text('Resume now')),
+              ],
+            ),
+        ],
+      ),
       body: alarmsAsync.when(
-        data: (alarms) {
+        data: (all) {
+          final alarms = [for (final a in all) if (!_swiped.contains(a.id)) a];
           if (alarms.isEmpty) return _EmptyAlarms(ref: ref);
+          final banner = pausedUntil == null ? 0 : 1;
 
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(
@@ -42,21 +186,28 @@ class AlarmsScreen extends ConsumerWidget {
               // Clears the FAB.
               Spacing.xxxl * 2.5,
             ),
-            itemCount: alarms.length,
+            itemCount: alarms.length + banner,
             itemBuilder: (context, index) {
-              final alarm = alarms[index];
+              if (index < banner) {
+                return _PauseBanner(
+                  until: pausedUntil!,
+                  onResume: () => ref
+                      .read(alarmsMapProvider.notifier)
+                      .pauseRepeatingUntil(null),
+                );
+              }
+              final alarm = alarms[index - banner];
               return AlarmCard(
                 key: ValueKey(alarm.id),
                 alarm: alarm,
-                onTap: () => _showAlarmSheet(context, ref, initial: alarm),
+                onTap: () => AlarmsScreen._showAlarmSheet(context, ref, initial: alarm),
+                onLongPress: () => _showActions(alarm),
                 onToggle: (enabled) {
                   ref
                       .read(alarmsMapProvider.notifier)
                       .toggleAlarm(alarm.id, enabled);
                 },
-                onDelete: () {
-                  ref.read(alarmsMapProvider.notifier).cancelAlarm(alarm.id);
-                },
+                onDelete: () => _delete(alarm),
                 onSkipNext: (skip) => ref
                     .read(alarmsMapProvider.notifier)
                     .setSkipNext(alarm.id, skip: skip),
@@ -70,23 +221,60 @@ class AlarmsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAlarmSheet(context, ref),
+        onPressed: () => AlarmsScreen._showAlarmSheet(context, ref),
         icon: const Icon(Icons.add_rounded),
         label: const Text('New alarm'),
       ),
     );
   }
+}
 
-  static void _showAlarmSheet(
-    BuildContext context,
-    WidgetRef ref, {
-    AlarmModel? initial,
-  }) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
+/// The latest date any enabled repeating alarm is paused until, or null.
+@visibleForTesting
+DateTime? pauseInForce(List<AlarmModel> alarms, DateTime now) {
+  DateTime? until;
+  for (final a in alarms) {
+    if (!a.isEnabled || !a.isPausedAt(now)) continue;
+    if (until == null || a.pausedUntil!.isAfter(until)) until = a.pausedUntil;
+  }
+  return until;
+}
+
+class _PauseBanner extends StatelessWidget {
+  const _PauseBanner({required this.until, required this.onResume});
+
+  final DateTime until;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.lg),
+      child: Material(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              Spacing.lg, Spacing.sm, Spacing.sm, Spacing.sm),
+          child: Row(
+            children: [
+              Icon(Icons.beach_access_rounded,
+                  color: scheme.onTertiaryContainer),
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: Text(
+                  'Repeating alarms paused until ${DateFormat('EEE, d MMM').format(until)}',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onTertiaryContainer),
+                ),
+              ),
+              TextButton(onPressed: onResume, child: const Text('Resume')),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -211,7 +399,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   String _sound = 'default';
   String _soundTitle = 'Default Alarm';
   String _personality = 'gentle';
-  final Set<int> _repeatDays = {2, 3, 4, 5, 6};
+  // DateTime weekdays: 1 = Monday. This used to be {2..6}, which made every
+  // new alarm Tue–Sat.
+  final Set<int> _repeatDays = {1, 2, 3, 4, 5};
+
+  /// Day a one-off rings on; null = next time the clock shows the time.
+  DateTime? _date;
   bool _gentleWake = false;
   int _gentleWakeDuration = 60;
   ChallengeType? _challengeType;
@@ -259,6 +452,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _repeatDays
       ..clear()
       ..addAll(alarm.repeatDays);
+    _date = alarm.date;
     _gentleWake = alarm.gentleWake;
     _gentleWakeDuration = alarm.gentleWakeDurationSeconds;
     _challengeType = alarm.challengeType;
@@ -316,6 +510,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -333,7 +528,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   width: 48,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCCCCCC),
+                    color: scheme.outline,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -350,15 +545,15 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 decoration: InputDecoration(
                   hintText: 'Alarm label...',
                   hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF94A3B8),
+                    color: scheme.onSurfaceVariant,
                     fontSize: 20,
                   ),
                   contentPadding: EdgeInsets.zero,
-                  border: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: scheme.outlineVariant),
                   ),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: scheme.outlineVariant),
                   ),
                 ),
               ),
@@ -402,9 +597,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,12 +665,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: selected
-                                      ? const Color(0xFF111111)
-                                      : Colors.white,
+                                      ? scheme.onSurface
+                                      : scheme.surfaceContainer,
                                   border: Border.all(
                                     color: selected
-                                        ? const Color(0xFF111111)
-                                        : const Color(0xFFD4D7DD),
+                                        ? scheme.onSurface
+                                        : scheme.outline,
                                   ),
                                 ),
                                 child: Center(
@@ -483,8 +678,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                     labels[index],
                                     style: TextStyle(
                                       color: selected
-                                          ? Colors.white
-                                          : const Color(0xFF888888),
+                                          ? scheme.surface
+                                          : scheme.onSurfaceVariant,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -499,6 +694,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   );
                 }),
               ),
+              if (_repeatDays.isEmpty) ...[
+                const SizedBox(height: 12),
+                _buildDateRow(context),
+              ],
               const SizedBox(height: 24),
               InkWell(
                 onTap: _openSoundPicker,
@@ -515,13 +714,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text(
                       _soundLabel(),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: const Color(0xFF94A3B8),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
-                      color: Color(0xFF94A3B8),
+                      color: scheme.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -548,10 +747,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                         margin: const EdgeInsets.only(right: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: selected ? config.primaryColor : const Color(0xFFF8FAFC),
+                          color: selected ? config.primaryColor : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selected ? config.primaryColor : const Color(0xFFE2E8F0),
+                            color: selected ? config.primaryColor : scheme.outlineVariant,
                             width: 2,
                           ),
                         ),
@@ -564,7 +763,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: selected ? Colors.white : const Color(0xFF0F172A),
+                                color: selected ? Colors.white : scheme.onSurface,
                               ),
                             ),
                           ],
@@ -606,9 +805,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             return ChoiceChip(
                               label: Text('${s}s'),
                               selected: selected,
-                              selectedColor: const Color(0xFF111111),
+                              selectedColor: scheme.onSurface,
                               labelStyle: TextStyle(
-                                  color: selected ? Colors.white : const Color(0xFF111111),
+                                  color: selected ? scheme.surface : scheme.onSurface,
                                   fontWeight: FontWeight.w600),
                               onSelected: (_) =>
                                   setState(() => _gentleWakeDuration = s),
@@ -634,8 +833,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
 
               // ── Quest Mode toggle ──────────────────────────────────────
               Row(children: [
-                const Icon(Icons.rocket_launch_rounded,
-                    color: Color(0xFF444444), size: 20),
+                Icon(Icons.rocket_launch_rounded,
+                    color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,8 +842,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Wake Quest Mode',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Chain multiple challenges in order',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Chain multiple challenges in order',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -686,8 +885,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                                   .map((t) => ChallengeService.label(t))
                                   .join(' → ')),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF111111),
-                            side: const BorderSide(color: Color(0xFF444444)),
+                            foregroundColor: scheme.onSurface,
+                            side: BorderSide(color: scheme.onSurfaceVariant),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -731,7 +930,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             fontSize: 13,
                             color: _savedQrCode != null
                                 ? const Color(0xFF10B981)
-                                : const Color(0xFF94A3B8),
+                                : scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -742,7 +941,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                           : Icons.chevron_right_rounded,
                       color: _savedQrCode != null
                           ? const Color(0xFF10B981)
-                          : const Color(0xFFCBD5E1),
+                          : scheme.outline,
                     ),
                   ]),
                 ),
@@ -918,7 +1117,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               const SizedBox(height: 12),
               // Wake-Up Check toggle
               Row(children: [
-                const Icon(Icons.alarm_on_rounded, color: Color(0xFF444444), size: 20),
+                Icon(Icons.alarm_on_rounded, color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -926,8 +1125,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Wake-Up Check',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Re-rings if you don\'t confirm you\'re awake',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Re-rings if you don\'t confirm you\'re awake',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -948,9 +1147,9 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                             return ChoiceChip(
                               label: Text('$min min'),
                               selected: sel,
-                              selectedColor: const Color(0xFF111111),
+                              selectedColor: scheme.onSurface,
                               labelStyle: TextStyle(
-                                color: sel ? Colors.white : const Color(0xFF111111),
+                                color: sel ? scheme.surface : scheme.onSurface,
                                 fontWeight: FontWeight.w600,
                               ),
                               onSelected: (_) =>
@@ -964,7 +1163,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               const SizedBox(height: 12),
               // Hardcore Mode toggle
               Row(children: [
-                const Icon(Icons.lock_rounded, color: Color(0xFF444444), size: 20),
+                Icon(Icons.lock_rounded, color: scheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -972,8 +1171,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     Text('Hardcore Mode',
                         style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    const Text('Disables back button while alarm is ringing',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+                    Text('Disables back button while alarm is ringing',
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                   ],
                 )),
                 _AnimatedToggle(
@@ -1004,8 +1203,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 child: ElevatedButton(
                   onPressed: _saveAlarm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF020617),
-                    foregroundColor: Colors.white,
+                    backgroundColor: scheme.brightness == Brightness.dark
+                        ? scheme.onSurface
+                        : const Color(0xFF020617),
+                    foregroundColor: scheme.brightness == Brightness.dark
+                        ? scheme.surface
+                        : Colors.white,
                     minimumSize: const Size(double.infinity, 62),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
@@ -1052,13 +1255,76 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     });
   }
 
+  /// "Rings: Tomorrow" / "Rings: Thu, 30 Oct" for a one-off alarm.
+  Widget _buildDateRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final rings = _previewAlarm(_hour24, now).nextDateTimeFrom(now);
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(rings.year, rings.month, rings.day);
+    final label = switch (day.difference(today).inDays) {
+      0 => 'Today',
+      1 => 'Tomorrow',
+      _ => DateFormat('EEE, d MMM').format(day),
+    };
+    return Row(
+      children: [
+        const Icon(Icons.event_outlined, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _date == null ? 'Rings $label' : 'Rings on $label',
+            style: theme.textTheme.bodyLarge,
+          ),
+        ),
+        if (_date != null)
+          IconButton(
+            tooltip: 'Clear date',
+            onPressed: () => setState(() => _date = null),
+            icon: const Icon(Icons.close_rounded, size: 20),
+          ),
+        TextButton(
+          onPressed: _pickDate,
+          child: Text(_date == null ? 'Pick a date' : 'Change'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date != null && !_date!.isBefore(today) ? _date! : today,
+      firstDate: today,
+      lastDate: DateTime(now.year + 2, now.month, now.day),
+    );
+    if (picked != null && mounted) setState(() => _date = picked);
+  }
+
+  int get _hour24 => _isAm ? _hour % 12 : _hour % 12 + 12;
+
+  /// What would be saved, enough to ask it when it next rings.
+  AlarmModel _previewAlarm(int hour24, DateTime now) => AlarmModel(
+        id: '',
+        time: TimeOfDay(hour: hour24, minute: _minute),
+        label: '',
+        tag: '',
+        sound: '',
+        isEnabled: true,
+        repeatDays: _repeatDays.toList(),
+        date: _repeatDays.isEmpty ? _date : null,
+      );
+
   String _suggestedBedtimeLabel() {
     final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
     final bedtime = SmartAlarmService.suggestBedtime(
       wakeTime: TimeOfDay(hour: hour24, minute: _minute),
       sleepHours: _sleepGoalHours,
     );
-    return '${_formatHour(bedtime.hour)}:${bedtime.minute.toString().padLeft(2, '0')} ${bedtime.hour >= 12 ? 'PM' : 'AM'}';
+    return TimeFormat.clockLabel(bedtime.hour, bedtime.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
   }
 
   String _soundLabel() => _soundTitle;
@@ -1082,12 +1348,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       _tag = parsed.dayOffset > 0
           ? 'Quick add for tomorrow'
           : 'Quick add for today';
-      if (parsed.dayOffset > 0) {
-        final tomorrow = DateTime.now().add(const Duration(days: 1)).weekday;
-        _repeatDays
-          ..clear()
-          ..add(tomorrow);
-      }
+      // "Tomorrow at 6" is one alarm, not a weekly one. It used to set
+      // tomorrow's weekday as a repeat day.
+      _repeatDays.clear();
+      final now = DateTime.now();
+      _date = parsed.dayOffset > 0
+          ? DateTime(now.year, now.month, now.day + parsed.dayOffset)
+          : null;
     });
   }
 
@@ -1105,16 +1372,31 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   }
 
   Widget _buildTimePickerRow(BuildContext context) {
+    // Follows the phone's 24-hour setting, like the alarm cards do. The
+    // state stays 12-hour (_hour + _isAm); only the picker changes.
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final hour24 = _isAm ? _hour % 12 : _hour % 12 + 12;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _pickerNumber(
-          value: _hour,
-          min: 1,
-          max: 12,
-          onChanged: (value) => setState(() => _hour = value),
-        ),
+        if (use24h)
+          _pickerNumber(
+            value: hour24,
+            min: 0,
+            max: 23,
+            onChanged: (value) => setState(() {
+              _isAm = value < 12;
+              _hour = _formatHour(value);
+            }),
+          )
+        else
+          _pickerNumber(
+            value: _hour,
+            min: 1,
+            max: 12,
+            onChanged: (value) => setState(() => _hour = value),
+          ),
         const SizedBox(width: 16),
         Text(
           ':',
@@ -1130,22 +1412,24 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           max: 59,
           onChanged: (value) => setState(() => _minute = value),
         ),
-        const SizedBox(width: 20),
-        Column(
-          children: [
-            _periodButton(
-              label: 'AM',
-              active: _isAm,
-              onTap: () => setState(() => _isAm = true),
-            ),
-            const SizedBox(height: 8),
-            _periodButton(
-              label: 'PM',
-              active: !_isAm,
-              onTap: () => setState(() => _isAm = false),
-            ),
-          ],
-        ),
+        if (!use24h) ...[
+          const SizedBox(width: 20),
+          Column(
+            children: [
+              _periodButton(
+                label: 'AM',
+                active: _isAm,
+                onTap: () => setState(() => _isAm = true),
+              ),
+              const SizedBox(height: 8),
+              _periodButton(
+                label: 'PM',
+                active: !_isAm,
+                onTap: () => setState(() => _isAm = false),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -1192,40 +1476,37 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w700,
-          color: active ? Colors.black : const Color(0xFFB0B0B0),
+          color: active
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
         ),
       ),
     );
   }
 
-  /// "Alarm set for 6:30 AM · in 8h 12m" — so saving confirms something
-  /// concrete rather than just closing the sheet.
-  String _confirmationText(TimeOfDay time, List<int> repeatDays) {
+  /// "Alarm set for 6:30 AM · in 8 hr 12 min" — so saving confirms
+  /// something concrete rather than just closing the sheet. Asks the saved
+  /// alarm itself, so skips, pauses and dates are all accounted for.
+  String _confirmationText(AlarmModel saved) {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-
-    if (repeatDays.isNotEmpty) {
-      while (!repeatDays.contains(next.weekday)) {
-        next = next.add(const Duration(days: 1));
-      }
-    }
-
-    final until = next.difference(now);
-    final hours = until.inHours;
-    final minutes = until.inMinutes % 60;
-    final away = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
-
-    final hh = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final mm = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-
-    return 'Alarm set for $hh:$mm $period · in $away';
+    final time = TimeFormat.clockLabel(saved.time.hour, saved.time.minute,
+        use24h: MediaQuery.alwaysUse24HourFormatOf(context));
+    final away = TimeFormat.alarmIn(saved.nextDateTimeFrom(now).difference(now))
+        .replaceFirst('Alarm in', 'in');
+    return 'Alarm set for $time · $away';
   }
 
   Future<void> _saveAlarm() async {
     try {
       final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
+
+      // A dated one-off set in the past would never ring.
+      if (_setAlarm && _previewAlarm(hour24, DateTime.now()).isExpiredAt(DateTime.now())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('That time has already passed. Pick a later time or date.'),
+        ));
+        return;
+      }
 
       await SmartAlarmService.saveTeenSleepProfile(
         targetSleepHours: _sleepGoalHours,
@@ -1236,11 +1517,13 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
           ? 'Work Morning'
           : _labelController.text.trim();
       final repeatDays = _repeatDays.toList()..sort();
+      final date = repeatDays.isEmpty ? _date : null;
       final notifier = ref.read(alarmsMapProvider.notifier);
 
+      final AlarmModel saved;
       if (_isEditing) {
-        await notifier.updateAlarm(
-          widget.initial!.copyWith(
+        saved = widget.initial!.copyWith(
+            date: date,
             time: time,
             label: label,
             repeatDays: repeatDays,
@@ -1264,10 +1547,11 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             maxSnoozes: _maxSnoozes,
             alarmVolume: _alarmVolume,
             vibrationPattern: _vibrationPattern,
-          ),
-        );
+          );
+        await notifier.updateAlarm(saved);
       } else {
-        await notifier.addAlarm(
+        saved = await notifier.addAlarm(
+          date: date,
           time: time,
           label: label,
           repeatDays: repeatDays,
@@ -1306,7 +1590,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
 
       if (_setAlarm) {
         messenger.showSnackBar(
-          SnackBar(content: Text(_confirmationText(time, repeatDays))),
+          SnackBar(content: Text(_confirmationText(saved))),
         );
       }
     } catch (e) {
@@ -1425,6 +1709,7 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -1442,7 +1727,7 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFCCCCCC),
+                  color: scheme.outline,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1477,19 +1762,19 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.chevron_right_rounded,
-                        color: Color(0xFFAAAAAA), size: 20),
+                    : Icon(Icons.chevron_right_rounded,
+                        color: scheme.onSurfaceVariant, size: 20),
                 onTap: _pickNative,
               ),
             ],
 
             const SizedBox(height: 16),
-            const Text('AMBIENT SOUNDS',
+            Text('AMBIENT SOUNDS',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 2.0,
-                    color: Color(0xFF888888))),
+                    color: scheme.onSurfaceVariant)),
             const SizedBox(height: 10),
 
             // Bundled sounds with preview
@@ -1506,18 +1791,18 @@ class _SoundPickerSheetState extends State<_SoundPickerSheet> {
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: isPreviewing
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF111111)),
+                                color: scheme.onSurface),
                           )
                         : Icon(
                             Icons.play_circle_outline_rounded,
                             color: isSelected
-                                ? const Color(0xFF111111)
-                                : const Color(0xFFAAAAAA),
+                                ? scheme.onSurface
+                                : scheme.onSurfaceVariant,
                             size: 24,
                           ),
                   ),
@@ -1550,17 +1835,19 @@ class _SoundRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0F0F0) : Colors.white,
+          color: isSelected
+              ? scheme.surfaceContainerHighest
+              : scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF111111) : const Color(0xFFE8E8E8),
+            color: isSelected ? scheme.onSurface : scheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -1568,8 +1855,8 @@ class _SoundRow extends StatelessWidget {
             Icon(icon,
                 size: 20,
                 color: isSelected
-                    ? const Color(0xFF111111)
-                    : const Color(0xFF888888)),
+                    ? scheme.onSurface
+                    : scheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1581,19 +1868,19 @@ class _SoundRow extends StatelessWidget {
                               ? FontWeight.w700
                               : FontWeight.w500,
                           fontSize: 15,
-                          color: const Color(0xFF111111))),
+                          color: scheme.onSurface)),
                   if (subtitle != null)
                     Text(subtitle!,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF888888))),
+                        style: TextStyle(
+                            fontSize: 12, color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),
             if (trailing != null)
               trailing!
             else if (isSelected)
-              const Icon(Icons.check_rounded,
-                  color: Color(0xFF111111), size: 18),
+              Icon(Icons.check_rounded,
+                  color: scheme.onSurface, size: 18),
           ],
         ),
       ),
@@ -1610,6 +1897,12 @@ class _AnimatedToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Light keeps the near-black "on" track; in dark that would vanish into
+    // the sheet, so the brand green carries "on" instead.
+    final onTrack = scheme.brightness == Brightness.dark
+        ? scheme.primary
+        : const Color(0xFF111111);
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -1618,7 +1911,7 @@ class _AnimatedToggle extends StatelessWidget {
         width: 52,
         height: 28,
         decoration: BoxDecoration(
-          color: value ? const Color(0xFF111111) : const Color(0xFFE0E0E0),
+          color: value ? onTrack : scheme.outlineVariant,
           borderRadius: BorderRadius.circular(14),
         ),
         child: AnimatedAlign(

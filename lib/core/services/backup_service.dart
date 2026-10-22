@@ -37,6 +37,8 @@ class BackupCodec {
   static bool isPortable(String key) =>
       !key.startsWith('premium.') &&
       !key.startsWith('alarm.native_ringtone') &&
+      !key.startsWith('alarm.ring_override.') &&
+      !key.startsWith('alarms.') &&
       key != 'clock.stopwatch' &&
       key != 'clock.timer';
 
@@ -109,7 +111,11 @@ class BackupService {
       final v = prefs.get(k);
       if (v != null) settings[k] = v;
     }
-    return BackupData(alarms: StorageService.getAllAlarms(), settings: settings);
+    // Pending nap / arrival alarms are the app's own, not part of a backup.
+    return BackupData(
+      alarms: [for (final a in StorageService.getAllAlarms()) if (!a.isSystem) a],
+      settings: settings,
+    );
   }
 
   static Future<void> export() async {

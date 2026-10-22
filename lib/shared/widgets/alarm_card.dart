@@ -12,6 +12,7 @@ class AlarmCard extends StatelessWidget {
     required this.onToggle,
     this.onTap,
     this.onDelete,
+    this.onLongPress,
     this.onSkipNext,
   });
 
@@ -20,7 +21,13 @@ class AlarmCard extends StatelessWidget {
 
   /// Opens the alarm for editing.
   final VoidCallback? onTap;
+
+  /// Called after a swipe removes the card. There's no confirmation: the
+  /// caller offers Undo instead, which is quicker and just as safe.
   final VoidCallback? onDelete;
+
+  /// More actions (duplicate, delete).
+  final VoidCallback? onLongPress;
 
   /// Skips (true) or restores (false) the next occurrence. Only offered for
   /// enabled, repeating alarms.
@@ -31,8 +38,6 @@ class AlarmCard extends StatelessWidget {
     final card = _buildCard(context);
     if (onDelete == null) return card;
 
-    // Swipe is the only delete affordance; the card used to carry a trash
-    // icon as well, which meant two paths to the same confirmation dialog.
     return Dismissible(
       key: ValueKey(alarm.id),
       direction: DismissDirection.endToStart,
@@ -50,40 +55,8 @@ class AlarmCard extends StatelessWidget {
           size: 28,
         ),
       ),
-      confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete!(),
       child: card,
-    );
-  }
-
-  Future<bool?> _confirmDelete(BuildContext context) {
-    final time = TimeFormat.clockLabel(
-      alarm.time.hour,
-      alarm.time.minute,
-      use24h: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
-    final subtitle = alarm.label.isNotEmpty ? '$time — ${alarm.label}' : time;
-
-    return showDialog<bool>(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete alarm?'),
-            content: Text('$subtitle will be permanently removed.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(ctx).colorScheme.error,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
     );
   }
 
@@ -107,6 +80,7 @@ class AlarmCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.xl),
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(Radii.xl),
           child: Container(
             padding: const EdgeInsets.symmetric(
@@ -197,7 +171,17 @@ class AlarmCard extends StatelessWidget {
                             alarm.repeatLabel,
                             style: theme.textTheme.bodyMedium,
                           ),
-                          if (onSkipNext != null &&
+                          if (alarm.isEnabled &&
+                              alarm.isPausedAt(DateTime.now()))
+                            // While paused, "Skip next" would be meaningless.
+                            Text(
+                              'Paused until ${DateFormat('EEE, d MMM').format(alarm.pausedUntil!)}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: scheme.tertiary,
+                              ),
+                            )
+                          else if (onSkipNext != null &&
                               alarm.isEnabled &&
                               alarm.repeatDays.isNotEmpty)
                             _SkipChip(alarm: alarm, onChanged: onSkipNext!),

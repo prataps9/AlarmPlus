@@ -93,24 +93,25 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Voice Memo',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: scheme.onSurface),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Record a message to play after your alarm challenge',
-            style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           if (_recording) _buildWaveform(),
@@ -201,7 +202,7 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
           onPressed: _playPause,
           color: const Color(0xFF22C55E),
         ),
-        const Text('Voice memo saved', style: TextStyle(fontSize: 13)),
+        Text('Voice memo saved', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
         const Spacer(),
         IconButton(
           icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),

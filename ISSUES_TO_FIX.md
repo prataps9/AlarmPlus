@@ -3,7 +3,7 @@
 This document tracks identified issues, deprecations, and potential logic bugs in the **AlarmPlus** project that need fixing.
 
 ## 🔴 High Priority
-- **Needs on-device verification (2026-09-25 ring-flow fixes).** The Kotlin and Android resource changes below were only checked for syntax, not built: there was no Android SDK in the environment. Run `flutter build apk` and test on a phone:
+- **Needs on-device verification (2026-09-25 ring-flow fixes).** The Android code now *builds* (CI and the release workflow produce a real APK), and the APK is inspected automatically. But nothing has been **run** on a phone: this environment has no emulator or device. Install the release APK and test:
   - lock-screen notification (Open / Snooze buttons)
   - Hardcore mode swipe-away
   - a cold start caused by a ringing alarm
@@ -17,12 +17,22 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 
 ## 🟡 Medium Priority
-- **Dark mode can't be turned on.** `themeDarkProvider` is never written, and around 400 hard-coded `Color(0x…)` values remain (mostly the ring screen, `alarms_screen`, Settings tiles).
-- **The alarm editor's time picker is always 12-hour** (hour 1–12 plus AM/PM), even when the phone is set to 24-hour time. Everything that *displays* times already follows the setting.
+- **Location alarms only work while Alarm+ is running.** Arrival is detected by a position stream in the app process; there is no location foreground service or OS geofence, so a swiped-away app never notices the arrival. The screen now says so. Fix: a foreground service with the `location` type (Android 14 needs `FOREGROUND_SERVICE_LOCATION`) or the platform geofencing API.
+- **A one-off alarm stopped outside the app** (swiped away from recents while ringing, which stops a non-Hardcore alarm natively) stays switched on and is rescheduled for the next day on the next app start. Fix: handle the plugin's alarm-stopped callback, or switch off past one-offs with no future plugin entry at startup.
+- **Dismissing a Wake-Up Check re-ring pays XP again** and records a second wake-up. It should count as part of the original wake-up.
+- **A timezone change is picked up when the app opens or returns to the foreground**, not by a background receiver. A phone that changes zone and is never opened keeps its alarms at the old instants.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
+- **Dark mode (2026-10-22):** Settings → Theme offers Light, Dark or Match phone, saved and applied before the first frame. The hard-coded light colours were replaced with theme colours across the app: Home, the alarm list and editor, the ring screen and every wake challenge, Settings, Sleep, Missions, Onboarding and more. Each screen was rendered in light and dark and checked; two sheets that only appear mid-flow (the post-dismiss celebration and the Wake Routine completion sheet) were converted from the code without a screenshot. Wind-Down, Sleep Sounds, Nap and Morning Check-in stay dark on purpose, and the camera screens stay black.
+- **Sleep Insights crashed with a partly filled diary (2026-10-22):** days without an entry were drawn as `FlSpot(x, NaN)`, which makes the chart fail ("Offset argument contained a NaN value"). They are now gaps. A test renders the screen with two of seven days logged.
+- **Step-counter ring and Trivia loading card (2026-10-22):** the step ring drew as a 36px dot instead of filling its 160px circle, and while a trivia question loaded the card stretched to the full screen height.
+- **Vibration switches did nothing (2026-10-22):**
+  - the Settings "Vibration" switch was never saved and nothing read it. It is now saved, and it turns off vibration for every alarm;
+  - an alarm whose own vibration was set to **Off** still vibrated, because the alarm plugin was always told `vibrate: true`.
+- **Alarm editor time picker was always 12-hour (2026-10-21):** it now follows the phone's 24-hour setting.
+- **New alarms defaulted to Tue–Sat, and quick add "tomorrow" made a weekly alarm (2026-10-21).** Both fixed.
 - **Silent Failures (catch blocks):** All empty `catch (_) {}` blocks now log via `debugPrint`.
 - **Hardcoded Package Name:** Application ID changed from `com.example.lumio` → `com.alarmplus.app`; Kotlin source files moved to matching package directory.
 - **Flutter Deprecations:** All `MaterialStatePropertyAll`, `MaterialStateProperty`, `MaterialState` and `DropdownButtonFormField.value` usages replaced with `WidgetState*` / `initialValue` equivalents.
@@ -37,6 +47,10 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - A miss now spends an owned freeze (at most one per day) instead of resetting the streak.
   - A later miss no longer erases a day the user did wake up.
 - **Purchases could be lost (2026-09-25):** `purchaseStream` was only listened to during a purchase, so pending or late UPI purchases were never completed and were auto-refunded. A global listener now starts in `main()`.
+- **Inspection of the shipped v1.2.0 APK (2026-10-21):** the release file was downloaded, checksummed against the release, and taken apart. It is structurally sound: all 44 manifest components have their classes in the code, the Flutter engine and compiled Dart are present for 3 CPU types, all assets are bundled, it is not debuggable, and it supports Android 7+. It also turned up two real problems, both fixed in 1.2.1:
+  - **The four launcher-shortcut icons were stripped from the APK** by Android's resource shrinker, because they are looked up by name at runtime. `res/raw/keep.xml` now protects them.
+  - **One failing plugin could keep the app from opening.** `main()` ran 13 awaited init steps before `runApp`, none individually protected. Each step now has its own error handling and a time limit (`runStartupStep`), so a failure costs one feature, never the whole app.
+  - **Prevention:** `tool/check_apk.py` now runs on every pull request and before every release, against the APK that was actually built. It checks the manifest classes, the name-looked-up resources, the engine libraries, the assets, the debuggable flag and the version. It was run against the broken v1.2.0 APK and fails on exactly the four stripped icons.
 - **Polish pass (2026-10-19):** every main screen was rendered and stress-tested at 412dp and at 320dp with 1.3× text (the combination many real users run).
   - **Layout overflows fixed:**
     - the alarm editor's day-of-week circles ran off the edge of a normal 412dp phone;
@@ -74,4 +88,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-10-19*
+*Updated on 2026-10-22*

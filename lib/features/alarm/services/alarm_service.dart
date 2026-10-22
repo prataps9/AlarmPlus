@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart' as sp;
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
@@ -130,13 +131,35 @@ class AlarmService {
 
   /// Without this `tz.local` is UTC, so notifications that repeat by wall
   /// clock (`matchDateTimeComponents`) fire at UTC times.
+  static String? _zoneName;
+
   static Future<void> _setLocalTimezone() async {
     if (kIsWeb) return;
     try {
       final info = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(info.identifier));
+      _zoneName = info.identifier;
     } catch (e) {
       debugPrint('Could not resolve local timezone, staying on UTC: $e');
+    }
+  }
+
+  /// Alarms are scheduled as absolute instants, so after flying from New
+  /// York to London a 07:00 alarm would ring at 12:00. Called whenever the
+  /// app comes to the foreground: if the phone's zone changed, every alarm
+  /// is rescheduled for the new local time. Returns true when it did.
+  static Future<bool> rescheduleIfTimezoneChanged() async {
+    if (kIsWeb || _zoneName == null) return false;
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      if (info.identifier == _zoneName) return false;
+      debugPrint('Timezone changed $_zoneName -> ${info.identifier}; rescheduling');
+      await _setLocalTimezone();
+      await restoreEnabledAlarms();
+      return true;
+    } catch (e) {
+      debugPrint('Timezone check failed: $e');
+      return false;
     }
   }
 
@@ -200,6 +223,46 @@ class AlarmService {
     await StorageService.saveAlarm(alarm);
   }
 
+  /// The alarm plugin stops any other alarm due in the same second
+  /// (`Alarm.set`), and every alarm here is due at :00, so two alarms at
+  /// 07:00 (or an alarm and its fresh duplicate) silently unscheduled each
+  /// other. Each one is nudged a second later until its second is free.
+  static Future<DateTime> _uniqueRingTime(int alarmId, DateTime target) async {
+    try {
+      final taken = {
+        for (final a in await Alarm.getAlarms())
+          if (a.id != alarmId) a.dateTime.millisecondsSinceEpoch ~/ 1000,
+      };
+      return uniqueSecond(target, taken);
+    } catch (e) {
+      debugPrint('Could not read scheduled alarms: $e');
+      return target;
+    }
+  }
+
+  @visibleForTesting
+  static DateTime uniqueSecond(DateTime target, Set<int> takenEpochSeconds) {
+    var when = target;
+    while (takenEpochSeconds.contains(when.millisecondsSinceEpoch ~/ 1000)) {
+      when = when.add(const Duration(seconds: 1));
+    }
+    return when;
+  }
+
+  // A snooze or wake-check re-ring is scheduled for an exact instant that
+  // isn't the alarm's own time. It is remembered here so that restoring
+  // alarms (every app start, settings changes, a timezone change) keeps it
+  // instead of moving the alarm to its next normal occurrence.
+  static String _overrideKey(int alarmId) => 'alarm.ring_override.$alarmId';
+
+  static Future<DateTime?> _pendingOverride(int alarmId) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    final ms = prefs.getInt(_overrideKey(alarmId));
+    if (ms == null) return null;
+    final at = DateTime.fromMillisecondsSinceEpoch(ms);
+    return at.isAfter(DateTime.now()) ? at : null;
+  }
+
   /// Schedules [alarm] at its next occurrence — or exactly at [at] when
   /// given (snooze, wake-up-check re-ring). Pass [at] rather than rewriting
   /// `alarm.time`: a [TimeOfDay] drops the seconds, so "now + 5 s" rounds
@@ -210,6 +273,16 @@ class AlarmService {
     DateTime? at,
   }) async {
     await _cancelScheduledArtifacts(alarm.id);
+
+    // A dated one-off whose day has gone (phone was off, restored from a
+    // backup): the plugin would ring a past time at once, so switch it off.
+    if (at == null && alarm.isExpiredAt(DateTime.now())) {
+      await saveAlarm(alarm.copyWith(isEnabled: false));
+      notifyChanged();
+      unawaited(WidgetSyncService.refresh());
+      unawaited(StreakReminderService.refresh());
+      return;
+    }
 
     if (!_supportsNativeAlarmOps) {
       if (persist) {
@@ -222,6 +295,12 @@ class AlarmService {
 
     final targetTime = at ?? alarm.nextDateTimeFrom(DateTime.now());
     final alarmId = alarmIntId(alarm.id);
+    final prefs = await sp.SharedPreferences.getInstance();
+    if (at != null && !alarm.isSystem) {
+      await prefs.setInt(_overrideKey(alarmId), at.millisecondsSinceEpoch);
+    } else {
+      await prefs.remove(_overrideKey(alarmId));
+    }
     var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
       alarm.sound,
@@ -251,7 +330,7 @@ class AlarmService {
 
     final settings = AlarmSettings(
       id: alarmId,
-      dateTime: targetTime,
+      dateTime: await _uniqueRingTime(alarmId, targetTime),
       assetAudioPath: audioPath,
       volumeSettings: VolumeSettings.fade(fadeDuration: Duration(seconds: 8)),
       notificationSettings: NotificationSettings(
@@ -259,13 +338,21 @@ class AlarmService {
         body: alarm.tag,
       ),
       loopAudio: true,
-      vibrate: true,
+      // The alarm's own pattern and the global switch both have to allow
+      // it; this used to be always true, so "Off" still vibrated.
+      vibrate: alarm.vibrationPattern != VibrationPatternType.off &&
+          await AppSettings.readVibrationEnabled(),
       warningNotificationOnKill:
           !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       androidFullScreenIntent: true,
       // Hardcore alarms keep ringing when the app is swiped away; the
       // plugin's default stops the audio on task removal.
       androidStopAlarmOnTermination: !alarm.hardcoreMode,
+      // A second alarm due while another still rings (7:00 and 7:05 for a
+      // heavy sleeper mid-challenge) used to be dropped by the plugin, and
+      // its next occurrence was never scheduled. Both ring; the ring screen
+      // takes them one at a time.
+      allowAlarmOverlap: true,
     );
 
     try {
@@ -307,11 +394,13 @@ class AlarmService {
       payload: '$alarmId',
     );
 
+    // Naps and location triggers get no bedtime-style notices: a 90-minute
+    // nap used to get "Wind-down reminder" a half hour before waking.
     final windDownMinutes = await SmartAlarmService.getWindDownMinutes();
     final windDownTime = targetTime.subtract(
       Duration(minutes: windDownMinutes),
     );
-    if (windDownTime.isAfter(DateTime.now())) {
+    if (!alarm.isSystem && windDownTime.isAfter(DateTime.now())) {
       await _notifications.zonedSchedule(
         _windDownNotificationId(alarm.id),
         'Wind-down reminder',
@@ -332,7 +421,9 @@ class AlarmService {
     }
 
     final noticeAt = targetTime.subtract(upcomingNoticeLead);
-    if (noticeAt.isAfter(DateTime.now()) && await upcomingNoticeEnabled()) {
+    if (!alarm.isSystem &&
+        noticeAt.isAfter(DateTime.now()) &&
+        await upcomingNoticeEnabled()) {
       await _notifications.zonedSchedule(
         _upcomingNotificationId(alarm.id),
         'Upcoming alarm',
@@ -377,6 +468,13 @@ class AlarmService {
   static Future<void> dismissUpcoming(int alarmIntId) async {
     final alarm = findByIntId(alarmIntId);
     if (alarm == null) return;
+    // A stale notice tapped while the alarm rings would skip tomorrow and
+    // silence today's ring without its challenge. Ringing alarms are
+    // dismissed on the ring screen only.
+    if (_supportsNativeAlarmOps &&
+        await Alarm.isRinging(alarmIntId).catchError((_) => false)) {
+      return;
+    }
     if (alarm.repeatDays.isNotEmpty) {
       await setSkipNext(alarm.id, skip: true);
     } else {
@@ -406,6 +504,9 @@ class AlarmService {
     unawaited(StreakReminderService.refresh());
   }
 
+  /// A fresh id for a new alarm.
+  static String newAlarmId() => _uuid.v4();
+
   static Future<void> deleteAlarm(String id) async {
     await _cancelScheduledArtifacts(id);
     await StorageService.deleteAlarm(id);
@@ -414,7 +515,12 @@ class AlarmService {
   }
 
   static Future<void> restoreEnabledAlarms() async {
-    final alarms = getAllAlarms().where((alarm) => alarm.isEnabled);
+    // Nap and arrival alarms were set for an exact instant (seconds
+    // included) that the alarm plugin keeps on its own; rebuilding them from
+    // HH:mm could ring them early or, inside their last minute, mark them
+    // expired and switch them off.
+    final alarms =
+        getAllAlarms().where((alarm) => alarm.isEnabled && !alarm.isSystem);
     for (final alarm in alarms) {
       // Rescheduling starts with Alarm.stop(), so restoring an alarm that is
       // ringing right now (the app was cold-started by that very alarm)
@@ -424,7 +530,11 @@ class AlarmService {
               .catchError((_) => false)) {
         continue;
       }
-      await scheduleAlarm(alarm, persist: false);
+      await scheduleAlarm(
+        alarm,
+        persist: false,
+        at: await _pendingOverride(alarmIntId(alarm.id)),
+      );
     }
   }
 
@@ -469,6 +579,19 @@ class AlarmService {
     if (updated.isEnabled) await scheduleAlarm(updated);
   }
 
+  /// Vacation mode: holds every repeating alarm until [until] (a date), or
+  /// lifts the pause when [until] is null. One-off alarms are left alone;
+  /// switch those off instead.
+  static Future<void> pauseRepeatingUntil(DateTime? until) async {
+    final day = until == null ? null : DateTime(until.year, until.month, until.day);
+    for (final alarm in getAllAlarms().where((a) => a.repeatDays.isNotEmpty)) {
+      if (alarm.pausedUntil == day) continue;
+      final updated = alarm.copyWith(pausedUntil: day);
+      await saveAlarm(updated);
+      if (updated.isEnabled) await scheduleAlarm(updated);
+    }
+  }
+
   static List<AlarmModel> getAllAlarms() {
     return StorageService.getAllAlarms();
   }
@@ -497,9 +620,11 @@ class AlarmService {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    DateTime? date,
   }) {
     return AlarmModel(
       id: _uuid.v4(),
+      date: repeatDays.isEmpty ? date : null,
       time: time,
       label: label,
       repeatDays: repeatDays,
@@ -554,6 +679,23 @@ class AlarmService {
     return ((base + 700000) % 1000000000) + 1;
   }
 
+  /// Clears the "Upcoming alarm" notice; called when the alarm starts
+  /// ringing so its Dismiss now button can't outlive the occurrence.
+  static Future<void> cancelUpcomingNotice(int alarmIntId) async {
+    final alarm = findByIntId(alarmIntId);
+    if (alarm == null) return;
+    try {
+      await _notifications.cancel(_upcomingNotificationId(alarm.id));
+    } catch (e) {
+      debugPrint('cancelUpcomingNotice failed: $e');
+    }
+  }
+
+  /// "You slept through your alarm" gets its own id: it shared the alarm's
+  /// id, so the next reschedule of that alarm cancelled it.
+  static int missedNoticeId(int alarmIntId) =>
+      ((alarmIntId + 3000000) % 1000000000) + 1;
+
   static int _windDownNotificationId(String id) {
     final base = alarmIntId(id);
     return ((base + 900000) % 1000000000) + 1;
@@ -568,21 +710,45 @@ class AlarmService {
     return null;
   }
 
-  static Future<void> scheduleNapAlarm(DateTime wakeTime) async {
-    final alarm = createAlarm(
-      time: TimeOfDay(hour: wakeTime.hour, minute: wakeTime.minute),
-      label: 'Nap Over! 😴',
-      repeatDays: const [],
+  /// Rings a one-off alarm the app sets for itself, at exactly [at]
+  /// (seconds included), under a fixed [id] so a second nap or a second
+  /// arrival replaces the first instead of piling up. It never touches the
+  /// user's alarms, and is deleted after it rings (see AlarmModel.isSystem).
+  static Future<void> ringSystemAlarm({
+    required String id,
+    required String label,
+    required String tag,
+    required DateTime at,
+  }) async {
+    final alarm = AlarmModel(
+      id: id,
+      time: TimeOfDay.fromDateTime(at),
+      label: label,
+      tag: tag,
+      sound: 'default',
       isEnabled: true,
-      tag: 'nap_timer',
+      repeatDays: const [],
+      date: DateTime(at.year, at.month, at.day),
     );
+    assert(alarm.isSystem, 'ringSystemAlarm needs a system tag');
     await saveAlarm(alarm);
-    await scheduleAlarm(alarm);
+    await scheduleAlarm(alarm, at: at);
   }
 
+  static const napAlarmId = 'system-nap';
+
+  static Future<void> scheduleNapAlarm(DateTime wakeTime) => ringSystemAlarm(
+        id: napAlarmId,
+        label: 'Nap Over! 😴',
+        tag: AlarmModel.napTag,
+        at: wakeTime,
+      );
+
+  /// Deletes every nap alarm. It used to delete the first `nap_timer` alarm
+  /// found, and finished naps stayed in storage, so cancelling often removed
+  /// an old one and the live nap rang anyway.
   static Future<void> cancelNapAlarm() async {
-    final nap = getAllAlarms().where((a) => a.tag == 'nap_timer').firstOrNull;
-    if (nap != null) {
+    for (final nap in getAllAlarms().where((a) => a.tag == AlarmModel.napTag)) {
       await deleteAlarm(nap.id);
     }
   }

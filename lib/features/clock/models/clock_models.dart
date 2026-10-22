@@ -88,7 +88,10 @@ class CityTime {
         .difference(DateTime.utc(localWall.year, localWall.month, localWall.day))
         .inDays;
     return CityTime(
-      wallTime: DateTime(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second),
+      // Kept in UTC: only its fields are shown, and building a local
+      // DateTime moved a 02:xx city time an hour on the device's own
+      // spring-forward day (that hour doesn't exist locally).
+      wallTime: wall,
       offsetFromLocal: cityOffset - localOffset,
       dayLabel: switch (dayDiff) {
         > 0 => 'Tomorrow',

@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
 /// Schedules a single evening "your streak is at risk" local notification
@@ -38,13 +39,13 @@ class StreakReminderService {
     if (kIsWeb) return;
     try {
       final stats = await SmartAlarmService.getStats();
-      if (stats.currentStreak <= 0 || _hasUpcomingAlarmSoon()) {
+      final now = DateTime.now();
+      final fireTime = DateTime(now.year, now.month, now.day, _reminderHour);
+      if (stats.currentStreak <= 0 || hasAlarmAfter(fireTime)) {
         await _notifications.cancel(_notificationId);
         return;
       }
 
-      final now = DateTime.now();
-      final fireTime = DateTime(now.year, now.month, now.day, _reminderHour);
       if (!fireTime.isAfter(now)) {
         // Too late to warn about tonight; nothing pending until the streak
         // is next re-evaluated (e.g. tomorrow's alarm scheduling/dismissal).
@@ -82,12 +83,17 @@ class StreakReminderService {
     }
   }
 
-  static bool _hasUpcomingAlarmSoon() {
-    final now = DateTime.now();
-    final cutoff = now.add(const Duration(hours: _lookaheadHours));
-    return AlarmService.getAllAlarms().any((alarm) {
-      if (!alarm.isEnabled) return false;
-      return alarm.nextDateTimeFrom(now).isBefore(cutoff);
+  /// Whether an alarm is due within [_lookaheadHours] of the reminder time
+  /// [from]. Measured from the reminder, not from "now": the check runs at
+  /// dismiss time, and a daily 7:00 alarm dismissed at 7:00 is 24 hours
+  /// away then, which used to trigger a false "streak at risk" every night.
+  @visibleForTesting
+  static bool hasAlarmAfter(DateTime from, {List<AlarmModel>? alarms}) {
+    final cutoff = from.add(const Duration(hours: _lookaheadHours));
+    return (alarms ?? AlarmService.getAllAlarms()).any((alarm) {
+      if (!alarm.isEnabled || alarm.isExpiredAt(from)) return false;
+      final next = alarm.nextDateTimeFrom(from);
+      return !next.isBefore(from) && next.isBefore(cutoff);
     });
   }
 }

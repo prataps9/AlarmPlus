@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart' as sp;
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
@@ -269,7 +270,10 @@ class AlarmService {
         body: alarm.tag,
       ),
       loopAudio: true,
-      vibrate: true,
+      // The alarm's own pattern and the global switch both have to allow
+      // it; this used to be always true, so "Off" still vibrated.
+      vibrate: alarm.vibrationPattern != VibrationPatternType.off &&
+          await AppSettings.readVibrationEnabled(),
       warningNotificationOnKill:
           !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       androidFullScreenIntent: true,

@@ -11,6 +11,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
@@ -164,7 +165,9 @@ class AlarmRingFlow {
       final pattern =
           AlarmService.findByIntId(alarmId)?.vibrationPattern.pattern ??
               VibrationPatternType.standard.pattern;
-      final hasVibrator = pattern.isNotEmpty && await Vibration.hasVibrator();
+      final hasVibrator = pattern.isNotEmpty &&
+          await AppSettings.readVibrationEnabled() &&
+          await Vibration.hasVibrator();
       if (hasVibrator) {
         await Vibration.vibrate(pattern: pattern, repeat: 0);
       }

@@ -36,6 +36,7 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
@@ -51,6 +52,7 @@ Future<void> main() async {
   // on someone's phone costs that feature, never the whole app. Order matters
   // only where noted.
   await runStartupStep('storage', StorageService.init);
+  await runStartupStep('settings', AppSettings.load);
   await runStartupStep('premium', PremiumService.init);
   await runStartupStep('mascot', MascotService.init);
   await runStartupStep('alarm engine', AlarmService.init);
@@ -85,7 +87,7 @@ class _AppWithTheme extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = ref.watch(themeDarkProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
@@ -93,7 +95,7 @@ class _AppWithTheme extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      themeMode: themeMode,
       builder: (context, child) =>
           CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
       routes: {

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
@@ -283,8 +284,13 @@ final alarmsListProvider = FutureProvider<List<AlarmModel>>((ref) async {
   return sorted;
 });
 
-/// Provider for vibration setting
-final vibrationEnabledProvider = StateProvider<bool>((ref) => true);
+/// Global vibration switch (Settings). Saved via [AppSettings]; changing it
+/// reschedules alarms so the native ring picks it up.
+final vibrationEnabledProvider =
+    StateProvider<bool>((ref) => AppSettings.vibrationEnabled);
 
-/// Provider for theme setting
-final themeDarkProvider = StateProvider<bool>((ref) => false);
+Future<void> setVibrationEnabled(WidgetRef ref, bool on) async {
+  ref.read(vibrationEnabledProvider.notifier).state = on;
+  await AppSettings.setVibrationEnabled(on);
+  await AlarmService.restoreEnabledAlarms();
+}

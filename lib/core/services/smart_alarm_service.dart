@@ -274,6 +274,7 @@ class SmartAlarmService {
   static const _missionsTodayKey = 'smart.missions.today';
   static const _missionsLastGenKey = 'smart.missions.last_generated_date';
   static const _missionStreakKey = 'smart.missions.streak';
+  static const _missionStreakDateKey = 'smart.missions.streak_date';
   static const _missionTotalKey = 'smart.missions.total_completed';
   static const _missionsCustomKey = 'smart.missions.custom';
   // Personality keys
@@ -480,12 +481,14 @@ class SmartAlarmService {
       _celebrationController.add(CelebrationEvent.streakMilestone(newStreak));
     }
 
-    // Record dismiss history for calendar heatmap
-    await _recordDismissHistory(true);
-
-    // Comeback bonus: +100 XP if returning after ≥3 day break
+    // Comeback bonus: +100 XP if returning after ≥3 day break. Checked
+    // before today is written to the history; afterwards the last active
+    // day was always today, so the bonus could never be paid.
     final comebackXp = await _checkComebackBonus(prefs, stats.currentStreak);
     xp += comebackXp;
+
+    // Record dismiss history for calendar heatmap
+    await _recordDismissHistory(true);
 
     final totalXp = await addXp(xp);
     final newBadges = await checkAndUnlockBadges(next);
@@ -536,15 +539,18 @@ class SmartAlarmService {
 
   /// Records a missed alarm. If the user owns a streak freeze it is spent
   /// to keep the streak alive (at most one per day, since a single missed
-  /// morning can be recorded more than once). Returns true when a freeze
-  /// saved the streak.
+  /// morning can be recorded more than once). Returns true when the streak
+  /// survived: a freeze saved it, or the user already woke up today.
   static Future<bool> recordMissed() async {
     final prefs = await SharedPreferences.getInstance();
     final stats = await getStats();
     final today = _dayKey(DateTime.now());
+    // Already woke up today (an earlier alarm was dismissed): a later miss
+    // is counted but neither breaks the streak nor spends a freeze.
+    final wonToday = (await getCalendarHistory())[today] == true;
     final frozeToday = prefs.getString(_streakFreezeUsedDateKey) == today;
     final saved = stats.currentStreak > 0 &&
-        (frozeToday || await useStreakFreeze());
+        (wonToday || frozeToday || await useStreakFreeze());
     await _saveStats(
       stats.copyWith(
         missedCount: stats.missedCount + 1,
@@ -965,26 +971,48 @@ class SmartAlarmService {
     }
   }
 
+  /// The time in quick-add text: "7:30", "7:30 pm", "7:30 p.m." (what
+  /// Android voice typing writes), "7am", "noon", "midnight", or a bare hour
+  /// after "at"/"tomorrow"/"today" ("tomorrow 6"). Out-of-range values are
+  /// rejected rather than clamped, so "7:75" never becomes 7:59.
+  static ({int hour, int minute})? _parseQuickTime(String lower) {
+    // "p.m." / "p. m." -> "pm" so one pattern handles both.
+    final text = lower.replaceAllMapped(
+        RegExp(r'\b([ap])\.?\s?m\b\.?'), (m) => '${m[1]}m');
+    if (RegExp(r'\bnoon\b').hasMatch(text)) return (hour: 12, minute: 0);
+    if (RegExp(r'\bmidnight\b').hasMatch(text)) return (hour: 0, minute: 0);
+
+    final match = RegExp(r'\b(\d{1,2})[:.](\d{2})\s*(am|pm)?\b').firstMatch(text) ??
+        RegExp(r'\b(\d{1,2})()\s*(am|pm)\b').firstMatch(text) ??
+        RegExp(r'\b(?:at|tomorrow|today)\s+(\d{1,2})()()\b(?![:.]\d)').firstMatch(text);
+    if (match == null) return null;
+
+    var hour = int.parse(match.group(1)!);
+    final minutes = match.group(2);
+    final minute = minutes == null || minutes.isEmpty ? 0 : int.parse(minutes);
+    final period = match.group(3)?.isEmpty ?? true ? null : match.group(3);
+    if (minute > 59) return null;
+    if (period != null) {
+      if (hour < 1 || hour > 12) return null;
+      if (period == 'pm' && hour < 12) hour += 12;
+      if (period == 'am' && hour == 12) hour = 0;
+    } else if (hour > 23) {
+      return null;
+    }
+    return (hour: hour, minute: minute);
+  }
+
   static ParsedQuickAlarm? parseQuickAdd(String input) {
     final lower = input.toLowerCase().trim();
     if (lower.isEmpty) {
       return null;
     }
 
-    final match = RegExp(r'(\d{1,2})[:.](\d{2})\s*(am|pm)?').firstMatch(lower);
-    if (match == null) {
+    final time = _parseQuickTime(lower);
+    if (time == null) {
       return null;
     }
-
-    var hour = int.parse(match.group(1)!);
-    final minute = int.parse(match.group(2)!).clamp(0, 59);
-    final period = match.group(3);
-    if (period == 'pm' && hour < 12) {
-      hour += 12;
-    } else if (period == 'am' && hour == 12) {
-      hour = 0;
-    }
-    hour = hour.clamp(0, 23);
+    final (:hour, :minute) = time;
 
     final dayOffset = lower.contains('tomorrow') ? 1 : 0;
     final label = lower.contains('gym')
@@ -1285,7 +1313,8 @@ class SmartAlarmService {
     final prefs = await SharedPreferences.getInstance();
     final missions = await getTodayMissions();
     final idx = missions.indexWhere((m) => m.id == missionId);
-    if (idx < 0) return 0;
+    // Already done: a quick double tap used to pay the XP twice.
+    if (idx < 0 || missions[idx].isCompleted) return 0;
     missions[idx].isCompleted = true;
     missions[idx].completedAt = DateTime.now();
     await saveTodayMissions(missions);
@@ -1301,9 +1330,20 @@ class SmartAlarmService {
     return xp;
   }
 
+  /// Counts consecutive days with all missions done. It used to add one per
+  /// completion with no date check, so scattered days built a "streak".
   static Future<void> _updateMissionStreak(SharedPreferences prefs) async {
-    final streak = (prefs.getInt(_missionStreakKey) ?? 0) + 1;
+    final now = DateTime.now();
+    final today = _dayKey(now);
+    final last = prefs.getString(_missionStreakDateKey);
+    if (last == today) return;
+    final yesterday = _dayKey(DateTime(now.year, now.month, now.day - 1));
+    // No date yet (saved before dates were tracked): carry the count on.
+    final streak = last == null || last == yesterday
+        ? (prefs.getInt(_missionStreakKey) ?? 0) + 1
+        : 1;
     await prefs.setInt(_missionStreakKey, streak);
+    await prefs.setString(_missionStreakDateKey, today);
   }
 
   static Future<int> getMissionStreak() async {

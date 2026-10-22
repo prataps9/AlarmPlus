@@ -9,11 +9,13 @@ import 'package:vibration/vibration.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/features/alarm/models/alarm_ring_event.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
+import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
@@ -224,6 +226,16 @@ class AlarmRingFlow {
       }
     }
     final frozen = await SmartAlarmService.recordMissed();
+    // Sleep Insights only ever saw dismissals, so its on-time share was
+    // always 100% and a missed morning never lowered the weekly score.
+    await SleepAnalyticsService.recordEvent(AlarmRingEvent(
+      alarmId: alarm?.id ?? '',
+      scheduledTime:
+          _ringStartTimes[alarmId] ?? DateTime.now().subtract(autoSilenceAfter),
+      snoozeCount: _snoozeSessionCount[alarmId] ?? 0,
+      wasMissed: true,
+      wakeScore: 0,
+    ));
     _snoozedIds.remove(alarmId);
     _snoozeSessionCount.remove(alarmId);
     _guardianTimers.remove(alarmId)?.cancel();
@@ -238,7 +250,8 @@ class AlarmRingFlow {
       alarmId,
       'You slept through your alarm',
       frozen
-          ? 'A streak freeze kept your streak alive. Try a louder tone or a tougher challenge.'
+          // Kept by a freeze, or because an earlier alarm today was won.
+          ? 'Your streak is still alive. Try a louder tone or a tougher challenge.'
           : 'Your streak reset. Try a louder tone or a tougher challenge tomorrow.',
       const NotificationDetails(
         android: AndroidNotificationDetails(

@@ -62,6 +62,9 @@ class WidgetCommandService {
         case snooze:
           final ringingId = AlarmRingFlow.currentRingingId;
           if (ringingId == 0) return;
+          // Like volume keys and the notification: Hardcore alarms can only
+          // be snoozed from the ring screen.
+          if (AlarmService.findByIntId(ringingId)?.hardcoreMode == true) return;
           await AlarmRingFlow.snoozeAlarm(ringingId);
         default:
           debugPrint('WidgetCommandService: unknown command "$command"');
@@ -89,8 +92,15 @@ class WidgetCommandService {
       return;
     }
 
-    // Nothing armed: re-arm whichever alarm comes round soonest.
-    final candidates = [...alarms]..sort(
+    // Nothing armed: re-arm whichever alarm comes round soonest. A dated
+    // one-off whose day has gone sorted first forever, and re-arming it just
+    // switched it straight off again, so the toggle did nothing.
+    final candidates = [
+      for (final a in alarms)
+        if (!a.isExpiredAt(now)) a,
+    ];
+    if (candidates.isEmpty) return;
+    candidates.sort(
         (a, b) => a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)),
       );
     await AlarmService.toggleAlarm(candidates.first.id, true);

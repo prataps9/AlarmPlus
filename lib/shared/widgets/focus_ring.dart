@@ -18,7 +18,10 @@ class FocusRing extends StatelessWidget {
         children: [
           CustomPaint(
             size: const Size.square(280),
-            painter: _FocusRingPainter(progress: progress),
+            painter: _FocusRingPainter(
+              progress: progress,
+              trackColor: Theme.of(context).colorScheme.outlineVariant,
+            ),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -42,13 +45,14 @@ class FocusRing extends StatelessWidget {
 }
 
 class _FocusRingPainter extends CustomPainter {
-  _FocusRingPainter({required this.progress});
+  _FocusRingPainter({required this.progress, required this.trackColor});
 
   final double progress;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const backgroundPaint = Color(0xFFE2E8F0);
+    final backgroundPaint = trackColor;
     const accentPaint = Color(0xFF22C55E);
 
     final strokeBackground = Paint()
@@ -79,6 +83,7 @@ class _FocusRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FocusRingPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress ||
+        oldDelegate.trackColor != trackColor;
   }
 }

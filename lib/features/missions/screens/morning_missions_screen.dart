@@ -98,7 +98,9 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: selectedIcon == ic ? const Color(0xFFEEF2FF) : Colors.transparent,
+                        color: selectedIcon == ic
+                            ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
@@ -141,10 +143,12 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: scheme.surface,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +157,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
             if (_timeToNoon > Duration.zero)
               Text(
                 'Expires in ${_formatDuration(_timeToNoon)}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w400),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w400),
               ),
           ],
         ),
@@ -177,9 +181,9 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
+                        color: const Color(0xFFF97316).withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFED7AA)),
+                        border: Border.all(color: const Color(0xFFF97316).withValues(alpha: 0.35)),
                       ),
                       child: Row(
                         children: [
@@ -187,7 +191,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                           const SizedBox(width: 8),
                           Text(
                             '$_missionStreak-day mission streak!',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+                            style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface),
                           ),
                         ],
                       ),
@@ -229,7 +233,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                     secondChild: Text(
                       '${_missions.where((m) => m.isCompleted).length} of ${_missions.length} completed · +$_totalEarnedXp XP so far',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                     ),
                   ),
                 ],
@@ -246,16 +250,20 @@ class _MissionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: mission.isCompleted ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: mission.isCompleted ? const Color(0xFFF0FDF4) : Colors.white,
+          color: mission.isCompleted
+              ? const Color(0xFF22C55E).withValues(alpha: 0.08)
+              : scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: mission.isCompleted ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+            color: mission.isCompleted ? const Color(0xFF86EFAC) : scheme.outlineVariant,
             width: 1.5,
           ),
           boxShadow: mission.isCompleted
@@ -276,7 +284,7 @@ class _MissionTile extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                       decoration: mission.isCompleted ? TextDecoration.lineThrough : null,
-                      color: mission.isCompleted ? const Color(0xFF94A3B8) : Colors.black,
+                      color: mission.isCompleted ? scheme.onSurfaceVariant : scheme.onSurface,
                     ),
                   ),
                   Text(
@@ -298,7 +306,7 @@ class _MissionTile extends StatelessWidget {
                 color: mission.isCompleted ? const Color(0xFF22C55E) : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: mission.isCompleted ? const Color(0xFF22C55E) : const Color(0xFFCBD5E1),
+                  color: mission.isCompleted ? const Color(0xFF22C55E) : scheme.outline,
                   width: 2,
                 ),
               ),

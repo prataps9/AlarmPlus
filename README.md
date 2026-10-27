@@ -61,6 +61,10 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Works with the app closed** — a timezone change moves every alarm to
+  the new local time, and location alarms use Android's geofencing service,
+  so an arrival rings even with Alarm+ swiped away ("all the time" location
+  access needed).
 - **Native Android touches** — predictive-back page animations (Android
   14+), launcher long-press shortcuts (New alarm, Power nap, Sleep sounds,
   Focus timer), a Quick Settings tile, a home-screen widget, and volume-key

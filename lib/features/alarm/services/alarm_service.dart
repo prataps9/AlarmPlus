@@ -154,11 +154,24 @@ class AlarmService {
       final info = await FlutterTimezone.getLocalTimezone();
       if (info.identifier == _zoneName) return false;
       debugPrint('Timezone changed $_zoneName -> ${info.identifier}; rescheduling');
+      return await rescheduleForCurrentTimezone();
+    } catch (e) {
+      debugPrint('Timezone check failed: $e');
+      return false;
+    }
+  }
+
+  /// Reschedules every alarm for the phone's zone as it is now. Used when
+  /// Android reports a zone change (see BackgroundTasks), possibly with the
+  /// app closed.
+  static Future<bool> rescheduleForCurrentTimezone() async {
+    if (kIsWeb) return false;
+    try {
       await _setLocalTimezone();
       await restoreEnabledAlarms();
       return true;
     } catch (e) {
-      debugPrint('Timezone check failed: $e');
+      debugPrint('Timezone reschedule failed: $e');
       return false;
     }
   }

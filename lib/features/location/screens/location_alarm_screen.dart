@@ -13,19 +13,73 @@ class LocationAlarmScreen extends StatefulWidget {
   State<LocationAlarmScreen> createState() => _LocationAlarmScreenState();
 }
 
-class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
+class _LocationAlarmScreenState extends State<LocationAlarmScreen>
+    with WidgetsBindingObserver {
   late Future<List<LocationAlarm>> _alarmsFuture;
+
+  /// Null until checked. False: arrivals are only noticed while the app runs.
+  bool? _background;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Back from the system's location settings page.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkBackground();
   }
 
   void _refresh() {
     setState(() {
       _alarmsFuture = LocationAlarmService.loadAll();
     });
+    _checkBackground();
+  }
+
+  Future<void> _checkBackground() async {
+    final ok = await LocationAlarmService.worksInBackground();
+    if (ok && _background == false) await LocationAlarmService.syncGeofences();
+    if (mounted) setState(() => _background = ok);
+  }
+
+  Future<void> _allowBackground() async {
+    final ok = await LocationAlarmService.requestBackgroundAccess();
+    if (mounted) setState(() => _background = ok);
+  }
+
+  Widget _backgroundBanner(ColorScheme scheme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: scheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: scheme.onTertiaryContainer),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'These ring only while Alarm+ is open. Allow location '
+              '"all the time" to ring with the app closed.',
+              style: TextStyle(fontSize: 13, color: scheme.onTertiaryContainer),
+            ),
+          ),
+          TextButton(onPressed: _allowBackground, child: const Text('Allow')),
+        ],
+      ),
+    );
   }
 
   Future<void> _addNew() async {
@@ -69,6 +123,7 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           final alarms = snapshot.data!;
+          final showBanner = _background == false && alarms.any((a) => a.isEnabled);
           if (alarms.isEmpty) {
             return Center(
               child: Column(
@@ -79,8 +134,7 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
                   Text('No location alarms', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: scheme.onSurface)),
                   const SizedBox(height: 8),
                   Text(
-                    'Tap + to add an alarm that\ntriggers when you arrive somewhere.\n'
-                    'Alarm+ needs to stay running for it to notice.',
+                    'Tap + to add an alarm that\ntriggers when you arrive somewhere.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
@@ -90,9 +144,10 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
           }
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
-            itemCount: alarms.length,
-            itemBuilder: (context, i) {
-              final alarm = alarms[i];
+            itemCount: alarms.length + (showBanner ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (showBanner && index == 0) return _backgroundBanner(scheme);
+              final alarm = alarms[index - (showBanner ? 1 : 0)];
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),

@@ -37,11 +37,11 @@ import 'package:alarm_plus/features/sleep/screens/sleep_insights_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_sounds_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wake_routine_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
-import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/app_shortcuts_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/core/background_tasks.dart';
 import 'package:alarm_plus/core/startup.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_command_service.dart';
@@ -67,11 +67,17 @@ Future<void> main() async {
     WidgetCommandService.bind();
     await WidgetCommandService.drainPending();
   });
+  await runStartupStep('system events', BackgroundTasks.bindForegroundHandlers);
   await runStartupStep('missed nap', NapService.checkMissedNap);
   await runStartupStep('location alarms', LocationAlarmService.startMonitoring);
   await runStartupStep('shortcuts', AppShortcutsService.init);
   runApp(const AlarmPlusApp());
 }
+
+/// Started by Android (BackgroundDartRunner) for a timezone change or a
+/// location arrival while the app is closed. No UI.
+@pragma('vm:entry-point')
+Future<void> backgroundMain(List<String> args) => BackgroundTasks.runTask(args);
 
 class AlarmPlusApp extends StatelessWidget {
   const AlarmPlusApp({super.key});
@@ -139,15 +145,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_followTimezone());
-  }
-
-  /// After travelling, move every alarm and reminder to the new local time.
-  Future<void> _followTimezone() async {
-    if (!await AlarmService.rescheduleIfTimezoneChanged()) return;
-    final bedtime = await BedtimeService.load();
-    if (bedtime != null) await BedtimeService.save(bedtime);
-    await StreakReminderService.refresh();
+    if (state == AppLifecycleState.resumed) {
+      unawaited(BackgroundTasks.followTimezone());
+    }
   }
 
   @override

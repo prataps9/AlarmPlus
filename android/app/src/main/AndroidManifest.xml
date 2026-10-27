@@ -92,6 +92,29 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/alarm_widget_info" />
         </receiver>
+        <!-- Moves alarms to the new local time after a timezone change, even
+             with the app closed (BackgroundDartRunner). The broadcast is
+             protected: only the system can send it. -->
+        <receiver
+            android:name=".TimeZoneChangeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <!-- Location alarm arrivals from the OS geofencing service, which
+             delivers through our own PendingIntent: not exported. -->
+        <receiver
+            android:name=".GeofenceReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".GeofenceBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <!-- flutter_local_notifications receivers. The plugin's own manifest
              doesn't declare these, and without them every zonedSchedule()
              (backup alarm notification, wind-down, streak and bedtime

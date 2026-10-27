@@ -14,15 +14,20 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - the Home reliability banner after revoking notification / exact-alarm permission
   - long-press launcher shortcuts
   - the wake-up check re-ring after killing the app
+  - a timezone change with the app closed (Settings → Date & time → pick another zone, then check the next alarm's time in Alarm+)
+  - a location alarm arriving with the app swiped away, after tapping **Allow** on the Location Alarms banner ("all the time" access)
 - **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 
 ## 🟡 Medium Priority
-- **Location alarms only work while Alarm+ is running.** Arrival is detected by a position stream in the app process; there is no location foreground service or OS geofence, so a swiped-away app never notices the arrival. The screen now says so. Fix: a foreground service with the `location` type (Android 14 needs `FOREGROUND_SERVICE_LOCATION`) or the platform geofencing API.
-- **A timezone change is picked up when the app opens or returns to the foreground**, not by a background receiver. A phone that changes zone and is never opened keeps its alarms at the old instants.
+- **Location alarms need "all the time" location access to work with the app closed.** Without it (Android 10+), only the in-app check runs, and the Location Alarms screen says so with an **Allow** button.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
+- **Background system events (2026-10-27):** two features only worked while the app was open.
+  - **Timezone change with the app closed:** `TimeZoneChangeReceiver` now gets Android's `TIMEZONE_CHANGED` broadcast and moves every alarm, the bedtime reminder and the streak reminder to the new local time.
+  - **Location alarms with the app swiped away:** each enabled location alarm is now registered with Android's geofencing service (`GeofenceManager`), re-registered after a reboot or update, and an arrival rings even when Alarm+ is closed. The in-app position check stays as a fallback, and an arrival reported by both rings only once.
+  - Both run their Dart work in a short background Flutter engine (`BackgroundDartRunner` → `backgroundMain`) when the app isn't running, or hand it to the running app. They never run both at once, because Hive can't be opened by two isolates. The alarm plugin's single "alarm rang" callback is pointed back at the app's engine after each background run.
 - **Third review round (2026-10-27)**: alarm editor, Android native code, and the remaining screens. Highlights:
   - **Silent alarms when the app was killed:** phone ringtones and the default tone were handed to the alarm plugin as a silent file and played by a service only the app could start. The plugin now plays the default tone itself, and a picked ringtone from a private copy. Per-alarm volume and the Gentle Wake fade are applied by the plugin too.
   - **Notification Snooze and volume-key snooze did nothing:** the widget code replaced the ring flow's native channel handler. One dispatcher now serves both.
@@ -94,4 +99,4 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 - **Hardcore Anti-Cheat Mode:** AlarmModel gains `hardcoreMode` bool. When enabled: (a) `PopScope(canPop: false)` blocks back-navigation in `AlarmRingScreen`; (b) `AlarmForegroundService` changed to `START_STICKY` + `onTaskRemoved` restarts the service if the app is swiped away.
 
 ---
-*Updated on 2026-10-22*
+*Updated on 2026-10-27*

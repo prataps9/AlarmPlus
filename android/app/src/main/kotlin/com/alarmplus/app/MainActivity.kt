@@ -123,6 +123,15 @@ class MainActivity : FlutterActivity() {
                             }.start()
                         }
                     }
+                    "syncGeofences" -> {
+                        val fences = call.argument<String>("fences") ?: "[]"
+                        GeofenceManager.sync(this, fences) { ok ->
+                            runOnUiThread { result.success(ok) }
+                        }
+                    }
+                    "hasBackgroundLocation" -> {
+                        result.success(GeofenceManager.hasAccess(this))
+                    }
                     else -> result.notImplemented()
                 }
             }

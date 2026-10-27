@@ -80,3 +80,14 @@ jobs:
         run: |
           pip install --quiet androguard
           python tool/check_apk.py build/app/outputs/flutter-apk/app-release.apk
+
+      # Keeps the APK this run built, so it can be downloaded from the run's
+      # page and installed on a phone for testing. Private to people with
+      # access to the repository, and expires; a public release is what
+      # release.yml publishes.
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: alarm-plus-apk-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14

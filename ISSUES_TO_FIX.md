@@ -18,13 +18,13 @@ This document tracks identified issues, deprecations, and potential logic bugs i
 
 ## 🟡 Medium Priority
 - **Location alarms only work while Alarm+ is running.** Arrival is detected by a position stream in the app process; there is no location foreground service or OS geofence, so a swiped-away app never notices the arrival. The screen now says so. Fix: a foreground service with the `location` type (Android 14 needs `FOREGROUND_SERVICE_LOCATION`) or the platform geofencing API.
-- **A one-off alarm stopped outside the app** (swiped away from recents while ringing, which stops a non-Hardcore alarm natively) stays switched on and is rescheduled for the next day on the next app start. Fix: handle the plugin's alarm-stopped callback, or switch off past one-offs with no future plugin entry at startup.
-- **Dismissing a Wake-Up Check re-ring pays XP again** and records a second wake-up. It should count as part of the original wake-up.
 - **A timezone change is picked up when the app opens or returns to the foreground**, not by a background receiver. A phone that changes zone and is never opened keeps its alarms at the old instants.
 - **Wind-Down, Sleep Sounds and Breathing screens are dark navy** while the rest of the app is white. This was kept on purpose for night use (like the stock Clock's Bedtime mode); say if you want them white too.
 - **Re-running `flutter_native_splash` overwrites the Android 12 animated icon.** Restore the `windowSplashScreen*` lines in `values-v31` / `values-night-v31` afterwards (noted in `pubspec.yaml`).
 
 ## ✅ Fixed
+- **One-off alarm stopped by swiping the app away (2026-10-27)** stayed on and rang again every day. The app now remembers when each alarm was scheduled, and on restore a one-off whose moment has passed is switched off.
+- **Wake-Up Check re-ring paid XP again (2026-10-27)** and scheduled yet another check. Dismissing it now just ends the morning that was already counted.
 - **Dark mode (2026-10-22):** Settings → Theme offers Light, Dark or Match phone, saved and applied before the first frame. The hard-coded light colours were replaced with theme colours across the app: Home, the alarm list and editor, the ring screen and every wake challenge, Settings, Sleep, Missions, Onboarding and more. Each screen was rendered in light and dark and checked; two sheets that only appear mid-flow (the post-dismiss celebration and the Wake Routine completion sheet) were converted from the code without a screenshot. Wind-Down, Sleep Sounds, Nap and Morning Check-in stay dark on purpose, and the camera screens stay black.
 - **Sleep Insights crashed with a partly filled diary (2026-10-22):** days without an entry were drawn as `FlSpot(x, NaN)`, which makes the chart fail ("Offset argument contained a NaN value"). They are now gaps. A test renders the screen with two of seven days logged.
 - **Step-counter ring and Trivia loading card (2026-10-22):** the step ring drew as a 36px dot instead of filling its 160px circle, and while a trivia question loaded the card stretched to the full screen height.

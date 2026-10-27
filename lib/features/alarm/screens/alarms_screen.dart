@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/features/alarm/models/upcoming_rings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_personality.dart';
 import 'package:alarm_plus/shared/widgets/skeleton.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
@@ -19,6 +20,7 @@ import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
+import 'package:alarm_plus/features/sleep/models/sleep_cycles.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
 class AlarmsScreen extends ConsumerStatefulWidget {
@@ -120,6 +122,16 @@ class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
     );
   }
 
+  /// Every ring in the coming week, day by day, with skips, pauses and
+  /// dates already applied.
+  void _showWeek(List<AlarmModel> alarms) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _UpcomingWeekSheet(alarms: alarms),
+    );
+  }
+
   Future<void> _pickPause() async {
     final now = DateTime.now();
     final until = await showDatePicker(
@@ -146,26 +158,32 @@ class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
     final pausedUntil = pauseInForce(alarmsAsync.valueOrNull ?? const [], DateTime.now());
     final hasRepeating =
         (alarmsAsync.valueOrNull ?? const []).any((a) => a.repeatDays.isNotEmpty);
+    final hasAlarms = (alarmsAsync.valueOrNull ?? const []).isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Alarms'),
         actions: [
-          if (hasRepeating)
+          if (hasAlarms)
             PopupMenuButton<String>(
               onSelected: (v) {
+                if (v == 'week') {
+                  _showWeek(alarmsAsync.valueOrNull ?? const []);
+                }
                 if (v == 'pause') _pickPause();
                 if (v == 'resume') {
                   ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(null);
                 }
               },
               itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'pause',
-                  child: Text(pausedUntil == null
-                      ? 'Pause repeating alarms…'
-                      : 'Change pause end…'),
-                ),
+                const PopupMenuItem(value: 'week', child: Text('Next 7 days')),
+                if (hasRepeating)
+                  PopupMenuItem(
+                    value: 'pause',
+                    child: Text(pausedUntil == null
+                        ? 'Pause repeating alarms…'
+                        : 'Change pause end…'),
+                  ),
                 if (pausedUntil != null)
                   const PopupMenuItem(value: 'resume', child: Text('Resume now')),
               ],
@@ -238,6 +256,82 @@ DateTime? pauseInForce(List<AlarmModel> alarms, DateTime now) {
     if (until == null || a.pausedUntil!.isAfter(until)) until = a.pausedUntil;
   }
   return until;
+}
+
+class _UpcomingWeekSheet extends StatelessWidget {
+  const _UpcomingWeekSheet({required this.alarms});
+
+  final List<AlarmModel> alarms;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final now = DateTime.now();
+    final rings = upcomingRings(alarms, now);
+    final today = DateTime(now.year, now.month, now.day);
+
+    String dayLabel(DateTime d) {
+      final day = DateTime(d.year, d.month, d.day);
+      return switch (day.difference(today).inDays) {
+        0 => 'Today',
+        1 => 'Tomorrow',
+        _ => DateFormat('EEEE, d MMM').format(day),
+      };
+    }
+
+    final children = <Widget>[];
+    String? lastDay;
+    for (final r in rings) {
+      final label = dayLabel(r.at);
+      if (label != lastDay) {
+        children.add(Padding(
+          padding: const EdgeInsets.fromLTRB(
+              Spacing.xl, Spacing.lg, Spacing.xl, Spacing.xs),
+          child: Text(label.toUpperCase(), style: theme.textTheme.labelSmall),
+        ));
+        lastDay = label;
+      }
+      children.add(ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.xl),
+        leading: Text(
+          TimeFormat.clockLabel(r.at.hour, r.at.minute, use24h: use24h),
+          style: theme.textTheme.titleMedium,
+        ),
+        title: Text(r.alarm.label.isEmpty ? 'Alarm' : r.alarm.label),
+        subtitle: Text(r.alarm.repeatLabel),
+      ));
+    }
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.75),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Spacing.xl, 0, Spacing.xl, Spacing.xs),
+              child: Text('Next 7 days', style: theme.textTheme.titleLarge),
+            ),
+            if (rings.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(Spacing.xl),
+                child: Text('No alarms will ring in the next 7 days.',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+              )
+            else
+              Flexible(child: ListView(shrinkWrap: true, children: children)),
+            const SizedBox(height: Spacing.md),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PauseBanner extends StatelessWidget {
@@ -622,6 +716,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    _buildSleepNowRow(context),
                   ],
                 ),
               ),
@@ -1316,6 +1412,41 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
         repeatDays: _repeatDays.toList(),
         date: _repeatDays.isEmpty ? _date : null,
       );
+
+  /// "Sleeping now? Wake at 6:45 · 8:15 · 9:45": times at the end of a
+  /// 90-minute sleep cycle. Tapping one sets the alarm to it.
+  Widget _buildSleepNowRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final options = SleepCycles.wakeTimes(DateTime.now());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sleeping now? Wake between sleep cycles:',
+            style: theme.textTheme.bodySmall),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (final o in options)
+              ActionChip(
+                key: ValueKey('sleep-now-${o.cycles}'),
+                label: Text(
+                  '${TimeFormat.clockLabel(o.wakeAt.hour, o.wakeAt.minute, use24h: use24h)}'
+                  ' · ${SleepCycles.sleepLabel(o.cycles)}',
+                ),
+                onPressed: () => setState(() {
+                  _isAm = o.wakeAt.hour < 12;
+                  _hour = _formatHour(o.wakeAt.hour);
+                  _minute = o.wakeAt.minute;
+                }),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 
   String _suggestedBedtimeLabel() {
     final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;

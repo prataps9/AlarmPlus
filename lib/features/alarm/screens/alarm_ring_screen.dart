@@ -219,8 +219,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         if (mounted) Navigator.of(context).pop();
         return;
       }
+      final reRing = await AlarmService.isWakeCheckReRing(alarmId);
       final reward = await AlarmRingFlow.stopAlarm(alarmId);
       if (!mounted) return;
+      if (reRing) {
+        // The wake-up was already scored and celebrated the first time.
+        AlarmRingFlow.completeRingScreenDismiss();
+        return;
+      }
       if (alarm != null && alarm.isSystem) {
         // Nap over / arrived: no wake score, celebration or morning routine.
         AlarmRingFlow.completeRingScreenDismiss();

@@ -38,6 +38,8 @@ class BackupCodec {
       !key.startsWith('premium.') &&
       !key.startsWith('alarm.native_ringtone') &&
       !key.startsWith('alarm.ring_override.') &&
+      !key.startsWith('alarm.scheduled_for.') &&
+      !key.startsWith('alarm.wakecheck_rering.') &&
       !key.startsWith('alarms.') &&
       key != 'clock.stopwatch' &&
       key != 'clock.timer';

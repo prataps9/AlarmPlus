@@ -47,6 +47,11 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
 - **One-off alarms on a date** — with no repeat days, pick the day it rings
   ("Thu, 30 Oct"). A dated alarm whose moment has passed is switched off
   instead of ringing late.
+- **Sleep-cycle wake times** — in the alarm editor, "Sleeping now?" offers
+  wake times at the end of a 90-minute sleep cycle (6, 7.5 or 9 h); tap one
+  to set it.
+- **Next 7 days** — Alarms tab → ⋮ lists every ring in the coming week, with
+  skips, pauses and dates applied.
 - **Pause until a date** — vacation mode: hold every repeating alarm until a
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
 - **Dark mode** — Settings → Theme: Light, Dark or Match phone.

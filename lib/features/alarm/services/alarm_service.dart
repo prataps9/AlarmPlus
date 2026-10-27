@@ -255,6 +255,12 @@ class AlarmService {
   // instead of moving the alarm to its next normal occurrence.
   static String _overrideKey(int alarmId) => 'alarm.ring_override.$alarmId';
 
+  // When each alarm was last handed to the plugin. A one-off whose moment
+  // has passed already rang (or was stopped when the app was swiped away,
+  // which the plugin does without telling Dart) and must not be rescheduled
+  // for tomorrow by restore.
+  static String _scheduledForKey(int alarmId) => 'alarm.scheduled_for.$alarmId';
+
   static Future<DateTime?> _pendingOverride(int alarmId) async {
     final prefs = await sp.SharedPreferences.getInstance();
     final ms = prefs.getInt(_overrideKey(alarmId));
@@ -301,6 +307,8 @@ class AlarmService {
     } else {
       await prefs.remove(_overrideKey(alarmId));
     }
+    await prefs.setInt(
+        _scheduledForKey(alarmId), targetTime.millisecondsSinceEpoch);
     var selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
       alarm.sound,
@@ -530,12 +538,49 @@ class AlarmService {
               .catchError((_) => false)) {
         continue;
       }
-      await scheduleAlarm(
-        alarm,
-        persist: false,
-        at: await _pendingOverride(alarmIntId(alarm.id)),
-      );
+      final override = await _pendingOverride(alarmIntId(alarm.id));
+      if (override == null && await _oneOffAlreadyRang(alarm)) {
+        await saveAlarm(alarm.copyWith(isEnabled: false));
+        notifyChanged();
+        continue;
+      }
+      await scheduleAlarm(alarm, persist: false, at: override);
     }
+  }
+
+  /// An undated one-off whose scheduled moment is in the past. It used to
+  /// stay on and get rescheduled for the same time tomorrow when it had been
+  /// stopped natively (app swiped away mid-ring), ringing again every day.
+  static Future<bool> _oneOffAlreadyRang(AlarmModel alarm) async {
+    if (alarm.repeatDays.isNotEmpty || alarm.date != null) return false;
+    final prefs = await sp.SharedPreferences.getInstance();
+    final ms = prefs.getInt(_scheduledForKey(alarmIntId(alarm.id)));
+    return ms != null &&
+        DateTime.fromMillisecondsSinceEpoch(ms).isBefore(DateTime.now());
+  }
+
+  // ── Wake-up check re-ring ────────────────────────────────────────────────
+  static String _reRingKey(int alarmId) => 'alarm.wakecheck_rering.$alarmId';
+
+  /// Marks the coming ring of [alarmId] at [at] as a wake-up check re-ring.
+  static Future<void> markWakeCheckReRing(int alarmId, DateTime at) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    await prefs.setInt(_reRingKey(alarmId), at.millisecondsSinceEpoch);
+  }
+
+  static Future<void> clearWakeCheckReRing(int alarmId) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    await prefs.remove(_reRingKey(alarmId));
+  }
+
+  /// Whether the ring happening now is a wake-up check re-ring (within half
+  /// an hour of when it was due, to cover snoozes of it).
+  static Future<bool> isWakeCheckReRing(int alarmId) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    final ms = prefs.getInt(_reRingKey(alarmId));
+    if (ms == null) return false;
+    final due = DateTime.fromMillisecondsSinceEpoch(ms);
+    return DateTime.now().difference(due).abs() < const Duration(minutes: 30);
   }
 
   static Future<void> _cancelScheduledArtifacts(String id) async {

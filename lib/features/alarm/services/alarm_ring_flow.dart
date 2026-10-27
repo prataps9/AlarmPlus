@@ -399,10 +399,19 @@ class AlarmRingFlow {
     // one-off still showed ON (and editing it re-armed it).
     AlarmService.notifyChanged();
 
+    // Dismissing a wake-up check re-ring finishes the morning that was
+    // already counted: no second reward, and no further check (it used to
+    // pay XP again and schedule another check, every time).
+    final reRing = await AlarmService.isWakeCheckReRing(alarmId);
+    await AlarmService.clearWakeCheckReRing(alarmId);
+
     // Determine if user snoozed before finally dismissing
     final hadSnooze = _snoozedIds.remove(alarmId);
     final snoozeCount = _snoozeSessionCount.remove(alarmId) ?? 0;
-    final reward = await SmartAlarmService.recordDismissed(hadSnooze: hadSnooze, snoozeCount: snoozeCount);
+    final reward = reRing
+        ? null
+        : await SmartAlarmService.recordDismissed(
+            hadSnooze: hadSnooze, snoozeCount: snoozeCount);
     unawaited(WidgetSyncService.refresh());
     unawaited(StreakReminderService.refresh());
 
@@ -416,7 +425,7 @@ class AlarmRingFlow {
     await _stopEffects();
 
     // Schedule wake-up check if enabled on this alarm
-    if (alarm.wakeUpCheckEnabled) {
+    if (alarm.wakeUpCheckEnabled && !reRing) {
       await _scheduleWakeUpCheck(alarm, alarmId);
     }
 
@@ -460,12 +469,14 @@ class AlarmRingFlow {
     // occurrence, which cancelWakeUpCheck (or the re-ring's own dismiss)
     // puts back.
     await AlarmService.scheduleAlarm(alarm, persist: false, at: times.reringAt);
+    await AlarmService.markWakeCheckReRing(alarmId, times.reringAt);
   }
 
   /// The user confirmed they're awake: drop the pending re-ring and restore
   /// the alarm's regular schedule.
   static Future<void> cancelWakeUpCheck(int alarmId) async {
     await _notifications.cancel(wakeCheckNotificationId(alarmId));
+    await AlarmService.clearWakeCheckReRing(alarmId);
     final alarm = AlarmService.findByIntId(alarmId);
     if (alarm == null) return;
     if (await Alarm.isRinging(alarmId).catchError((_) => false)) return;

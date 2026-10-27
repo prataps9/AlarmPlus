@@ -23,6 +23,8 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
   int _morningMood = 3;
   int _deepSleepMinutes = 0;
   String? _voiceMemoPath;
+  // Kept so a save doesn't drop the fields this screen doesn't edit.
+  SleepEntry? _loadedEntry;
   final _notesController = TextEditingController();
 
   @override
@@ -42,6 +44,7 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
     final entry = await SleepDiaryService.getEntryForDate(_selectedDay);
     if (!mounted) return;
     setState(() {
+      _loadedEntry = entry;
       _sleepQuality = entry?.sleepQuality ?? 3;
       _morningMood = entry?.morningMood ?? 3;
       _deepSleepMinutes = entry?.deepSleepEstimate ?? 0;
@@ -52,21 +55,29 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     setState(() => _saving = true);
+    final date = SleepDiaryService.dateKey(_selectedDay);
+    final kept = _loadedEntry?.date == date ? _loadedEntry : null;
     final entry = SleepEntry(
-      date: SleepDiaryService.dateKey(_selectedDay),
+      date: date,
       sleepQuality: _sleepQuality,
       morningMood: _morningMood,
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       deepSleepEstimate: _deepSleepMinutes,
       voiceMemoPath: _voiceMemoPath,
+      bedtime: kept?.bedtime,
+      wakeTime: kept?.wakeTime,
     );
     await SleepDiaryService.saveEntry(entry);
-    await SmartAlarmService.addXp(10);
+    _loadedEntry = entry;
+    // The XP is paid once a day; every re-save used to pay it again.
+    final paid = await SmartAlarmService.claimDailyXp('sleep_diary');
+    if (paid) await SmartAlarmService.addXp(10);
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved  +10 XP 🌙')),
+      SnackBar(content: Text(paid ? 'Saved  +10 XP 🌙' : 'Saved 🌙')),
     );
   }
 

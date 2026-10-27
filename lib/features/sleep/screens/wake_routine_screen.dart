@@ -24,6 +24,7 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
   int _stepIndex = 0;
   int _secondsLeft = 0;
   int _completedCount = 0;
+  bool _finishing = false;
   bool _stepDone = false;
 
   // Breath phase: 0=inhale, 1=hold, 2=exhale
@@ -99,6 +100,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
   }
 
   void _advance({required bool completed}) {
+    // A double tap on the last "Done" ran _finish twice (and paid twice).
+    if (_finishing) return;
     _countdownTimer?.cancel();
     if (completed) {
       _completedCount++;
@@ -108,16 +111,21 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
       setState(() => _stepIndex++);
       _startStep();
     } else {
+      _finishing = true;
       _finish();
     }
   }
 
   Future<void> _finish() async {
-    final bonus = WakeRoutineService.calculateAwakeBonus(
+    var bonus = WakeRoutineService.calculateAwakeBonus(
       _completedCount,
       _steps.length,
     );
     await WakeRoutineService.markRoutineCompleted();
+    // Paid once a day; replaying the routine doesn't pay again.
+    if (bonus > 0 && !await SmartAlarmService.claimDailyXp('wake_routine')) {
+      bonus = 0;
+    }
     if (bonus > 0) {
       await SmartAlarmService.addXp(bonus);
     }
@@ -148,7 +156,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              '$_completedCount / ${_steps.length} steps · +$bonus XP',
+              '$_completedCount / ${_steps.length} steps'
+              '${bonus > 0 ? ' · +$bonus XP' : ''}',
               style: TextStyle(
                 fontSize: 16,
                 color: Theme.of(ctx).colorScheme.onSurfaceVariant,

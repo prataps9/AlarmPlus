@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
 
@@ -28,11 +29,16 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   Timer? _timer;
   late AnimationController _waveController;
   final _rng = Random();
+  StreamSubscription<void>? _completed;
 
   @override
   void initState() {
     super.initState();
     _savedPath = widget.initialPath;
+    // The play button stayed on "pause" after a memo finished.
+    _completed = VoiceMemoService.playbackCompleted.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -42,14 +48,31 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   @override
   void dispose() {
     _timer?.cancel();
+    _completed?.cancel();
     _waveController.dispose();
-    if (_recording) VoiceMemoService.stopRecording();
+    // An unfinished recording isn't attached to anything: drop the file.
+    if (_recording) {
+      VoiceMemoService.stopRecording().then((path) {
+        if (path != null) VoiceMemoService.deleteMemo(path);
+      });
+    }
     super.dispose();
   }
 
   Future<void> _startRecording() async {
     final started = await VoiceMemoService.startRecording();
-    if (started == null) return;
+    if (started == null) {
+      // Microphone refused: say so instead of a button that does nothing.
+      final mic = await VoiceMemoService.microphoneStatus();
+      if (!mounted || mic.granted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Alarm+ needs the microphone to record a memo.'),
+        action: mic.canAsk
+            ? null
+            : SnackBarAction(label: 'Settings', onPressed: openAppSettings),
+      ));
+      return;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _seconds++);
     });
@@ -81,7 +104,10 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   }
 
   Future<void> _delete() async {
-    if (_savedPath != null) {
+    // A memo recorded just now can go at once. The one the alarm already
+    // had is the owner's to delete when it saves: deleting it here lost it
+    // even when the edit was then abandoned.
+    if (_savedPath != null && _savedPath != widget.initialPath) {
       await VoiceMemoService.deleteMemo(_savedPath!);
     }
     setState(() {
@@ -161,7 +187,7 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
           children: [
             Icon(Icons.mic_rounded, color: Colors.white, size: 18),
             SizedBox(width: 6),
-            Text('Hold to Record', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text('Tap to Record', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ],
         ),
       ),

@@ -18,15 +18,15 @@ import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
+import 'package:alarm_plus/core/services/ringtone_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 
+// Older versions stored a phone ringtone here for the native service to
+// play; still cleared on reschedule so upgraded installs don't play it twice.
 const _nativeRingtoneKeyPrefix = 'alarm.native_ringtone';
-
-/// Android's "default alarm tone" setting (Settings.System.DEFAULT_ALARM_ALERT_URI).
-const _androidDefaultAlarmUri = 'content://settings/system/alarm_alert';
 
 class AlarmService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -227,6 +227,28 @@ class AlarmService {
   /// (`Alarm.set`), and every alarm here is due at :00, so two alarms at
   /// 07:00 (or an alarm and its fresh duplicate) silently unscheduled each
   /// other. Each one is nudged a second later until its second is free.
+  /// What the alarm plugin should play. Everything goes through the plugin,
+  /// which plays it even when the app process is dead. Phone ringtones used
+  /// to be handed to it as a silent file and played by a service that only
+  /// the app could start, so an alarm firing with the app killed was silent.
+  /// - "default": null, the plugin's device default alarm tone.
+  /// - a phone ringtone (content://): a private copy of the file; the default
+  ///   tone if it can't be copied.
+  /// - a bundled sound: its asset path.
+  static Future<String?> _pluginAudioPath(String sound) async {
+    // The picker's "Default" entry is a pointer to whatever the default
+    // tone is; copying it would freeze today's choice.
+    if (sound == 'default' ||
+        sound.isEmpty ||
+        sound.startsWith('content://settings/system/alarm_alert')) {
+      return null;
+    }
+    if (sound.startsWith('content://')) {
+      return RingtoneService.cacheToFile(sound);
+    }
+    return sound;
+  }
+
   static Future<DateTime> _uniqueRingTime(int alarmId, DateTime target) async {
     try {
       final taken = {
@@ -273,11 +295,18 @@ class AlarmService {
   /// given (snooze, wake-up-check re-ring). Pass [at] rather than rewriting
   /// `alarm.time`: a [TimeOfDay] drops the seconds, so "now + 5 s" rounds
   /// into the past and `nextDateTimeFrom` pushes it to tomorrow.
+  /// With [keepPending] (the default) a snooze or wake-check re-ring that is
+  /// still due is kept: editing a snoozed alarm's label used to cancel the
+  /// snooze and move the alarm to its next normal occurrence.
   static Future<void> scheduleAlarm(
     AlarmModel alarm, {
     bool persist = true,
     DateTime? at,
+    bool keepPending = true,
   }) async {
+    if (at == null && keepPending && !alarm.isSystem) {
+      at = await _pendingOverride(alarmIntId(alarm.id));
+    }
     await _cancelScheduledArtifacts(alarm.id);
 
     // A dated one-off whose day has gone (phone was off, restored from a
@@ -309,38 +338,29 @@ class AlarmService {
     }
     await prefs.setInt(
         _scheduledForKey(alarmId), targetTime.millisecondsSinceEpoch);
-    var selectedSound = SmartAlarmService.rotateSoundForDate(
+    final selectedSound = SmartAlarmService.rotateSoundForDate(
       targetTime,
       alarm.sound,
     );
-    // "default" used to be sent to the alarm plugin as '', which it resolves
-    // to a directory path that fails to load, so the alarm rang silently.
-    // On Android, route it through the native ringtone path below using
-    // the system's default-alarm URI instead.
-    if ((selectedSound == 'default' || selectedSound.isEmpty) &&
-        defaultTargetPlatform == TargetPlatform.android) {
-      selectedSound = _androidDefaultAlarmUri;
-    }
-
-    // Determine audio path for the alarm package.
-    // content:// URIs can't be loaded as Flutter assets — we store them in prefs
-    // and let AlarmForegroundService play them via RingtoneManager instead.
-    final String audioPath;
-    if (selectedSound.startsWith('content://')) {
-      final prefs = await sp.SharedPreferences.getInstance();
-      await prefs.setString('$_nativeRingtoneKeyPrefix.$alarmId', selectedSound);
-      audioPath = 'assets/sounds/silent.wav';
-    } else if (selectedSound == 'default' || selectedSound.isEmpty) {
-      audioPath = '';
-    } else {
-      audioPath = selectedSound;
-    }
+    final audioPath = await _pluginAudioPath(selectedSound);
 
     final settings = AlarmSettings(
       id: alarmId,
       dateTime: await _uniqueRingTime(alarmId, targetTime),
       assetAudioPath: audioPath,
-      volumeSettings: VolumeSettings.fade(fadeDuration: Duration(seconds: 8)),
+      // Volume and the Gentle Wake ramp are applied by the plugin itself, so
+      // they hold even when the app isn't running (the ring screen used to
+      // set them, and only for sounds the plugin played). Hardcore keeps
+      // the volume from being turned down.
+      volumeSettings: VolumeSettings.fade(
+        fadeDuration: Duration(
+          seconds: alarm.gentleWake
+              ? alarm.gentleWakeDurationSeconds.clamp(1, 600)
+              : 8,
+        ),
+        volume: alarm.alarmVolume.clamp(0.1, 1.0),
+        volumeEnforced: alarm.hardcoreMode,
+      ),
       notificationSettings: NotificationSettings(
         title: alarm.label.isEmpty ? 'Alarm+' : alarm.label,
         body: alarm.tag,
@@ -402,32 +422,9 @@ class AlarmService {
       payload: '$alarmId',
     );
 
-    // Naps and location triggers get no bedtime-style notices: a 90-minute
-    // nap used to get "Wind-down reminder" a half hour before waking.
-    final windDownMinutes = await SmartAlarmService.getWindDownMinutes();
-    final windDownTime = targetTime.subtract(
-      Duration(minutes: windDownMinutes),
-    );
-    if (!alarm.isSystem && windDownTime.isAfter(DateTime.now())) {
-      await _notifications.zonedSchedule(
-        _windDownNotificationId(alarm.id),
-        'Wind-down reminder',
-        'Alarm in $windDownMinutes min. ${SmartAlarmService.windDownChecklist().join(' • ')}',
-        tz.TZDateTime.from(windDownTime, location),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'alarm_plus_winddown',
-            'Alarm+ Wind-down',
-            channelDescription: 'Pre-alarm sleep prep reminders',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: scheduleMode,
-      );
-    }
-
+    // There is no per-alarm "wind-down" notice any more: it fired e.g. at
+    // 06:30 for a 07:00 alarm, waking people early with bedtime advice. The
+    // real wind-down reminder is the bedtime one (BedtimeService).
     final noticeAt = targetTime.subtract(upcomingNoticeLead);
     if (!alarm.isSystem &&
         noticeAt.isAfter(DateTime.now()) &&
@@ -517,6 +514,7 @@ class AlarmService {
 
   static Future<void> deleteAlarm(String id) async {
     await _cancelScheduledArtifacts(id);
+    await _clearPending(alarmIntId(id));
     await StorageService.deleteAlarm(id);
     unawaited(WidgetSyncService.refresh());
     unawaited(StreakReminderService.refresh());
@@ -609,8 +607,15 @@ class AlarmService {
     if (on) {
       await scheduleAlarm(updated);
     } else {
+      // Switched off: a pending snooze must not bring it back later.
+      await _clearPending(alarmIntId(id));
       await cancelAlarm(id);
     }
+  }
+
+  static Future<void> _clearPending(int alarmId) async {
+    final prefs = await sp.SharedPreferences.getInstance();
+    await prefs.remove(_overrideKey(alarmId));
   }
 
   /// Skips (or, with [skip] false, un-skips) the next occurrence of a

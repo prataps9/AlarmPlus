@@ -42,6 +42,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
     final streak = await SmartAlarmService.getMissionStreak();
     final now = DateTime.now();
     final noon = DateTime(now.year, now.month, now.day, 12, 0, 0);
+    if (!mounted) return;
     setState(() {
       _missions = missions;
       _missionStreak = streak;
@@ -72,63 +73,25 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
     });
   }
 
-  void _showAddCustomMission() {
-    final titleCtrl = TextEditingController();
-    String selectedIcon = '⭐';
-    const icons = ['⭐', '💪', '📚', '🎯', '🌿', '💡', '🏃', '☕', '🎵', '❤️'];
-
-    showDialog<void>(
+  Future<void> _showAddCustomMission() async {
+    // The dialog owns its text controller: this used to dispose it right
+    // after an un-awaited showDialog, while the field was still using it.
+    final mission = await showDialog<(String, String)>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          title: const Text('Add Custom Mission'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(hintText: 'What do you want to do?'),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: icons.map((ic) {
-                  return GestureDetector(
-                    onTap: () => setDlg(() => selectedIcon = ic),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: selectedIcon == ic
-                            ? const Color(0xFF6366F1).withValues(alpha: 0.12)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
-                        ),
-                      ),
-                      child: Text(ic, style: const TextStyle(fontSize: 22)),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                final title = titleCtrl.text.trim();
-                if (title.isEmpty) return;
-                await SmartAlarmService.addCustomMission(title, selectedIcon);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
+      builder: (ctx) => const _AddMissionDialog(),
+    );
+    if (mission == null) return;
+    await SmartAlarmService.addCustomMission(mission.$1, mission.$2);
+    if (!mounted) return;
+    // Today's three missions are already drawn, so a new one joins the pool
+    // that tomorrow's are picked from. Adding it to today's list would make
+    // every new mission a fresh +XP and move the all-done streak goalpost.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Added. It joins your mission pool from tomorrow.'),
       ),
     );
-    titleCtrl.dispose();
+    await _load();
   }
 
   String _formatDuration(Duration d) {
@@ -317,6 +280,75 @@ class _MissionTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AddMissionDialog extends StatefulWidget {
+  const _AddMissionDialog();
+
+  @override
+  State<_AddMissionDialog> createState() => _AddMissionDialogState();
+}
+
+class _AddMissionDialogState extends State<_AddMissionDialog> {
+  static const _icons = ['⭐', '💪', '📚', '🎯', '🌿', '💡', '🏃', '☕', '🎵', '❤️'];
+
+  final _titleCtrl = TextEditingController();
+  String _selectedIcon = '⭐';
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Custom Mission'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(hintText: 'What do you want to do?'),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: _icons.map((ic) {
+              return GestureDetector(
+                onTap: () => setState(() => _selectedIcon = ic),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: _selectedIcon == ic
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
+                    ),
+                  ),
+                  child: Text(ic, style: const TextStyle(fontSize: 22)),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () {
+            final title = _titleCtrl.text.trim();
+            if (title.isEmpty) return;
+            Navigator.pop(context, (title, _selectedIcon));
+          },
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }

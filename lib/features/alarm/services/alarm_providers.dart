@@ -123,10 +123,18 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   Future<void> updateAlarm(AlarmModel alarm) async {
     await AlarmService.saveAlarm(alarm);
     final map = await state;
+    final before = map[alarm.id];
     map[alarm.id] = alarm;
     if (alarm.isEnabled) {
+      // A pending snooze survives an edit that doesn't move the alarm (a new
+      // label, sound or challenge); a new time or days replaces it.
+      final sameTiming = before != null &&
+          before.time == alarm.time &&
+          before.date == alarm.date &&
+          before.repeatDays.length == alarm.repeatDays.length &&
+          before.repeatDays.toSet().containsAll(alarm.repeatDays);
       // scheduleAlarm clears the previous schedule for this id first.
-      await AlarmService.scheduleAlarm(alarm);
+      await AlarmService.scheduleAlarm(alarm, keepPending: sameTiming);
       map[alarm.id] = AlarmService.getAllAlarms()
               .where((a) => a.id == alarm.id)
               .firstOrNull ??

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
@@ -10,13 +11,18 @@ import 'package:alarm_plus/shared/widgets/wake_report_widget.dart';
 
 /// The dense view, reached from the Insights overview. Everything here used to
 /// sit on the main tab at once, which is what made that screen overwhelming.
-class InsightsDetailsScreen extends StatelessWidget {
+class InsightsDetailsScreen extends ConsumerWidget {
   const InsightsDetailsScreen({super.key, required this.summary});
 
   final InsightsSummary summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Follow the live summary rather than the snapshot handed in: it reloads
+    // when Pro is bought, and the locked coach card used to stay up after a
+    // purchase made from this very screen.
+    final summary =
+        ref.watch(insightsSummaryProvider).valueOrNull ?? this.summary;
     return Scaffold(
       appBar: AppBar(title: const Text('Full history')),
       body: SafeArea(

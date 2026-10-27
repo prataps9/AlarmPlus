@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ import 'package:alarm_plus/shared/widgets/alarm_card.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/models/sleep_cycles.dart';
+import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
 
 class AlarmsScreen extends ConsumerStatefulWidget {
@@ -31,6 +34,11 @@ class AlarmsScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<AlarmsScreen> createState() => _AlarmsScreenState();
 
+  /// Opens the alarm editor for a new alarm (or [initial] to edit one).
+  static void showEditor(BuildContext context, WidgetRef ref,
+          {AlarmModel? initial}) =>
+      _showAlarmSheet(context, ref, initial: initial);
+
   static void _showAlarmSheet(
     BuildContext context,
     WidgetRef ref, {
@@ -40,6 +48,9 @@ class AlarmsScreen extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // Dragging the sheet down closed it without asking (it skips the
+      // sheet's "Discard changes?" check); Back and tapping outside ask.
+      enableDrag: false,
       builder: (context) => _AddAlarmSheet(ref: ref, initial: initial),
     );
   }
@@ -516,8 +527,22 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   double _alarmVolume = 1.0;
   VibrationPatternType _vibrationPattern = VibrationPatternType.standard;
 
-  DayTypeProfile _profile = DayTypeProfile.workday;
+  // Null when an edited alarm matches no profile; every edited alarm used to
+  // show "Workday" selected.
+  DayTypeProfile? _profile = DayTypeProfile.workday;
   double _sleepGoalHours = 7.5;
+
+  /// Set Alarm in progress: a double tap used to create two alarms.
+  bool _saving = false;
+  bool _saved = false;
+
+  /// Memos recorded in this sheet. Deleted if the edit is abandoned; the
+  /// alarm's previous memo is deleted only once a replacement is saved.
+  final Set<String> _newMemos = {};
+
+  /// What the controls held when the sheet opened, to tell whether closing
+  /// it would throw changes away.
+  late String _openedWith;
 
   bool get _isEditing => widget.initial != null;
 
@@ -525,7 +550,61 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   void initState() {
     super.initState();
     _hydrateFromInitial();
+    _openedWith = _snapshot();
     _loadTeenSleepProfile();
+    if (!_isEditing) _loadDefaultSound();
+  }
+
+  String _snapshot() => [
+        _hour, _minute, _isAm, _setAlarm, _labelController.text, _tag,
+        _sound, _personality, (_repeatDays.toList()..sort()).join(','), _date,
+        _gentleWake, _gentleWakeDuration, _challengeType, _voiceMemoPath,
+        _questMode, _questSteps.join(','), _savedQrCode, _stepGoal, _squatReps,
+        _wakeUpCheck, _wakeUpCheckMinutes, _hardcoreMode, _snoozeMinutes,
+        _maxSnoozes, _alarmVolume, _vibrationPattern,
+      ].join('|');
+
+  /// New alarms start with the sound chosen in Settings → Sound (it was
+  /// never used: every new alarm started on the default tone).
+  Future<void> _loadDefaultSound() async {
+    final sound = await RingtoneService.getSavedSound();
+    final title = await RingtoneService.getSavedTitle();
+    if (!mounted || _sound != 'default') return;
+    final untouched = _snapshot() == _openedWith;
+    setState(() {
+      _sound = sound;
+      _soundTitle = sound == 'default' ? 'Default Alarm' : title;
+    });
+    if (untouched) _openedWith = _snapshot();
+  }
+
+  Future<void> _loadSoundTitle(String sound) async {
+    final title = sound == 'default'
+        ? 'Default Alarm'
+        : _SoundPickerSheetState._bundled[sound] ??
+            (RingtoneService.isNativeUri(sound)
+                ? await RingtoneService.getTitleForUri(sound)
+                : sound);
+    if (mounted) setState(() => _soundTitle = title);
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text("Your changes to this alarm won't be saved."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep editing')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Discard')),
+        ],
+      ),
+    );
+    return discard ?? false;
   }
 
   /// Pre-fills every control from the alarm being edited.
@@ -542,6 +621,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _setAlarm = alarm.isEnabled;
     _tag = alarm.tag;
     _sound = alarm.sound;
+    // The Sound row showed "Default Alarm" for every edited alarm.
+    _loadSoundTitle(alarm.sound);
     _personality = alarm.personality;
     _repeatDays
       ..clear()
@@ -563,10 +644,17 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     _maxSnoozes = alarm.maxSnoozes;
     _alarmVolume = alarm.alarmVolume;
     _vibrationPattern = alarm.vibrationPattern;
+    _profile = null;
   }
 
   @override
   void dispose() {
+    // Closed without saving: memos recorded here belong to nothing.
+    if (!_saved) {
+      for (final path in _newMemos) {
+        VoiceMemoService.deleteMemo(path);
+      }
+    }
     _labelController.dispose();
     _voiceQuickAddController.dispose();
     super.dispose();
@@ -606,6 +694,22 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final scheme = Theme.of(context).colorScheme;
 
+    // Back or a tap outside used to throw every edit away without a word.
+    return PopScope(
+      canPop: _saved || _snapshot() == _openedWith,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _confirmDiscard() && mounted) {
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
+        }
+      },
+      child: _buildSheet(context, bottomInset, scheme),
+    );
+  }
+
+  Widget _buildSheet(
+      BuildContext context, double bottomInset, ColorScheme scheme) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -704,8 +808,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                     ),
                     Slider(
                       value: _sleepGoalHours,
-                      min: 6.0,
-                      max: 9.0,
+                      // The saved goal is clamped to 7–10 h; a 6 h pick used
+                      // to save as 7.
+                      min: 7.0,
+                      max: 10.0,
                       divisions: 12,
                       onChanged: (value) =>
                           setState(() => _sleepGoalHours = value),
@@ -920,8 +1026,14 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               DropdownButtonFormField<ChallengeType?>(
                 initialValue: _challengeType,
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Math (default)')),
-                  ...ChallengeType.values.map((t) => DropdownMenuItem(value: t, child: Text(ChallengeService.label(t)))),
+                  // "Default" follows Settings → Wake Challenge (math unless
+                  // changed there, or none).
+                  const DropdownMenuItem(value: null, child: Text('Default (from Settings)')),
+                  // Photo Proof has no setup screen yet, so it always fell
+                  // back to math; offered only to alarms that already have it.
+                  ...ChallengeType.values
+                      .where((t) => t != ChallengeType.photoProof || _challengeType == t)
+                      .map((t) => DropdownMenuItem(value: t, child: Text(ChallengeService.label(t)))),
                 ],
                 onChanged: (v) => setState(() => _challengeType = v),
               ),
@@ -1067,7 +1179,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 ),
               ],
 
-              if (_challengeType == ChallengeType.squatReps) ...[
+              if (_challengeType == ChallengeType.squatReps ||
+                  (_questMode && _questSteps.contains(ChallengeType.squatReps))) ...[
                 const SizedBox(height: Spacing.lg),
                 Row(children: [
                   Icon(
@@ -1184,7 +1297,12 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               // Voice Memo
               VoiceMemoRecorder(
                 initialPath: _voiceMemoPath,
-                onMemoSaved: (path) => setState(() => _voiceMemoPath = path),
+                onMemoSaved: (path) => setState(() {
+                  if (path != null && path != widget.initial?.voiceMemoPath) {
+                    _newMemos.add(path);
+                  }
+                  _voiceMemoPath = path;
+                }),
               ),
               const SizedBox(height: 24),
               TextField(
@@ -1297,7 +1415,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveAlarm,
+                  onPressed: _saving ? null : _saveAlarm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: scheme.brightness == Brightness.dark
                         ? scheme.onSurface
@@ -1628,6 +1746,16 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
   }
 
   Future<void> _saveAlarm() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _save();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _save() async {
     try {
       final hour24 = _isAm ? (_hour % 12) : (_hour % 12) + 12;
 
@@ -1712,6 +1840,16 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       if (!mounted) {
         return;
       }
+
+      // The memo the alarm had is replaced or removed: its file can go now.
+      final oldMemo = widget.initial?.voiceMemoPath;
+      if (oldMemo != null && oldMemo != _voiceMemoPath) {
+        unawaited(VoiceMemoService.deleteMemo(oldMemo));
+      }
+      for (final path in _newMemos) {
+        if (path != _voiceMemoPath) unawaited(VoiceMemoService.deleteMemo(path));
+      }
+      _saved = true;
 
       // Captured before pop — this sheet's context is gone afterwards.
       final messenger = ScaffoldMessenger.of(context);

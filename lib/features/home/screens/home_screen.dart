@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/features/alarm/models/upcoming_rings.dart';
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
@@ -64,13 +65,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'New alarm',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AlarmsScreen(),
-                      ),
-                    );
-                  },
+                  // Straight into the editor; it used to open the alarm list.
+                  onPressed: () => AlarmsScreen.showEditor(context, ref),
                   icon: const Icon(Icons.add, size: 34),
                 ),
               ],
@@ -193,7 +189,7 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...alarms
+            ..._upcomingFirst(alarms)
                 .take(2)
                 .map(
                   (alarm) => AlarmCard(
@@ -319,19 +315,30 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildTodayTiles(BuildContext context, List<AlarmModel> alarms) {
-    final today = DateTime.now().weekday;
-    final now = DateTime.now();
+  /// The alarms that ring soonest, then the rest (so the card list isn't
+  /// just the earliest clock times, switched-off ones included).
+  static List<AlarmModel> _upcomingFirst(List<AlarmModel> alarms) {
+    final next = <AlarmModel>[];
+    for (final r in upcomingRings(alarms, DateTime.now())) {
+      if (!next.contains(r.alarm)) next.add(r.alarm);
+    }
+    return [...next, ...alarms.where((a) => !next.contains(a))];
+  }
 
+  List<Widget> _buildTodayTiles(BuildContext context, List<AlarmModel> alarms) {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+
+    // Rings today, with skips, pauses and dates applied (a skipped or
+    // paused weekday alarm used to be listed anyway).
     final todayAlarms = alarms.where((alarm) {
-      if (!alarm.isEnabled) return false;
-      if (alarm.repeatDays.isEmpty) {
-        final next = alarm.nextDateTimeFrom(now);
-        return next.year == now.year &&
-            next.month == now.month &&
-            next.day == now.day;
-      }
-      return alarm.repeatDays.contains(today);
+      if (!alarm.isEnabled || alarm.isSystem) return false;
+      final from =
+          alarm.repeatDays.isEmpty && alarm.date == null ? now : startOfToday;
+      final next = alarm.nextDateTimeFrom(from);
+      return next.year == now.year &&
+          next.month == now.month &&
+          next.day == now.day;
     }).toList()
       ..sort(
         (a, b) => (a.time.hour * 60 + a.time.minute)

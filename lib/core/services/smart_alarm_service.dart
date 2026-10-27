@@ -342,6 +342,20 @@ class SmartAlarmService {
     return next;
   }
 
+  static String _dailyXpKey(String action) => 'xp.daily_claim.$action';
+
+  /// Marks [action]'s XP as paid for today. Returns false when it already
+  /// was, so repeat saves and double taps can't farm XP. The check and the
+  /// write happen with no await in between (the prefs cache updates
+  /// synchronously), so two concurrent claims can't both succeed.
+  static Future<bool> claimDailyXp(String action, {DateTime? now}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dayKey(now ?? DateTime.now());
+    if (prefs.getString(_dailyXpKey(action)) == today) return false;
+    await prefs.setString(_dailyXpKey(action), today);
+    return true;
+  }
+
   static int levelFromXp(int xp) => xp ~/ 500;
 
   static String levelLabel(int xp) {

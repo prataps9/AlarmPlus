@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:vibration/vibration.dart';
@@ -11,8 +10,10 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_ring_event.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
+import 'package:alarm_plus/features/sleep/services/sleep_sound_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
+import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/services/guardian_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
@@ -81,7 +82,7 @@ class AlarmRingFlow {
   // Tracks snooze count per alarm session for Boss Mode
   static final Map<int, int> _snoozeSessionCount = <int, int>{};
 
-  static const _channel = MethodChannel('alarmplus/alarm_controls');
+  static const _channel = NativeControls.channel;
 
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -94,19 +95,22 @@ class AlarmRingFlow {
     // Register wake-check tap handler to avoid circular import
     AlarmService.registerWakeCheckHandler(cancelWakeUpCheck);
 
-    _channel.setMethodCallHandler((call) async {
-      final id = (call.arguments as int?) ?? _currentRingingId;
-      if (id <= 0) return;
-      if (call.method == 'snooze') {
-        // Volume keys and the notification button snooze without looking at
-        // the screen, which is exactly what Hardcore mode exists to stop.
-        if (AlarmService.findByIntId(id)?.hardcoreMode == true) return;
-        await snoozeAlarm(id);
-      } else if (call.method == 'stopFromNotification') {
-        // Never dismiss from the notification: that skipped every challenge
-        // (and still paid out XP). Bring up the ring screen instead.
-        await _showRingScreen(id);
-      }
+    NativeControls.register('snooze', (args) async {
+      final id = (args as int?) ?? _currentRingingId;
+      if (id <= 0) return null;
+      // Volume keys and the notification button snooze without looking at
+      // the screen, which is exactly what Hardcore mode exists to stop.
+      if (AlarmService.findByIntId(id)?.hardcoreMode == true) return null;
+      await snoozeAlarm(id);
+      return null;
+    });
+    NativeControls.register('stopFromNotification', (args) async {
+      final id = (args as int?) ?? _currentRingingId;
+      if (id <= 0) return null;
+      // Never dismiss from the notification: that skipped every challenge
+      // (and still paid out XP). Bring up the ring screen instead.
+      await _showRingScreen(id);
+      return null;
     });
 
     await _ringSubscription?.cancel();
@@ -138,6 +142,18 @@ class AlarmRingFlow {
       }
       onAlarmRing(alarmId);
     });
+
+    // A foreground service left running by a previous process (swiped away,
+    // killed mid-ring) has nothing to ring for once nothing is ringing.
+    var anyRinging = false;
+    try {
+      for (final a in await Alarm.getAlarms()) {
+        if (await Alarm.isRinging(a.id)) anyRinging = true;
+      }
+    } catch (_) {
+      anyRinging = true; // unknown: leave the service alone
+    }
+    if (!anyRinging) unawaited(_stopForegroundService());
 
     // A notification tap that cold-started the app arrived before these
     // listeners existed; replay it now.
@@ -174,6 +190,11 @@ class AlarmRingFlow {
     }
     _snoozeDueAt.remove(alarmId);
     unawaited(AlarmService.cancelUpcomingNotice(alarmId));
+    // Sleep sounds set to "play until alarm" only ducked under the alarm,
+    // then came back at full volume and looped all morning.
+    unawaited(SleepSoundService.stop(fadeOutSeconds: 0));
+    // The widget's Snooze button only works while it knows we're ringing.
+    unawaited(WidgetSyncService.refresh());
     // Keep the *first* ring time of this session, so re-delivered ring
     // events don't push the guardian alert further away.
     _ringStartTimes.putIfAbsent(alarmId, DateTime.now);
@@ -238,8 +259,10 @@ class AlarmRingFlow {
           builder: (_) => const AlarmRingScreen(),
         );
         _ringRoute = route;
+        unawaited(_lockScreen('ringScreenShown'));
         unawaited(navigator.push(route).whenComplete(() {
           if (identical(_ringRoute, route)) _ringRoute = null;
+          if (_ringRoute == null) unawaited(_lockScreen('ringScreenClosed'));
         }));
         return;
       }
@@ -357,6 +380,7 @@ class AlarmRingFlow {
     // repeating alarm, let nextDateTimeFrom move the snooze to another day.
     await AlarmService.scheduleAlarm(alarm, persist: false, at: dueAt);
     await SmartAlarmService.recordSnoozed();
+    if (_currentRingingId == alarmId) _currentRingingId = 0;
 
     // The guardian alert keeps counting from the first ring of the session
     // (it used to restart on every snooze, so it could never fire).
@@ -482,7 +506,8 @@ class AlarmRingFlow {
     if (await Alarm.isRinging(alarmId).catchError((_) => false)) return;
     await AlarmService.cancelAlarm(alarm.id);
     if (alarm.isEnabled) {
-      await AlarmService.scheduleAlarm(alarm, persist: false);
+      // Back to the regular schedule: the pending re-ring is what's dropped.
+      await AlarmService.scheduleAlarm(alarm, persist: false, keepPending: false);
     }
   }
 
@@ -523,6 +548,16 @@ class AlarmRingFlow {
       navigator.removeRoute(route);
       // Dialogs that were opened from the ring screen go with it.
       navigator.popUntil((r) => r.isFirst || r is! PopupRoute);
+    }
+  }
+
+  /// The ring screen shows over the lock screen; once it closes the phone
+  /// asks to be unlocked instead of leaving the whole app open over it.
+  static Future<void> _lockScreen(String method) async {
+    try {
+      await _channel.invokeMethod<void>(method);
+    } catch (e) {
+      debugPrint('$method channel error: $e');
     }
   }
 

@@ -7,10 +7,14 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
 
@@ -25,15 +29,47 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        }
+        // Show over the lock screen so a ringing alarm is visible at wake-up.
+        // The keyguard is deliberately not dismissed here: on a secure lock
+        // that put the PIN pad over the ring screen. Dart calls
+        // "ringScreenClosed" once the alarm is dealt with instead.
+        setShowOverLockScreen(true)
+    }
 
-        val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // A later alarm reopening the running activity (singleTop) after
+        // "ringScreenClosed" turned this off must still show over the lock.
+        setShowOverLockScreen(true)
+    }
+
+    private fun setShowOverLockScreen(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+            setTurnScreenOn(show)
+        } else {
+            @Suppress("DEPRECATION")
+            val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            if (show) window.addFlags(flags) else window.clearFlags(flags)
+        }
+    }
+
+    /** Leaves the lock screen: the user unlocks to carry on into the app. */
+    private fun dismissKeyguard() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val km = getSystemService(KEYGUARD_SERVICE) as? KeyguardManager ?: return
             km.requestDismissKeyguard(this, null)
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        // Widget/tile taps and the ring service look the engine up here; left
+        // cached after the activity is gone, they "delivered" commands to a
+        // destroyed engine and the taps were lost.
+        val cache = FlutterEngineCache.getInstance()
+        if (cache.get(ENGINE_ID) === flutterEngine) cache.remove(ENGINE_ID)
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -67,6 +103,26 @@ class MainActivity : FlutterActivity() {
                         val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                         result.success(uri?.toString())
                     }
+                    "ringScreenShown" -> {
+                        setShowOverLockScreen(true)
+                        result.success(null)
+                    }
+                    "ringScreenClosed" -> {
+                        setShowOverLockScreen(false)
+                        dismissKeyguard()
+                        result.success(null)
+                    }
+                    "cacheRingtone" -> {
+                        val uri = call.argument<String>("uri")
+                        if (uri.isNullOrEmpty()) {
+                            result.success(null)
+                        } else {
+                            Thread {
+                                val path = cacheRingtone(uri)
+                                runOnUiThread { result.success(path) }
+                            }.start()
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -89,6 +145,39 @@ class MainActivity : FlutterActivity() {
             }
         }
         startActivityForResult(intent, REQ_PICK_RINGTONE)
+    }
+
+    /**
+     * Copies a picked content:// sound into app storage so the alarm plugin
+     * can play it from a file path, even when this process was dead at ring
+     * time. Returns the file's absolute path, or null if it can't be read.
+     */
+    private fun cacheRingtone(uriString: String): String? {
+        return try {
+            val uri = Uri.parse(uriString)
+            val digest = MessageDigest.getInstance("SHA-1")
+                .digest(uriString.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            val ext = contentResolver.getType(uri)
+                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+                ?: "snd"
+            val dir = File(filesDir, "ringtones").apply { mkdirs() }
+            val file = File(dir, "$digest.$ext")
+            if (file.exists() && file.length() > 0) return file.absolutePath
+
+            // Copy to a temp file first so a failed copy never leaves a
+            // truncated file that the size check above would reuse.
+            val tmp = File(dir, "$digest.$ext.tmp")
+            val input = contentResolver.openInputStream(uri) ?: return null
+            input.use { inp -> tmp.outputStream().use { out -> inp.copyTo(out) } }
+            if (tmp.length() <= 0 || !tmp.renameTo(file)) {
+                tmp.delete()
+                return null
+            }
+            file.absolutePath
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun getRingtoneTitle(uri: String?): String {

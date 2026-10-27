@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
@@ -9,6 +10,7 @@ import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
+import 'package:alarm_plus/features/alarm/widgets/reliability_banner.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/location/screens/location_alarm_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
@@ -31,11 +33,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late Future<AlarmReliabilityStatus> _reliabilityFuture;
   late Future<DismissChallengeType> _dismissChallengeFuture;
-  late Future<int> _windDownFuture;
   late Future<AlarmStats> _statsFuture;
   late Future<PackageInfo> _packageInfoFuture;
   late Future<String> _guardianWebhookFuture;
   late Future<bool> _upcomingNoticeFuture;
+  bool _restoringPurchase = false;
 
   static const _privacyPolicyUrl =
       'https://sites.google.com/view/alarmplus-privacy/home';
@@ -49,7 +51,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _refreshAsyncTiles() {
     _reliabilityFuture = SmartAlarmService.getReliabilityStatus();
     _dismissChallengeFuture = SmartAlarmService.getDismissChallenge();
-    _windDownFuture = SmartAlarmService.getWindDownMinutes();
     _statsFuture = SmartAlarmService.getStats();
     _packageInfoFuture = PackageInfo.fromPlatform();
     _guardianWebhookFuture = GuardianService.getWebhookUrl();
@@ -114,32 +115,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             },
           ),
-          FutureBuilder<DismissChallengeType>(
-            future: _dismissChallengeFuture,
-            builder: (context, snapshot) {
-              final challenge =
-                  snapshot.data ?? DismissChallengeType.none;
-              return _SettingTile(
-                title: 'Wake Challenge',
-                subtitle: challenge.name.toUpperCase(),
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: muted, size: 20),
-                onTap: () => _showChallengePicker(context, challenge),
-              );
-            },
-          ),
-          FutureBuilder<int>(
-            future: _windDownFuture,
-            builder: (context, snapshot) {
-              final minutes = snapshot.data ?? 30;
-              return _SettingTile(
-                title: 'Pre-Alarm Wind-Down',
-                subtitle: '$minutes min before sleep',
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: muted, size: 20),
-                onTap: () => _showWindDownPicker(context, minutes),
-              );
-            },
+          ValueListenableBuilder<bool>(
+            valueListenable: PremiumService.isPro,
+            builder: (context, isPro, _) =>
+                FutureBuilder<DismissChallengeType>(
+                  future: _dismissChallengeFuture,
+                  builder: (context, snapshot) {
+                    final challenge = effectiveChallenge(
+                      snapshot.data ?? DismissChallengeType.math,
+                      isPro: isPro,
+                    );
+                    return _SettingTile(
+                      title: 'Wake Challenge',
+                      subtitle: challenge.name.toUpperCase(),
+                      trailing: Icon(Icons.chevron_right_rounded,
+                          color: muted, size: 20),
+                      onTap: () => _showChallengePicker(context, challenge),
+                    );
+                  },
+                ),
           ),
           FutureBuilder<AlarmReliabilityStatus>(
             future: _reliabilityFuture,
@@ -182,9 +176,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () =>
                 Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
           ),
+          // The wind-down reminder lives with the bedtime schedule. The old
+          // "Pre-Alarm Wind-Down" minutes picker here no longer drove any
+          // notification, so it was removed rather than left doing nothing.
           _SettingTile(
             title: 'Wind Down / Bedtime',
-            subtitle: 'Bedtime and wind-down reminders',
+            subtitle: 'Bedtime reminder & wind-down',
             trailing: Icon(Icons.chevron_right_rounded,
                 color: muted, size: 20),
             onTap: () =>
@@ -408,11 +405,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _restorePurchase(BuildContext context) async {
+    // A second tap while the first restore is in flight used to report
+    // "restored" and then "not found".
+    if (_restoringPurchase) return;
+    _restoringPurchase = true;
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       const SnackBar(content: Text('Checking your purchases…')),
     );
-    final restored = await PremiumService.restorePurchases();
+    final bool restored;
+    try {
+      restored = await PremiumService.restorePurchases();
+    } finally {
+      _restoringPurchase = false;
+    }
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(SnackBar(
       content: Text(restored
@@ -458,10 +464,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// Same fix as the Home reliability banner: ask again, fall back to the
+  /// app's system settings once Android stops showing the prompt, and put
+  /// alarms back on an exact schedule when access returns.
+  Future<void> _fixReliability() async {
+    await AlarmService.requestPermissions();
+    final after = await SmartAlarmService.getReliabilityStatus(force: true);
+    if (reliabilityProblem(after) != null) {
+      await openAppSettings();
+    } else {
+      await AlarmService.restoreEnabledAlarms();
+    }
+    if (mounted) _refreshAndRebuild();
+  }
+
   void _showReliabilityDialog(
     BuildContext context,
     AlarmReliabilityStatus? status,
   ) {
+    final needsFix = status != null && reliabilityProblem(status) != null;
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -486,6 +507,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
+          if (needsFix)
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _fixReliability();
+              },
+              child: const Text('Fix'),
+            ),
         ],
       ),
     );
@@ -500,16 +529,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (context) => FutureBuilder<bool>(
         future: PremiumService.canUse(PremiumFeature.smartDismissModes),
         builder: (context, snapshot) {
-          final unlocked = snapshot.data ?? false;
+          final unlocked = snapshot.data ?? PremiumService.isPro.value;
+          // Never show a locked challenge as the selected one.
+          final selected = effectiveChallenge(current, isPro: unlocked);
           return ListView(
             children: DismissChallengeType.values.map((type) {
-              final needsPremium = type != DismissChallengeType.none;
+              final needsPremium = challengeNeedsPro(type);
               return ListTile(
                 title: Text(type.name.toUpperCase()),
                 subtitle: needsPremium && !unlocked
                     ? const Text('Premium')
                     : null,
-                trailing: current == type ? const Icon(Icons.check) : null,
+                trailing: selected == type ? const Icon(Icons.check) : null,
                 onTap: () async {
                   if (needsPremium && !unlocked) {
                     await PremiumService.showLifetimePaywall(
@@ -531,93 +562,165 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showWindDownPicker(BuildContext context, int current) {
-    showModalBottomSheet<void>(
+  Future<void> _showGuardianDialog(
+      BuildContext context, String currentUrl) async {
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final minutes in const [30, 45, 60])
-            ListTile(
-              title: Text('$minutes minutes'),
-              trailing: current == minutes ? const Icon(Icons.check) : null,
-              onTap: () async {
-                await SmartAlarmService.setWindDownMinutes(minutes);
-                if (context.mounted) Navigator.pop(context);
-                _refreshAndRebuild();
-              },
-            ),
-        ],
-      ),
+      builder: (ctx) => _GuardianDialog(initialUrl: currentUrl),
     );
+    if (saved == true) _refreshAndRebuild();
+  }
+}
+
+/// Webhook editor. Only an https URL with a host is accepted, Test reports
+/// whether the server really answered, and nothing is stored until Save
+/// (Test used to save the URL even if the user then cancelled).
+class _GuardianDialog extends StatefulWidget {
+  const _GuardianDialog({required this.initialUrl});
+
+  final String initialUrl;
+
+  @override
+  State<_GuardianDialog> createState() => _GuardianDialogState();
+}
+
+class _GuardianDialogState extends State<_GuardianDialog> {
+  late final _controller = TextEditingController(text: widget.initialUrl);
+  String? _error;
+  String? _testResult;
+  bool _testing = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  void _showGuardianDialog(BuildContext context, String currentUrl) {
-    final controller = TextEditingController(text: currentUrl);
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Guardian Alert Webhook'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'If your alarm rings for 10+ minutes without being dismissed, '
-              'Alarm+ will POST a JSON alert to this URL.',
-              style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Webhook URL',
-                hintText: 'https://hooks.ifttt.com/…',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.url,
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+  /// The trimmed URL, or null (with an error shown) when it isn't valid.
+  /// An empty field is valid for Save only: it turns the alert off.
+  String? _validUrl({required bool allowEmpty}) {
+    final url = _controller.text.trim();
+    if (url.isEmpty && allowEmpty) return url;
+    if (!GuardianService.isValidWebhookUrl(url)) {
+      setState(() => _error = 'Enter a full https:// URL');
+      return null;
+    }
+    return url;
+  }
+
+  Future<void> _test() async {
+    if (_testing) return;
+    final url = _validUrl(allowEmpty: false);
+    if (url == null) return;
+    setState(() {
+      _testing = true;
+      _testResult = null;
+    });
+    final ok = await GuardianService.triggerAlert(-1, url: url, test: true);
+    if (!mounted) return;
+    setState(() {
+      _testing = false;
+      _testResult = ok
+          ? 'Test alert delivered.'
+          : 'The webhook did not accept the test alert.';
+    });
+  }
+
+  Future<void> _save() async {
+    final url = _validUrl(allowEmpty: true);
+    if (url == null) return;
+    await GuardianService.setWebhookUrl(url);
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return AlertDialog(
+      title: const Text('Guardian Alert Webhook'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'If your alarm rings for 10+ minutes without being dismissed, '
+            'Alarm+ will POST a JSON alert to this URL.',
+            style: TextStyle(fontSize: 13, color: muted),
           ),
-          TextButton(
-            onPressed: () async {
-              final url = controller.text.trim();
-              if (url.isEmpty) return;
-              await GuardianService.setWebhookUrl(url);
-              await GuardianService.triggerAlert(-1);
-              if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Test alert sent to webhook.')),
-                );
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              labelText: 'Webhook URL',
+              hintText: 'https://hooks.ifttt.com/…',
+              border: const OutlineInputBorder(),
+              errorText: _error,
+            ),
+            keyboardType: TextInputType.url,
+            maxLines: 2,
+            onChanged: (_) {
+              if (_error != null || _testResult != null) {
+                setState(() {
+                  _error = null;
+                  _testResult = null;
+                });
               }
             },
-            child: const Text('Test'),
           ),
-          TextButton(
-            onPressed: () async {
-              await GuardianService.setWebhookUrl(controller.text.trim());
-              if (ctx.mounted) Navigator.pop(ctx);
-              _refreshAndRebuild();
-            },
-            child: const Text('Save'),
-          ),
+          if (_testing || _testResult != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _testing ? 'Sending test alert…' : _testResult!,
+              style: TextStyle(fontSize: 13, color: muted),
+            ),
+          ],
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _testing ? null : _test,
+          child: const Text('Test'),
+        ),
+        TextButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
 
+/// NONE and MATH are free; the other wake challenges are Pro.
+@visibleForTesting
+bool challengeNeedsPro(DismissChallengeType type) =>
+    type != DismissChallengeType.none && type != DismissChallengeType.math;
+
+/// The global challenge as it actually applies: a stored Pro challenge
+/// (e.g. after a refund) falls back to MATH for a free user, matching what
+/// the ring screen does, so Settings never shows a locked choice as active.
+@visibleForTesting
+DismissChallengeType effectiveChallenge(
+  DismissChallengeType stored, {
+  required bool isPro,
+}) =>
+    !isPro && challengeNeedsPro(stored) ? DismissChallengeType.math : stored;
+
 /// Top-of-Settings upsell, or a "you're Pro" badge once unlocked.
-class _ProCard extends StatelessWidget {
+class _ProCard extends StatefulWidget {
   const _ProCard();
+
+  @override
+  State<_ProCard> createState() => _ProCardState();
+}
+
+class _ProCardState extends State<_ProCard> {
+  // The store's localized price, like the paywall shows (was a hard-coded
+  // rupee price for everyone).
+  late final Future<String> _price = PremiumService.displayPrice();
 
   @override
   Widget build(BuildContext context) {
@@ -671,15 +774,19 @@ class _ProCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        isPro
-                            ? 'Thanks for your support! All Pro features are unlocked.'
-                            : 'Sleep Coach Pro, double streak freezes, always-on wake '
-                                'challenge. One payment of ${PremiumService.fallbackPriceLabel}.',
-                        style: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12.5,
-                          height: 1.35,
+                      FutureBuilder<String>(
+                        future: _price,
+                        builder: (context, price) => Text(
+                          isPro
+                              ? 'Thanks for your support! All Pro features are unlocked.'
+                              : 'Sleep Coach Pro, double streak freezes, always-on wake '
+                                  'challenge. One payment'
+                                  '${price.hasData ? ' of ${price.data}' : ''}.',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
                         ),
                       ),
                     ],

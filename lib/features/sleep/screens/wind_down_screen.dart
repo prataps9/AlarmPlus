@@ -29,6 +29,7 @@ class _WindDownScreenState extends State<WindDownScreen>
   int _phaseSecondsLeft = _phaseDurations[0];
   int _cycleCount = 0;
   bool _inBedDone = false;
+  bool _markingInBed = false;
   Timer? _timer;
   late AnimationController _breathController;
 
@@ -70,6 +71,17 @@ class _WindDownScreenState extends State<WindDownScreen>
   }
 
   Future<void> _markInBed() async {
+    // A double tap paid the +20 XP twice.
+    if (_markingInBed) return;
+    _markingInBed = true;
+    try {
+      await _markInBedOnce();
+    } finally {
+      _markingInBed = false;
+    }
+  }
+
+  Future<void> _markInBedOnce() async {
     if (SleepSoundService.isPlaying()) {
       final stop = await showDialog<bool>(
         context: context,
@@ -90,11 +102,18 @@ class _WindDownScreenState extends State<WindDownScreen>
       );
       if (stop == true) SleepSoundService.stop();
     }
-    await BedtimeService.recordInBed();
+    // recordInBed pays the XP, so only call it once a day; reopening the
+    // screen let the button be pressed (and paid) again every time.
+    final alreadyInBed = await BedtimeService.isInBedToday();
+    if (!alreadyInBed) await BedtimeService.recordInBed();
     if (!mounted) return;
     setState(() => _inBedDone = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('+20 XP — Sweet dreams! 🌙')),
+      SnackBar(
+        content: Text(alreadyInBed
+            ? 'Sweet dreams! 🌙'
+            : '+20 XP — Sweet dreams! 🌙'),
+      ),
     );
   }
 

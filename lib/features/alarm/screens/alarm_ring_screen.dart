@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:volume_controller/volume_controller.dart';
 
 import 'package:alarm_plus/features/alarm/challenges/photo_hash.dart';
 import 'package:alarm_plus/features/alarm/challenges/photo_proof_challenge_widget.dart';
@@ -27,6 +26,7 @@ import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/challenge_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
+import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
 import 'package:alarm_plus/shared/models/quest_model.dart';
@@ -52,7 +52,7 @@ class AlarmRingScreen extends StatefulWidget {
 class _AlarmRingScreenState extends State<AlarmRingScreen>
     with TickerProviderStateMixin {
   MathDifficulty _mathDifficulty = MathDifficulty.easy;
-  bool _mathChallengeEnabled = true;
+  DismissChallengeType _defaultChallenge = DismissChallengeType.math;
   late final AnimationController _pulseController;
   late final AnimationController _ringController;
   double _dragDx = 0.0;
@@ -64,7 +64,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   /// Media volume before this screen changed it, restored on dispose —
   /// otherwise every alarm left the phone's media volume at the alarm level.
-  double? _volumeBefore;
 
   // Gentle wake volume ramp
   int _gentleSecondsLeft = 0;
@@ -99,7 +98,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (!mounted) return;
     setState(() {
       _mathDifficulty = _isBossMode ? MathDifficulty.boss : diff;
-      _mathChallengeEnabled = challengeType != DismissChallengeType.none;
+      _defaultChallenge = challengeType;
     });
     final alarmId = _alarmId;
     if (alarmId > 0) {
@@ -108,17 +107,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         final config = PersonalityConfig.forName(alarm.personality);
         setState(() => _personality = config);
         await SmartAlarmService.recordPersonalityUsed(alarm.personality);
-        try {
-          _volumeBefore = await VolumeController.instance.getVolume();
-        } catch (_) {
-          // Volume control unavailable on this platform.
-        }
         if (!mounted) return;
-        if (alarm.gentleWake) {
-          _startGentleWake(alarm);
-        } else {
-          VolumeController.instance.setVolume(alarm.alarmVolume);
-        }
+        // Volume and the fade-in are applied by the alarm plugin itself
+        // (see AlarmService.scheduleAlarm); this only shows the countdown.
+        if (alarm.gentleWake) _startGentleWake(alarm);
       }
       // Guardian timer is owned by AlarmRingFlow — no duplicate needed here.
     }
@@ -129,21 +121,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       _gentleSecondsLeft = alarm.gentleWakeDurationSeconds;
       _gentleWakeActive = true;
     });
-    final ceiling = alarm.alarmVolume;
-    VolumeController.instance.setVolume(0.1);
-
     final duration = alarm.gentleWakeDurationSeconds;
-    final stepCount = duration;
-
     var elapsed = 0;
     Future.doWhile(() async {
       await Future<void>.delayed(const Duration(seconds: 1));
       if (!mounted || !_gentleWakeActive) return false;
       elapsed++;
-      final vol = 0.1 + (elapsed / stepCount) * (ceiling - 0.1);
-      VolumeController.instance.setVolume(vol.clamp(0.1, ceiling));
       if (mounted) setState(() => _gentleSecondsLeft = duration - elapsed);
-      return elapsed < stepCount && _gentleWakeActive;
+      return elapsed < duration && _gentleWakeActive;
     });
   }
 
@@ -154,8 +139,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   @override
   void dispose() {
     _gentleWakeActive = false;
-    final before = _volumeBefore;
-    if (before != null) VolumeController.instance.setVolume(before);
     _pulseController.dispose();
     _ringController.dispose();
     super.dispose();
@@ -179,37 +162,30 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     try {
       final alarm = AlarmService.findByIntId(alarmId);
 
-      // Always require a challenge: use alarm's configured type, fall back to math
-      final alarmHasChallenge = alarm != null &&
-          (alarm.questMode || alarm.challengeType != null);
-      final shouldChallenge = alarmHasChallenge || _mathChallengeEnabled;
+      // The alarm's own challenge or quest; otherwise the default from
+      // Settings (which may be none).
+      final ChallengeType? challenge;
+      if (alarm != null && alarm.challengeType != null) {
+        challenge = ChallengeService.pickChallenge(alarm);
+      } else {
+        challenge = ChallengeService.defaultChallenge(
+          _defaultChallenge,
+          isPro: PremiumService.isPro.value,
+        );
+      }
 
-      if (shouldChallenge) {
+      if ((alarm != null && alarm.questMode) || challenge != null) {
         bool passed;
 
         if (alarm != null && alarm.questMode) {
           passed = await _showQuestChallenge(alarm);
         } else {
-          final resolvedChallenge = alarm != null
-              ? ChallengeService.pickChallenge(alarm)
-              : ChallengeType.math;
-          passed = await _showChallenge(resolvedChallenge);
+          passed = await _showChallenge(challenge!);
         }
 
         if (!passed) {
           setState(() => _dragDx = 0.0);
           return;
-        }
-      }
-
-      // Auto-play voice memo if present and file still exists
-      final memoPath = alarm?.voiceMemoPath;
-      if (memoPath != null && await File(memoPath).exists()) {
-        try {
-          await VoiceMemoService.playMemo(memoPath);
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-        } catch (e) {
-          debugPrint('Voice memo playback failed: $e');
         }
       }
 
@@ -231,6 +207,17 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         // Nap over / arrived: no wake score, celebration or morning routine.
         AlarmRingFlow.completeRingScreenDismiss();
         return;
+      }
+
+      // The voice memo plays once the alarm has stopped; it used to play
+      // under the still-ringing alarm and was barely audible.
+      final memoPath = alarm?.voiceMemoPath;
+      if (memoPath != null && await File(memoPath).exists()) {
+        try {
+          await VoiceMemoService.playMemo(memoPath);
+        } catch (e) {
+          debugPrint('Voice memo playback failed: $e');
+        }
       }
       final dismissMs = DateTime.now().millisecondsSinceEpoch - _dismissStartMs;
       final mood = await SmartAlarmService.getLatestMoodCheckIn();

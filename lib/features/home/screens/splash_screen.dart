@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:alarm/alarm.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
 
 /// Launch screen: white, with the Alarm+ logo.
@@ -68,13 +73,31 @@ class _SplashScreenState extends State<SplashScreen>
     _leaving = true;
     final prefs = await SharedPreferences.getInstance();
     final done = prefs.getBool('onboarding_complete') ?? false;
-    // Returning users: re-check permissions now that there is UI, instead
-    // of popping system dialogs before the first frame. (First-run users
-    // get the explained permissions page in onboarding.)
-    if (done) AlarmService.requestPermissions();
+    // Returning users: re-check the notification permission now that there
+    // is UI. Only that one: asking for battery optimisation / exact alarms on
+    // every launch nagged each cold start (those are fixed from the Home
+    // reliability banner), and the dialog covered the ring screen when an
+    // alarm launched the app. (First-run users get onboarding's page.)
+    if (done) unawaited(_requestNotificationPermission());
     if (!mounted) return;
 
     replaceRouteInPlace(context, done ? '/app' : '/onboarding');
+  }
+
+  static Future<void> _requestNotificationPermission() async {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      return;
+    }
+    try {
+      if (AlarmRingFlow.currentRingingId != 0 || await Alarm.isRinging()) {
+        return;
+      }
+      await Permission.notification.request();
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
   }
 
   @override

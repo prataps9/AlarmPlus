@@ -63,6 +63,29 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
       body: FutureBuilder<_InsightsData>(
         future: _dataFuture,
         builder: (context, snapshot) {
+          // An error used to leave the spinner up forever.
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Couldn\'t load your sleep insights.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => setState(() => _dataFuture = _load()),
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }

@@ -18,6 +18,7 @@ import 'package:alarm_plus/features/clock/screens/world_clock_screen.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
+import 'package:alarm_plus/features/home/providers/insights_providers.dart';
 import 'package:alarm_plus/features/home/screens/home_screen.dart';
 import 'package:alarm_plus/features/home/screens/insights_screen.dart';
 import 'package:alarm_plus/features/home/screens/splash_screen.dart';
@@ -191,6 +192,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     if (ref.read(currentTabIndexProvider) == index) return;
     HapticFeedback.selectionClick();
     ref.read(currentTabIndexProvider.notifier).state = index;
+    // The IndexedStack keeps Insights alive, so without this it kept
+    // showing the numbers from before this morning's alarm.
+    if (index == AppTab.insights) ref.invalidate(insightsSummaryProvider);
   }
 
   @override

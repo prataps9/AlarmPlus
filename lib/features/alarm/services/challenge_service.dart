@@ -1,17 +1,40 @@
 import 'dart:math';
 
+import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 
 class ChallengeService {
   static final _rng = Random();
 
+  /// The alarm's own challenge; "Random" picks one each time. Null (the
+  /// editor's "Default") isn't handled here: see [defaultChallenge].
   static ChallengeType pickChallenge(AlarmModel alarm) {
     final type = alarm.challengeType;
-    if (type == null || type == ChallengeType.random) {
-      return randomChallenge();
+    if (type == ChallengeType.random) return randomChallenge();
+    return type ?? ChallengeType.math;
+  }
+
+  /// The challenge for an alarm left on "Default", from Settings → Wake
+  /// Challenge: null means no challenge. Choosing memory, QR or steps there
+  /// is Pro; without Pro (e.g. after a refund) those fall back to math.
+  /// It used to pick a random challenge, ignoring the setting.
+  static ChallengeType? defaultChallenge(
+    DismissChallengeType setting, {
+    required bool isPro,
+  }) {
+    switch (setting) {
+      case DismissChallengeType.none:
+        return null;
+      case DismissChallengeType.math:
+        return ChallengeType.math;
+      case DismissChallengeType.memory:
+        return isPro ? ChallengeType.memoryPattern : ChallengeType.math;
+      case DismissChallengeType.qr:
+        return isPro ? ChallengeType.barcodeScan : ChallengeType.math;
+      case DismissChallengeType.steps:
+        return isPro ? ChallengeType.stepCounter : ChallengeType.math;
     }
-    return type;
   }
 
   /// Types that "Random" may choose. Excludes anything needing setup ahead of

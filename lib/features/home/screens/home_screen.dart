@@ -26,6 +26,7 @@ import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/sleep/widgets/bedtime_card.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -71,7 +72,8 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            _NextAlarmLine(alarms: alarms),
+            const SizedBox(height: 10),
+            NextAlarmCapsule(alarms: alarms),
             const SizedBox(height: 18),
             const ReliabilityBanner(),
             // Streak / XP hero widget
@@ -379,37 +381,6 @@ class HomeScreen extends ConsumerWidget {
     );
 
     return tiles;
-  }
-}
-
-/// Pip's contextual line at the top of Home: greets new users, nags when a
-/// streak has no alarm protecting it, and cheers in the morning.
-/// "Alarm in 7 hr 20 min" — the line every clock app shows, refreshed
-/// each minute.
-class _NextAlarmLine extends StatelessWidget {
-  const _NextAlarmLine({required this.alarms});
-
-  final List<AlarmModel> alarms;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<void>(
-      stream: Stream<void>.periodic(const Duration(seconds: 30)),
-      builder: (context, _) {
-        final now = DateTime.now();
-        DateTime? next;
-        for (final a in alarms.where((a) => a.isEnabled)) {
-          final t = a.nextDateTimeFrom(now);
-          if (next == null || t.isBefore(next)) next = t;
-        }
-        return Text(
-          TimeFormat.alarmIn(next?.difference(now)),
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        );
-      },
-    );
   }
 }
 

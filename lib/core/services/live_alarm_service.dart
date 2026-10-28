@@ -63,7 +63,6 @@ class LiveAlarmService {
   }
 
   /// The notification's wording for [ring].
-  @visibleForTesting
   static ({String title, String text}) wording(
     LiveRing ring,
     DateTime now, {

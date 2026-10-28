@@ -69,6 +69,11 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   same ticking countdown. A snooze shows "Snoozed" with its countdown, and
   the ringing alarm gets a red "Ringing" capsule. Scheduled natively, so it
   appears with the app closed. Settings → Live Alarm Countdown.
+- **Next-alarm capsule card** — the top of the Alarm tab is the in-app twin
+  of the status-bar capsule: a dark pill whose ring fills over the last two
+  hours, a countdown that rolls like an odometer (and shows seconds inside
+  the last hour), and an amber-to-red glow in the final five minutes. A
+  snooze shows as "Snoozed". Respects the system's reduce-motion setting.
 - **Alarm Health Check** — Settings → Alarm Health Check: one checklist for
   notifications, exact alarms and battery optimisation; steps and a direct
   link for phone makers known to stop alarm apps in the background (Xiaomi,

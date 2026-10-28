@@ -15,6 +15,7 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - long-press launcher shortcuts
   - the wake-up check re-ring after killing the app
   - a timezone change with the app closed (Settings → Date & time → pick another zone, then check the next alarm's time in Alarm+)
+  - the Morning Briefing (Settings → Morning Briefing on, then dismiss an alarm): it should speak over the celebration sheet
   - a location alarm arriving with the app swiped away, after tapping **Allow** on the Location Alarms banner ("all the time" access)
 - **Pro has no server-side receipt check.** At startup the app now asks Google Play which purchases the account owns, which auto-restores Pro after a reinstall and locks it again after a refund. A rooted device could still fake the local flag; full protection needs server-side verification.
 

@@ -27,6 +27,12 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Same for the text-to-speech engine the morning briefing uses:
+             without it TextToSpeech can't bind on Android 11+ and stays
+             silent. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application

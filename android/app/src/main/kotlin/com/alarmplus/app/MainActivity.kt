@@ -3,10 +3,12 @@ package com.alarmplus.app
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Intent
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
 import io.flutter.embedding.android.FlutterActivity
@@ -25,6 +27,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private var ringtoneResult: MethodChannel.Result? = null
+
+    /** The morning briefing's voice; created on first use, freed with the activity. */
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,12 +136,60 @@ class MainActivity : FlutterActivity() {
                             runOnUiThread { result.success(ok) }
                         }
                     }
+                    "speak" -> {
+                        val text = call.argument<String>("text")
+                        if (!text.isNullOrBlank()) speak(text)
+                        result.success(null)
+                    }
                     "hasBackgroundLocation" -> {
                         result.success(GeofenceManager.hasAccess(this))
                     }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * Reads [text] aloud with the phone's own text-to-speech engine (the
+     * morning briefing). The engine starts asynchronously, so the first
+     * request waits for it.
+     */
+    private fun speak(text: String) {
+        val engine = tts
+        if (engine != null && ttsReady) {
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "briefing")
+            return
+        }
+        pendingSpeech = text
+        if (engine != null) return
+        tts = TextToSpeech(applicationContext) { status ->
+            if (status != TextToSpeech.SUCCESS) {
+                // No engine on this phone: drop it, and try afresh next time.
+                runOnUiThread {
+                    pendingSpeech = null
+                    tts?.shutdown()
+                    tts = null
+                }
+            } else runOnUiThread {
+                val t = tts ?: return@runOnUiThread
+                ttsReady = true
+                t.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                pendingSpeech?.let { t.speak(it, TextToSpeech.QUEUE_FLUSH, null, "briefing") }
+                pendingSpeech = null
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        tts?.shutdown()
+        tts = null
+        ttsReady = false
+        super.onDestroy()
     }
 
     private fun pickRingtone(currentUri: String?, result: MethodChannel.Result) {

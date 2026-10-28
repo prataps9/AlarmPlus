@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
+import 'package:alarm_plus/core/services/morning_briefing_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
@@ -37,6 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late Future<PackageInfo> _packageInfoFuture;
   late Future<String> _guardianWebhookFuture;
   late Future<bool> _upcomingNoticeFuture;
+  late Future<bool> _briefingFuture;
   bool _restoringPurchase = false;
 
   static const _privacyPolicyUrl =
@@ -55,6 +57,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _packageInfoFuture = PackageInfo.fromPlatform();
     _guardianWebhookFuture = GuardianService.getWebhookUrl();
     _upcomingNoticeFuture = AlarmService.upcomingNoticeEnabled();
+    _briefingFuture = MorningBriefingService.isEnabled();
   }
 
   void _refreshAndRebuild() {
@@ -109,6 +112,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   value: on,
                   onChanged: (v) async {
                     await AlarmService.setUpcomingNoticeEnabled(v);
+                    _refreshAndRebuild();
+                  },
+                ),
+              );
+            },
+          ),
+          FutureBuilder<bool>(
+            future: _briefingFuture,
+            builder: (context, snapshot) {
+              return _SettingTile(
+                title: 'Morning Briefing',
+                subtitle: 'Reads the time, your wake-up speed and streak aloud',
+                trailing: _AnimatedToggle(
+                  value: snapshot.data ?? false,
+                  onChanged: (v) async {
+                    await MorningBriefingService.setEnabled(v);
                     _refreshAndRebuild();
                   },
                 ),

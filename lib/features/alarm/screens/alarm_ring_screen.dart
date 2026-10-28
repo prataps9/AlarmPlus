@@ -26,6 +26,7 @@ import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/challenge_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
+import 'package:alarm_plus/core/services/morning_briefing_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
@@ -233,6 +234,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         moodCheckInDoneToday: moodToday,
       );
       final prevBest = await SmartAlarmService.saveWakeScore(wakeScore);
+      // Not awaited: it talks while the celebration sheet is up.
+      unawaited(MorningBriefingService.playIfEnabled(
+        dismissSeconds: dismissMs ~/ 1000,
+        streakDays: reward?.stats.currentStreak ?? 0,
+        wakeScore: wakeScore.total,
+      ));
 
       // Record sleep analytics event
       final scheduledToday = alarm != null

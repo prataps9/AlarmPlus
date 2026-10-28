@@ -61,6 +61,14 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Live alarm capsule (Android)** — 2 hours before an alarm (and for a
+  running timer) Alarm+ posts a live countdown with a **Skip** button. On
+  Android 16+ (ColorOS 16 / OxygenOS 16 / One UI 8 …) it is a *Live Update*
+  and is promoted to the status-bar capsule, the slot food-delivery
+  trackers use; older phones show it as an ongoing notification with the
+  same ticking countdown. A snooze shows "Snoozed" with its countdown, and
+  the ringing alarm gets a red "Ringing" capsule. Scheduled natively, so it
+  appears with the app closed. Settings → Live Alarm Countdown.
 - **Alarm Health Check** — Settings → Alarm Health Check: one checklist for
   notifications, exact alarms and battery optimisation; steps and a direct
   link for phone makers known to stop alarm apps in the background (Xiaomi,

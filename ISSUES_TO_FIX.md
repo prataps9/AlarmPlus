@@ -15,6 +15,7 @@ This document tracks identified issues, deprecations, and potential logic bugs i
   - long-press launcher shortcuts
   - the wake-up check re-ring after killing the app
   - a timezone change with the app closed (Settings → Date & time → pick another zone, then check the next alarm's time in Alarm+)
+  - the Live alarm capsule: set an alarm under 2 h away, and confirm the countdown notification appears with the app closed; on an Android 16 phone it should become a status-bar capsule (promotion is up to the phone maker; if it only shows as a notification, that is the fallback). Tap **Skip**, start a timer, snooze an alarm, and let one ring (red "Ringing" capsule)
   - the Alarm Health Check: run the test, swipe the app away and lock the phone; the "Test alarm worked" notification should arrive about a minute later. On a Xiaomi/Oppo/Vivo phone, also check that **Open settings** lands on the Autostart screen (the screen names are not public APIs and move between OS versions; the fallback is the app's system settings page)
   - the Morning Briefing (Settings → Morning Briefing on, then dismiss an alarm): it should speak over the celebration sheet
   - a location alarm arriving with the app swiped away, after tapping **Allow** on the Location Alarms banner ("all the time" access)

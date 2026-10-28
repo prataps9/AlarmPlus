@@ -296,6 +296,17 @@ class AlarmService {
   // for tomorrow by restore.
   static String _scheduledForKey(int alarmId) => 'alarm.scheduled_for.$alarmId';
 
+  /// Snoozes and wake-check re-rings still to come, by alarm int id.
+  static Future<Map<int, DateTime>> pendingRings(Iterable<AlarmModel> alarms) async {
+    final out = <int, DateTime>{};
+    for (final alarm in alarms) {
+      final id = alarmIntId(alarm.id);
+      final at = await _pendingOverride(id);
+      if (at != null) out[id] = at;
+    }
+    return out;
+  }
+
   static Future<DateTime?> _pendingOverride(int alarmId) async {
     final prefs = await sp.SharedPreferences.getInstance();
     final ms = prefs.getInt(_overrideKey(alarmId));
@@ -438,42 +449,8 @@ class AlarmService {
     // There is no per-alarm "wind-down" notice any more: it fired e.g. at
     // 06:30 for a 07:00 alarm, waking people early with bedtime advice. The
     // real wind-down reminder is the bedtime one (BedtimeService).
-    final noticeAt = targetTime.subtract(upcomingNoticeLead);
-    if (!alarm.isSystem &&
-        noticeAt.isAfter(DateTime.now()) &&
-        await upcomingNoticeEnabled()) {
-      await _notifications.zonedSchedule(
-        _upcomingNotificationId(alarm.id),
-        'Upcoming alarm',
-        [
-          DateFormat.jm().format(targetTime),
-          if (alarm.label.isNotEmpty) alarm.label,
-        ].join(' · '),
-        tz.TZDateTime.from(noticeAt, location),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'alarm_plus_upcoming',
-            'Upcoming alarms',
-            channelDescription:
-                'A heads-up before each alarm, with a Dismiss now button',
-            importance: Importance.low,
-            priority: Priority.low,
-            category: AndroidNotificationCategory.reminder,
-            actions: [
-              AndroidNotificationAction(
-                'dismiss_now',
-                'Dismiss now',
-                showsUserInterface: true,
-                cancelNotification: true,
-              ),
-            ],
-          ),
-        ),
-        androidScheduleMode: scheduleMode,
-        payload: 'upcoming:$alarmId',
-      );
-    }
-
+    // The "Upcoming alarm" countdown is no longer scheduled here: it is the
+    // native live countdown (LiveAlarmService), synced by the refresh below.
     if (persist) {
       await saveAlarm(alarm.copyWith(isEnabled: true));
     }

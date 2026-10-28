@@ -95,7 +95,7 @@ object ReliabilityTest {
             )
         }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(if (lateSeconds <= 60) "Test alarm worked ✓" else "Test alarm was late")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

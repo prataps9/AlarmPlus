@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Android 16 Live Updates: lets the countdown and ringing alarm be
+         promoted to the status-bar capsule. Normal permission, granted at
+         install; ignored on older Android. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- The ring service loops a ringtone, so Android 14+ classifies it as
          mediaPlayback. There is no "alarm" foreground-service type. -->
@@ -106,6 +110,16 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <!-- Live alarm countdown (LiveActivity): its show alarm, Skip
+             button, and restore after a reboot. -->
+        <receiver
+            android:name=".LiveAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
         <!-- Alarm Health Check test alarm (ReliabilityTest): fired by

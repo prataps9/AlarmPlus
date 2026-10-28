@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:alarm/alarm.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'package:alarm_plus/core/services/live_alarm_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
@@ -34,6 +37,8 @@ class WidgetSyncService {
 
   static Future<void> refresh() async {
     if (kIsWeb) return;
+    // Same trigger points as the widget: anything that changes the next ring.
+    unawaited(LiveAlarmService.sync());
     try {
       await HomeWidget.setAppGroupId(_iosAppGroupId);
       final stats = await SmartAlarmService.getStats();

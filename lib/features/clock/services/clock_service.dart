@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:alarm_plus/core/services/live_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/features/clock/models/clock_models.dart';
 
@@ -83,6 +86,7 @@ class ClockService {
     }
     await _cancelTimerNotification();
     if (t != null && t.isRunning) await _scheduleTimerNotification(t.endsAt!);
+    unawaited(LiveAlarmService.syncTimer(t));
   }
 
   static Future<void> dismissTimesUp() => _cancelTimerNotification();

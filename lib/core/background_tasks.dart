@@ -21,6 +21,7 @@ class BackgroundTasks {
 
   static const timezoneChanged = 'timezoneChanged';
   static const geofenceEntered = 'geofenceEntered';
+  static const skipUpcoming = 'skipUpcoming';
 
   static const _channel = MethodChannel('alarmplus/background');
 
@@ -28,6 +29,10 @@ class BackgroundTasks {
   static void bindForegroundHandlers() {
     NativeControls.register(timezoneChanged, (_) async {
       await followTimezone(force: true);
+      return null;
+    });
+    NativeControls.register(skipUpcoming, (args) async {
+      await _skip(_ids(args));
       return null;
     });
     NativeControls.register(geofenceEntered, (args) async {
@@ -58,6 +63,12 @@ class BackgroundTasks {
             () => LocationAlarmService.handleArrivals(args.sublist(1)),
             timeout: const Duration(seconds: 15),
           );
+        case skipUpcoming:
+          await runStartupStep(
+            'skip upcoming',
+            () => _skip(args.sublist(1)),
+            timeout: const Duration(seconds: 15),
+          );
         default:
           debugPrint('BackgroundTasks: unknown task ${args.first}');
       }
@@ -82,6 +93,13 @@ class BackgroundTasks {
     final bedtime = await BedtimeService.load();
     if (bedtime != null) await BedtimeService.save(bedtime);
     await StreakReminderService.refresh();
+  }
+
+  /// The live countdown's Skip button: skip that ring (or switch a one-off off).
+  static Future<void> _skip(List<String> ids) async {
+    for (final id in ids.map(int.tryParse).whereType<int>()) {
+      await AlarmService.dismissUpcoming(id);
+    }
   }
 
   static List<String> _ids(Object? args) =>

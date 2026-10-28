@@ -105,8 +105,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             builder: (context, snapshot) {
               final on = snapshot.data ?? true;
               return _SettingTile(
-                title: 'Upcoming Alarm Notice',
-                subtitle: '2 hours before, with "Dismiss now"',
+                title: 'Live Alarm Countdown',
+                subtitle: 'Lock screen and status-bar capsule 2 h before, with Skip',
                 trailing: _AnimatedToggle(
                   value: on,
                   onChanged: (v) async {

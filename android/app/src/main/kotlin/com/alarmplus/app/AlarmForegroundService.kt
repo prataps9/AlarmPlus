@@ -19,6 +19,7 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.view.KeyEvent
@@ -240,7 +241,8 @@ class AlarmForegroundService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Alarm ringing")
             .setContentText("Open Alarm+ and beat the challenge to stop it")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setColor(0xFFEF4444.toInt())
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -248,6 +250,13 @@ class AlarmForegroundService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(fullScreenPi)
+            // Android 16 Live Updates: a red "Ringing" capsule in the status
+            // bar (Notification.EXTRA_REQUEST_PROMOTED_ONGOING and
+            // EXTRA_SHORT_CRITICAL_TEXT). Older versions ignore the extras.
+            .addExtras(Bundle().apply {
+                putBoolean("android.requestPromotedOngoing", true)
+                putString("android.shortCriticalText", "Ringing")
+            })
         if (!hardcore) {
             builder.addAction(
                 android.R.drawable.ic_media_pause,

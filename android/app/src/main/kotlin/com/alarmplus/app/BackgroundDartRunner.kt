@@ -98,11 +98,27 @@ object BackgroundDartRunner {
             engine = e
             MethodChannel(e.dartExecutor.binaryMessenger, CHANNEL)
                 .setMethodCallHandler { call, result ->
-                    if (call.method == "done") {
-                        result.success(null)
-                        main.post { finish(context, task) }
-                    } else {
-                        result.notImplemented()
+                    when (call.method) {
+                        "done" -> {
+                            result.success(null)
+                            main.post { finish(context, task) }
+                        }
+                        // The same live-countdown calls MainActivity answers, for
+                        // a task that changed the next alarm with the app closed.
+                        "liveAlarmSync" -> {
+                            LiveActivity.syncAlarm(context, call.argument<String>("ring"))
+                            result.success(null)
+                        }
+                        "liveTimerSync" -> {
+                            LiveActivity.syncTimer(
+                                context,
+                                call.argument<Number>("endMs")?.toLong() ?: 0L,
+                                call.argument<String>("title") ?: "Timer",
+                                call.argument<String>("text") ?: "",
+                            )
+                            result.success(null)
+                        }
+                        else -> result.notImplemented()
                     }
                 }
             timeout = Runnable { finish(context, task) }.also { main.postDelayed(it, TIMEOUT_MS) }

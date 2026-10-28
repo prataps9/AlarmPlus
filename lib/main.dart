@@ -29,6 +29,7 @@ import 'package:alarm_plus/features/mascot/services/mascot_service.dart';
 import 'package:alarm_plus/features/location/screens/location_picker_screen.dart';
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
+import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/morning_check_in_screen.dart';
@@ -126,6 +127,7 @@ class _AppWithTheme extends ConsumerWidget {
           MorningCheckInScreen.routeName: (_) => const MorningCheckInScreen(),
           NapTimerScreen.routeName: (_) => const NapTimerScreen(),
           SoundSettingsScreen.routeName: (_) => const SoundSettingsScreen(),
+          AlarmHealthScreen.routeName: (_) => const AlarmHealthScreen(),
           WardrobeScreen.routeName: (_) => const WardrobeScreen(),
         },
     );

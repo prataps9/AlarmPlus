@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/morning_briefing_service.dart';
+import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/screens/alarm_ring_screen.dart';
-import 'package:alarm_plus/features/alarm/widgets/reliability_banner.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/location/screens/location_alarm_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/sleep_diary_screen.dart';
@@ -161,18 +160,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               final ok = status?.notificationsGranted == true &&
                   status?.exactAlarmGranted == true;
               return _SettingTile(
-                title: 'Alarm Reliability',
+                title: 'Alarm Health Check',
                 subtitle: status == null
                     ? 'Checking…'
                     : ok
-                        ? 'All permissions granted'
+                        ? 'Test that alarms ring with the app closed'
                         : 'Action needed',
                 trailing: Icon(
                   ok ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
                   color: ok ? scheme.onSurface : muted,
                   size: 20,
                 ),
-                onTap: () => _showReliabilityDialog(context, status),
+                onTap: () async {
+                  await Navigator.of(context)
+                      .pushNamed(AlarmHealthScreen.routeName);
+                  _refreshAndRebuild();
+                },
               );
             },
           ),
@@ -480,62 +483,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: const Text('Privacy Policy'),
         ),
       ],
-    );
-  }
-
-  /// Same fix as the Home reliability banner: ask again, fall back to the
-  /// app's system settings once Android stops showing the prompt, and put
-  /// alarms back on an exact schedule when access returns.
-  Future<void> _fixReliability() async {
-    await AlarmService.requestPermissions();
-    final after = await SmartAlarmService.getReliabilityStatus(force: true);
-    if (reliabilityProblem(after) != null) {
-      await openAppSettings();
-    } else {
-      await AlarmService.restoreEnabledAlarms();
-    }
-    if (mounted) _refreshAndRebuild();
-  }
-
-  void _showReliabilityDialog(
-    BuildContext context,
-    AlarmReliabilityStatus? status,
-  ) {
-    final needsFix = status != null && reliabilityProblem(status) != null;
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alarm Reliability'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Notifications: ${status?.notificationsGranted == true ? 'Granted' : 'Missing'}',
-            ),
-            Text(
-              'Exact Alarm: ${status?.exactAlarmGranted == true ? 'Granted' : 'Missing'}',
-            ),
-            Text(
-              'Battery Optimization: ${status?.batteryOptimizationIgnored == true ? 'Ignored' : 'Active'}',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          if (needsFix)
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _fixReliability();
-              },
-              child: const Text('Fix'),
-            ),
-        ],
-      ),
     );
   }
 

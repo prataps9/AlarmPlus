@@ -141,6 +141,25 @@ class MainActivity : FlutterActivity() {
                         if (!text.isNullOrBlank()) speak(text)
                         result.success(null)
                     }
+                    "startHealthTest" -> {
+                        val delay = call.argument<Int>("delaySeconds") ?: 60
+                        result.success(ReliabilityTest.start(this, delay))
+                    }
+                    "cancelHealthTest" -> {
+                        ReliabilityTest.cancel(this)
+                        result.success(null)
+                    }
+                    "healthTestResult" -> result.success(ReliabilityTest.result(this))
+                    "phoneMaker" -> result.success(ReliabilityTest.maker())
+                    "openAutostartSettings" -> {
+                        result.success(
+                            try {
+                                ReliabilityTest.openAutostartSettings(this)
+                            } catch (_: Exception) {
+                                null
+                            }
+                        )
+                    }
                     "hasBackgroundLocation" -> {
                         result.success(GeofenceManager.hasAccess(this))
                     }

@@ -108,6 +108,11 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+        <!-- Alarm Health Check test alarm (ReliabilityTest): fired by
+             AlarmManager through our own PendingIntent. -->
+        <receiver
+            android:name=".ReliabilityTestReceiver"
+            android:exported="false" />
         <!-- Location alarm arrivals from the OS geofencing service, which
              delivers through our own PendingIntent: not exported. -->
         <receiver

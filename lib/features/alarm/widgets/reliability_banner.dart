@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:alarm_plus/core/services/alarm_health_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
+import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
 
 /// What, if anything, stops alarms from ringing. Pure so it can be tested.
 /// Returns null when everything needed is granted.
@@ -34,6 +36,7 @@ class ReliabilityBanner extends StatefulWidget {
 class _ReliabilityBannerState extends State<ReliabilityBanner>
     with WidgetsBindingObserver {
   AlarmReliabilityStatus? _status;
+  HealthTestState _test = HealthTestState.none;
 
   @override
   void initState() {
@@ -55,7 +58,13 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
 
   Future<void> _check({bool force = false}) async {
     final s = await SmartAlarmService.getReliabilityStatus(force: force);
-    if (mounted) setState(() => _status = s);
+    final test = (await AlarmHealthService.testOutcome()).state;
+    if (mounted) {
+      setState(() {
+        _status = s;
+        _test = test;
+      });
+    }
   }
 
   Future<void> _fix() async {
@@ -75,8 +84,24 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
   @override
   Widget build(BuildContext context) {
     final s = _status;
-    final problem = s == null ? null : reliabilityProblem(s);
+    final permissionProblem = s == null ? null : reliabilityProblem(s);
+    // A failed Alarm Health Check means the phone itself blocks alarms,
+    // which no permission shows.
+    final problem = permissionProblem ??
+        switch (_test) {
+          HealthTestState.failed =>
+            "Your test alarm didn't go off with the app closed.",
+          HealthTestState.late =>
+            'Your test alarm went off late: your phone is holding alarms back.',
+          _ => null,
+        };
     if (problem == null) return const SizedBox.shrink();
+    final VoidCallback onFix = permissionProblem != null
+        ? _fix
+        : () async {
+            await Navigator.of(context).pushNamed(AlarmHealthScreen.routeName);
+            await _check(force: true);
+          };
     // Pale red in light; a red tint with light-red text in dark.
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
@@ -106,7 +131,7 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
                             : const Color(0xFF991B1B),
                         fontWeight: FontWeight.w600)),
               ),
-              TextButton(onPressed: _fix, child: const Text('Fix')),
+              TextButton(onPressed: onFix, child: const Text('Fix')),
             ],
           ),
         ),

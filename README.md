@@ -61,6 +61,12 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Alarm Health Check** — Settings → Alarm Health Check: one checklist for
+  notifications, exact alarms and battery optimisation; steps and a direct
+  link for phone makers known to stop alarm apps in the background (Xiaomi,
+  Oppo/Realme, Vivo, Huawei, OnePlus, Samsung, Asus); and a real 1-minute
+  test alarm with the app swiped away, using the same Android call as the
+  alarm plugin. A failed or late test shows a banner on the Alarm tab.
 - **Morning Briefing** — optional (Settings → Morning Briefing): after a
   dismiss, the phone's own text-to-speech reads the time, the day, how fast
   you got up, your streak and wake score.

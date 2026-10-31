@@ -48,14 +48,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  // Set once the permission prompts have been shown, so finishing right
+  // after "Grant Permissions" doesn't run through them a second time.
+  bool _askedPermissions = false;
+
   Future<void> _grantPermissions() async {
+    if (_askedPermissions) return;
+    _askedPermissions = true;
     await AlarmService.requestPermissions();
   }
 
   Future<void> _finish() async {
-    // No-op for anything already granted; catches users who skipped the
-    // "Grant Permissions" button, since alarms can't ring without them.
-    await AlarmService.requestPermissions();
+    // Catches users who skipped the "Grant Permissions" button, since
+    // alarms can't ring without them.
+    await _grantPermissions();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
     if (mounted) {
@@ -76,8 +82,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -103,8 +111,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: i == _page
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFFE2E8F0),
+                              ? scheme.onSurface
+                              : scheme.outlineVariant,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );
@@ -135,8 +143,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: ElevatedButton(
                       onPressed: _next,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
-                        foregroundColor: Colors.white,
+                        backgroundColor: scheme.onSurface,
+                        foregroundColor: scheme.surface,
                         minimumSize: const Size(double.infinity, 56),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(40)),
@@ -176,22 +184,24 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 48, 32, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon == null)
-            const AlarmLogo(size: 104, color: Color(0xFF0F172A))
+            AlarmLogo(size: 104, color: scheme.onSurface)
           else
             Container(
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(icon, size: 44, color: const Color(0xFF0F172A)),
+              child: Icon(icon, size: 44, color: scheme.onSurface),
             ),
           const SizedBox(height: 28),
           Text(
@@ -199,16 +209,16 @@ class _OnboardingPage extends StatelessWidget {
             style: GoogleFonts.spaceGrotesk(
               fontSize: 40,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
+              color: scheme.onSurface,
               height: 1.1,
             ),
           ),
           const SizedBox(height: 16),
           Text(
             body,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
-              color: Color(0xFF475569),
+              color: scheme.onSurfaceVariant,
               height: 1.6,
             ),
           ),

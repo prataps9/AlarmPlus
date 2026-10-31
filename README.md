@@ -30,11 +30,11 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   as the launcher icon). On Android 12+ the system splash shows the logo with
   its minute hand sweeping once (`res/drawable/splash_logo_animated.xml`), and
   the Flutter splash continues from that exact frame.
-- **Clock tabs** — Alarm, Clock (world clock with city search), Timer (keypad
-  entry, presets, +1:00; rings through an insistent alarm-sound notification
-  even when the app is closed), Stopwatch (laps, with the fastest and slowest
-  highlighted; keeps running if the app is killed) and Insights. Settings
-  sits behind the gear on the Alarm tab.
+- **Four tabs** — Alarm, Clock (world clock with city search), Insights
+  and Settings, a bottom-bar tab with grouped, searchable settings. Tabs
+  are built the first time they are opened and fade in. (The timer and
+  stopwatch were removed; a "time's up" left scheduled by an older version
+  is cleaned up on the first start.)
 - **Reliability guardrails** — the Alarm tab warns, with a one-tap fix,
   whenever notifications or exact alarms are off. Every alarm gets a
   2-hours-ahead "Upcoming alarm" notice with **Dismiss now**. Times follow
@@ -44,8 +44,53 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   nightly reminder.
 - **Skip next** — skip one occurrence of a repeating alarm (a holiday, a day
   off) without switching it off.
+- **One-off alarms on a date** — with no repeat days, pick the day it rings
+  ("Thu, 30 Oct"). A dated alarm whose moment has passed is switched off
+  instead of ringing late.
+- **Sleep-cycle wake times** — in the alarm editor, "Sleeping now?" offers
+  wake times at the end of a 90-minute sleep cycle (6, 7.5 or 9 h); tap one
+  to set it.
+- **Next 7 days** — Alarms tab → ⋮ lists every ring in the coming week, with
+  skips, pauses and dates applied.
+- **Pause until a date** — vacation mode: hold every repeating alarm until a
+  chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
+- **Dark mode** — Settings → Theme: Light, Dark or Match phone.
+- **Undo & duplicate** — swiping an alarm away deletes it with an Undo
+  snackbar; long-press an alarm to duplicate it (voice memo included).
+- **24-hour editor** — the alarm time picker follows the phone's 24-hour
+  setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **Live alarm capsule (Android)** — 2 hours before an alarm Alarm+ posts a live countdown with a **Skip** button. On
+  Android 16+ (ColorOS 16 / OxygenOS 16 / One UI 8 …) it is a *Live Update*
+  and is promoted to the status-bar capsule, the slot food-delivery
+  trackers use; older phones show it as an ongoing notification with the
+  same ticking countdown. A snooze shows "Snoozed" with its countdown, and
+  the ringing alarm gets a red "Ringing" capsule. Scheduled natively, so it
+  appears with the app closed. Settings → Live Alarm Countdown.
+- **Stock-style ring screen** — a ringing alarm looks like the phone's own:
+  always dark, a huge thin clock, the label, today's date with a swinging
+  bell, a soft breathing glow, and two big buttons, **Snooze** and **Stop**
+  (Stop leads into the wake challenge when one is set). No swipe gestures,
+  so a stray drag never silences an alarm.
+- **Next-alarm capsule card** — the top of the Alarm tab is the in-app twin
+  of the status-bar capsule: a dark pill whose ring fills over the last two
+  hours, a countdown that rolls like an odometer (and shows seconds inside
+  the last hour), and an amber-to-red glow in the final five minutes. A
+  snooze shows as "Snoozed". Respects the system's reduce-motion setting.
+- **Alarm Health Check** — Settings → Alarm Health Check: one checklist for
+  notifications, exact alarms and battery optimisation; steps and a direct
+  link for phone makers known to stop alarm apps in the background (Xiaomi,
+  Oppo/Realme, Vivo, Huawei, OnePlus, Samsung, Asus); and a real 1-minute
+  test alarm with the app swiped away, using the same Android call as the
+  alarm plugin. A failed or late test shows a banner on the Alarm tab.
+- **Morning Briefing** — optional (Settings → Morning Briefing): after a
+  dismiss, the phone's own text-to-speech reads the time, the day, how fast
+  you got up, your streak and wake score.
+- **Works with the app closed** — a timezone change moves every alarm to
+  the new local time, and location alarms use Android's geofencing service,
+  so an arrival rings even with Alarm+ swiped away ("all the time" location
+  access needed).
 - **Native Android touches** — predictive-back page animations (Android
   14+), launcher long-press shortcuts (New alarm, Power nap, Sleep sounds,
   Focus timer), a Quick Settings tile, a home-screen widget, and volume-key
@@ -69,6 +114,10 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 ## Tech stack
 
 - **Flutter / Dart** (Flutter 3.47.5 in CI)
+- **Fonts:** Space Grotesk and DM Sans are bundled (`assets/google_fonts/`,
+  SIL OFL) and loaded by `google_fonts` from the app itself, so text looks
+  right on the first frame and offline; `tool/check_apk.py` fails a build
+  that ships without them.
 - **State management:** Riverpod (`flutter_riverpod`) for app-level/theme
   state, plus `provider`-style singleton services for alarm/storage logic.
   Consolidating this mix is a known, deferred cleanup — see
@@ -129,6 +178,14 @@ flutter build apk --release
 Without `android/key.properties`, release builds fall back to the debug
 signing key (with a Gradle warning) — fine for local testing, but not
 suitable for distribution.
+
+### APK sanity check
+
+`tool/check_apk.py` inspects a built release APK (manifest classes, resources
+that are looked up by name, engine libraries, assets, version). CI runs it on
+every pull request and `release.yml` runs it before publishing. To run it
+yourself: `pip install androguard`, then
+`python tool/check_apk.py build/app/outputs/flutter-apk/app-release.apk`.
 
 ## Continuous integration & releases
 

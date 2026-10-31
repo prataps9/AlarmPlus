@@ -10,18 +10,19 @@ class WakeReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (history.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: scheme.outlineVariant),
         ),
-        child: const Text(
+        child: Text(
           'Complete your first alarm dismiss to see your Wake Report.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF94A3B8)),
+          style: TextStyle(color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -55,7 +56,7 @@ class WakeReportCard extends StatelessWidget {
     } else {
       trendLabel = 'Steady this week';
       trendIcon = Icons.trending_flat_rounded;
-      trendColor = const Color(0xFF94A3B8);
+      trendColor = scheme.onSurfaceVariant;
     }
 
     final tip = history.isNotEmpty ? SmartAlarmService.wakeScoreTip(history.last) : '';
@@ -63,9 +64,9 @@ class WakeReportCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 4))],
       ),
       child: Column(
@@ -73,7 +74,7 @@ class WakeReportCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('Wake Report', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text('Wake Report', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: scheme.onSurface)),
               const Spacer(),
               Row(
                 children: [
@@ -96,9 +97,9 @@ class WakeReportCard extends StatelessWidget {
                     if (best != null)
                       Text('Best: ${best.total}/100', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF22C55E))),
                     if (worst != null)
-                      Text('Worst: ${worst.total}/100', style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                      Text('Worst: ${worst.total}/100', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                     const SizedBox(height: 4),
-                    Text(tip, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    Text(tip, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -158,7 +159,7 @@ class _ScoreCircle extends StatelessWidget {
           CircularProgressIndicator(
             value: score / 100.0,
             strokeWidth: 7,
-            backgroundColor: const Color(0xFFE2E8F0),
+            backgroundColor: Theme.of(context).colorScheme.outlineVariant,
             valueColor: AlwaysStoppedAnimation(color),
           ),
           Text(

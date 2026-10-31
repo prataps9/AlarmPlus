@@ -77,11 +77,12 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
 
     final progress = widget.stepGoal > 0 ? _stepsDone / widget.stepGoal : 0.0;
     final remaining = (widget.stepGoal - _stepsDone).clamp(0, widget.stepGoal);
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -98,11 +99,15 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
             width: 160,
             height: 160,
             child: Stack(alignment: Alignment.center, children: [
-              CircularProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                strokeWidth: 10,
-                backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+              // Fill the 160px box: a Stack passes loose constraints, so on
+              // its own the indicator shrank to its 36px default.
+              Positioned.fill(
+                child: CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: 10,
+                  backgroundColor: scheme.outlineVariant,
+                  valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+                ),
               ),
               Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(
@@ -114,7 +119,7 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
                     end: const Offset(1.0, 1.0),
                     duration: 200.ms,
                     curve: Curves.easeOut),
-                const Text('steps', style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
+                Text('steps', style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
               ]),
             ]),
           ),
@@ -126,18 +131,18 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: remaining > 0 ? const Color(0xFF475467) : const Color(0xFF10B981),
+              color: remaining > 0 ? scheme.onSurfaceVariant : const Color(0xFF10B981),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Walk around to wake up fully!',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            backgroundColor: const Color(0xFFE2E8F0),
+            backgroundColor: scheme.outlineVariant,
             valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
@@ -148,22 +153,23 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
   }
 
   Widget _buildPermissionDenied() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(28)),
+          color: scheme.surfaceContainer, borderRadius: BorderRadius.circular(28)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.directions_walk_rounded, color: Color(0xFF94A3B8), size: 40),
+          Icon(Icons.directions_walk_rounded, color: scheme.onSurfaceVariant, size: 40),
           const SizedBox(height: 16),
           const Text('Activity Permission Required',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Enable Activity Recognition in Settings to use the Step Counter challenge.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -180,7 +186,7 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
           const SizedBox(height: 8),
           TextButton(
             onPressed: widget.onPassed,
-            child: const Text('Skip for now', style: TextStyle(color: Color(0xFF94A3B8))),
+            child: Text('Skip for now', style: TextStyle(color: scheme.onSurfaceVariant)),
           ),
         ],
       ),

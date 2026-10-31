@@ -72,14 +72,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'PICK LOCATION',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: scheme.onSurfaceVariant),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         actions: [
           if (_pinned != null)
@@ -133,19 +134,19 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, -4))],
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainer,
+              boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, -4))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_pinned == null)
-                  const Text('Tap on the map to drop a pin', style: TextStyle(color: Color(0xFF94A3B8)))
+                  Text('Tap on the map to drop a pin', style: TextStyle(color: scheme.onSurfaceVariant))
                 else
                   Text(
                     '${_pinned!.latitude.toStringAsFixed(5)}, ${_pinned!.longitude.toStringAsFixed(5)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface),
                   ),
                 const SizedBox(height: 12),
                 TextField(

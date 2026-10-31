@@ -47,10 +47,12 @@ class _TypingChallengeWidgetState extends State<TypingChallengeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -64,16 +66,16 @@ class _TypingChallengeWidgetState extends State<TypingChallengeWidget> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: const Color(0xFF22C55E).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF86EFAC)),
+              border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.45)),
             ),
             child: Text(
               '"$_target"',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: Color(0xFF15803D),
+                color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
               ),
               textAlign: TextAlign.center,
             ),

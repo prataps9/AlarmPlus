@@ -17,6 +17,16 @@ import es.antonborri.home_widget.HomeWidgetProvider
  */
 class AlarmWidgetProvider : HomeWidgetProvider() {
 
+  override fun onReceive(context: Context, intent: Intent) {
+    super.onReceive(context, intent)
+    // Every WidgetSyncService.refresh() ends in this broadcast, placed widgets
+    // or not, so it is also the moment to let the Quick Settings tile re-read
+    // the same values (onUpdate only runs when a widget is placed).
+    if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+      AlarmTileService.requestRefresh(context)
+    }
+  }
+
   override fun onUpdate(
       context: Context,
       appWidgetManager: AppWidgetManager,

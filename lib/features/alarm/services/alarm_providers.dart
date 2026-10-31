@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
 import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
@@ -13,9 +16,8 @@ import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 abstract final class AppTab {
   static const alarm = 0;
   static const clock = 1;
-  static const timer = 2;
-  static const stopwatch = 3;
-  static const insights = 4;
+  static const insights = 2;
+  static const settings = 3;
 }
 
 /// Provider for the current tab index (see [AppTab]).
@@ -31,7 +33,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
 
   /// Re-reads alarms from storage after a change made outside the UI.
   void reload() {
-    state = Future.value({for (final a in AlarmService.getAllAlarms()) a.id: a});
+    state = Future.value({
+      for (final a in AlarmService.getAllAlarms())
+        if (!a.isSystem) a.id: a,
+    });
   }
 
   @override
@@ -41,18 +46,26 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   }
 
   static Future<Map<String, AlarmModel>> _loadInitialAlarms() async {
-    final alarms = AlarmService.getAllAlarms();
+    // Nap and location alarms are the app's own; they aren't listed.
+    final alarms = AlarmService.getAllAlarms().where((a) => !a.isSystem);
     final map = <String, AlarmModel>{};
     for (final alarm in alarms) {
       map[alarm.id] = alarm;
     }
 
-    if (map.isEmpty) {
+    // Starter alarms on the very first launch only. With no flag, a user
+    // who deleted every alarm got two enabled alarms back on the next start
+    // (and they rang).
+    final prefs = await SharedPreferences.getInstance();
+    if (map.isEmpty && !(prefs.getBool(_seededKey) ?? false)) {
       await _createDefaultAlarms(map);
     }
+    await prefs.setBool(_seededKey, true);
 
     return map;
   }
+
+  static const _seededKey = 'alarms.seeded';
 
   static Future<void> _createDefaultAlarms(Map<String, AlarmModel> map) async {
     final defaults = [
@@ -89,6 +102,11 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       map[alarm.id] = alarm;
       if (alarm.isEnabled) {
         await AlarmService.scheduleAlarm(alarm);
+        // Scheduling can switch an expired dated alarm off; storage wins.
+        map[alarm.id] = AlarmService.getAllAlarms()
+                .where((a) => a.id == alarm.id)
+                .firstOrNull ??
+            alarm;
       }
       state = Future.value(Map.from(map));
     } catch (e) {
@@ -104,10 +122,22 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   Future<void> updateAlarm(AlarmModel alarm) async {
     await AlarmService.saveAlarm(alarm);
     final map = await state;
+    final before = map[alarm.id];
     map[alarm.id] = alarm;
     if (alarm.isEnabled) {
+      // A pending snooze survives an edit that doesn't move the alarm (a new
+      // label, sound or challenge); a new time or days replaces it.
+      final sameTiming = before != null &&
+          before.time == alarm.time &&
+          before.date == alarm.date &&
+          before.repeatDays.length == alarm.repeatDays.length &&
+          before.repeatDays.toSet().containsAll(alarm.repeatDays);
       // scheduleAlarm clears the previous schedule for this id first.
-      await AlarmService.scheduleAlarm(alarm);
+      await AlarmService.scheduleAlarm(alarm, keepPending: sameTiming);
+      map[alarm.id] = AlarmService.getAllAlarms()
+              .where((a) => a.id == alarm.id)
+              .firstOrNull ??
+          alarm;
     } else {
       await AlarmService.cancelAlarm(alarm.id);
     }
@@ -115,7 +145,7 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
   }
 
   /// Add a new alarm
-  Future<void> addAlarm({
+  Future<AlarmModel> addAlarm({
     required TimeOfDay time,
     required String label,
     required List<int> repeatDays,
@@ -139,8 +169,10 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     bool wakeUpCheckEnabled = false,
     int wakeUpCheckMinutes = 10,
     bool hardcoreMode = false,
+    DateTime? date,
   }) async {
     final alarm = AlarmService.createAlarm(
+      date: date,
       time: time,
       label: label,
       repeatDays: repeatDays,
@@ -166,6 +198,7 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
       hardcoreMode: hardcoreMode,
     );
     await saveAlarm(alarm);
+    return alarm;
   }
 
   /// Toggle alarm on/off
@@ -174,9 +207,11 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final alarm = map[id];
     if (alarm == null) return;
 
-    final updated = alarm.copyWith(isEnabled: on);
     await AlarmService.toggleAlarm(id, on);
-    map[id] = updated;
+    // Read back: switching on a dated one-off whose day has passed leaves it
+    // off, and the card must show that rather than a dead ON.
+    map[id] = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull ??
+        alarm.copyWith(isEnabled: on);
     state = Future.value(Map.from(map));
   }
 
@@ -187,6 +222,43 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     final updated = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull;
     if (updated != null) map[id] = updated;
     state = Future.value(Map.from(map));
+  }
+
+  /// Copies an alarm (settings, challenges and all) under a new id and
+  /// returns the copy. A voice memo is copied too, so deleting it from one
+  /// alarm doesn't silence the other.
+  Future<AlarmModel?> duplicateAlarm(String id) async {
+    final map = await state;
+    final source = map[id];
+    if (source == null) return null;
+    final copy = source.copyWith(
+      id: AlarmService.newAlarmId(),
+      skipDate: null,
+      voiceMemoPath: await _copyMemo(source.voiceMemoPath),
+    );
+    await saveAlarm(copy);
+    return copy;
+  }
+
+  static Future<String?> _copyMemo(String? path) async {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (!await file.exists()) return null;
+      final dot = path.lastIndexOf('.');
+      final ext = dot == -1 ? '' : path.substring(dot);
+      final target = '${file.parent.path}/memo_${DateTime.now().microsecondsSinceEpoch}$ext';
+      return (await file.copy(target)).path;
+    } catch (e) {
+      debugPrint('Voice memo not copied: $e');
+      return null;
+    }
+  }
+
+  /// Vacation mode for every repeating alarm; null resumes them.
+  Future<void> pauseRepeatingUntil(DateTime? until) async {
+    await AlarmService.pauseRepeatingUntil(until);
+    reload();
   }
 
   /// Cancel alarm and remove it
@@ -233,8 +305,13 @@ final alarmsListProvider = FutureProvider<List<AlarmModel>>((ref) async {
   return sorted;
 });
 
-/// Provider for vibration setting
-final vibrationEnabledProvider = StateProvider<bool>((ref) => true);
+/// Global vibration switch (Settings). Saved via [AppSettings]; changing it
+/// reschedules alarms so the native ring picks it up.
+final vibrationEnabledProvider =
+    StateProvider<bool>((ref) => AppSettings.vibrationEnabled);
 
-/// Provider for theme setting
-final themeDarkProvider = StateProvider<bool>((ref) => false);
+Future<void> setVibrationEnabled(WidgetRef ref, bool on) async {
+  ref.read(vibrationEnabledProvider.notifier).state = on;
+  await AppSettings.setVibrationEnabled(on);
+  await AlarmService.restoreEnabledAlarms();
+}

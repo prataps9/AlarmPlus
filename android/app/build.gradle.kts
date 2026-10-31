@@ -71,4 +71,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // OS geofencing for location alarms (GeofenceManager). Same version
+    // geolocator_android already bundles.
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 }

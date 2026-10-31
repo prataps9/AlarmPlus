@@ -117,6 +117,7 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final vibrationEnabled = ref.watch(vibrationEnabledProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -136,7 +137,7 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                 _Card(
                   child: Row(
                     children: [
-                      const Icon(Icons.volume_down_rounded, color: Color(0xFF94A3B8)),
+                      Icon(Icons.volume_down_rounded, color: scheme.onSurfaceVariant),
                       Expanded(
                         child: Slider(
                           value: _volume,
@@ -147,7 +148,7 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                           onChangeEnd: _saveVolume,
                         ),
                       ),
-                      const Icon(Icons.volume_up_rounded, color: Color(0xFF94A3B8)),
+                      Icon(Icons.volume_up_rounded, color: scheme.onSurfaceVariant),
                     ],
                   ),
                 ),
@@ -176,9 +177,11 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Phone Ringtones',
+                              Text('Phone Ringtones',
                                   style: TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 15)),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: scheme.onSurface)),
                               Text(
                                 RingtoneService.isNativeUri(_selectedSound)
                                     ? _nativeTitle
@@ -187,7 +190,7 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                                   fontSize: 13,
                                   color: RingtoneService.isNativeUri(_selectedSound)
                                       ? const Color(0xFF22C55E)
-                                      : const Color(0xFF94A3B8),
+                                      : scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -206,8 +209,8 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                               const Icon(Icons.check_circle_rounded,
                                   color: Color(0xFF22C55E)),
                             const SizedBox(width: 6),
-                            const Icon(Icons.chevron_right_rounded,
-                                color: Color(0xFFCBD5E1)),
+                            Icon(Icons.chevron_right_rounded,
+                                color: scheme.outline),
                           ]),
                       ],
                     ),
@@ -236,7 +239,7 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                   return _SoundTile(
                     label: entry.value,
                     icon: _iconForSound(entry.key),
-                    iconColor: const Color(0xFF94A3B8),
+                    iconColor: scheme.onSurfaceVariant,
                     isSelected: selected,
                     showPreview: true,
                     isPreviewing: selected && _previewing,
@@ -271,12 +274,12 @@ class _SoundSettingsScreenState extends ConsumerState<SoundSettingsScreen> {
                       Switch(
                         value: vibrationEnabled,
                         onChanged: (v) =>
-                            ref.read(vibrationEnabledProvider.notifier).state = v,
+                            setVibrationEnabled(ref, v),
                         thumbColor: const WidgetStatePropertyAll(Colors.white),
                         trackColor: WidgetStateProperty.resolveWith<Color?>(
                           (s) => s.contains(WidgetState.selected)
                               ? const Color(0xFF22C55E)
-                              : const Color(0xFFE2E8F0),
+                              : scheme.outlineVariant,
                         ),
                       ),
                     ],
@@ -351,6 +354,7 @@ class _SoundTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return _Card(
       onTap: onTap,
       child: Row(
@@ -361,7 +365,7 @@ class _SoundTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xFF22C55E).withValues(alpha: 0.12)
-                  : const Color(0xFFF8FAFC),
+                  : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon,
@@ -378,11 +382,12 @@ class _SoundTile extends StatelessWidget {
                         fontWeight: isSelected
                             ? FontWeight.w700
                             : FontWeight.w500,
-                        fontSize: 15)),
+                        fontSize: 15,
+                        color: scheme.onSurface)),
                 if (subtitle != null)
                   Text(subtitle!,
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF94A3B8))),
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -397,7 +402,7 @@ class _SoundTile extends StatelessWidget {
                 : Icon(Icons.play_circle_outline_rounded,
                     color: isSelected
                         ? const Color(0xFF22C55E)
-                        : const Color(0xFFCBD5E1)),
+                        : scheme.outline),
           const SizedBox(width: 8),
           if (isSelected)
             const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E)),
@@ -424,6 +429,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -431,9 +437,9 @@ class _Card extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: child,
       ),

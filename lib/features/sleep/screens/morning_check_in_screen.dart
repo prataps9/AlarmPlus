@@ -27,6 +27,7 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (_mood == 0 || _sleepRating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please rate your mood and sleep')),
@@ -34,16 +35,26 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
       return;
     }
     setState(() => _saving = true);
+    final now = DateTime.now();
+    final notes = _notesController.text.trim();
+    // Merge into today's diary entry: writing a fresh one replaced it and
+    // lost its voice memo, deep-sleep estimate, bedtime and wake time.
+    final existing = await SleepDiaryService.getEntryForDate(now);
     final entry = SleepEntry(
-      date: SleepDiaryService.dateKey(DateTime.now()),
+      date: SleepDiaryService.dateKey(now),
       sleepQuality: _sleepRating,
       morningMood: _mood,
-      notes: _notesController.text.trim().isEmpty
-          ? null
-          : _notesController.text.trim(),
+      notes: notes.isEmpty ? existing?.notes : notes,
+      bedtime: existing?.bedtime,
+      wakeTime: existing?.wakeTime,
+      deepSleepEstimate: existing?.deepSleepEstimate,
+      voiceMemoPath: existing?.voiceMemoPath,
     );
     await SleepDiaryService.saveEntry(entry);
-    await SmartAlarmService.addXp(10);
+    // Paid once a day, not on every check-in.
+    if (await SmartAlarmService.claimDailyXp('morning_check_in')) {
+      await SmartAlarmService.addXp(10);
+    }
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(MorningMissionsScreen.routeName);
   }

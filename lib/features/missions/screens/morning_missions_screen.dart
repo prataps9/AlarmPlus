@@ -42,6 +42,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
     final streak = await SmartAlarmService.getMissionStreak();
     final now = DateTime.now();
     final noon = DateTime(now.year, now.month, now.day, 12, 0, 0);
+    if (!mounted) return;
     setState(() {
       _missions = missions;
       _missionStreak = streak;
@@ -72,61 +73,25 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
     });
   }
 
-  void _showAddCustomMission() {
-    final titleCtrl = TextEditingController();
-    String selectedIcon = '⭐';
-    const icons = ['⭐', '💪', '📚', '🎯', '🌿', '💡', '🏃', '☕', '🎵', '❤️'];
-
-    showDialog<void>(
+  Future<void> _showAddCustomMission() async {
+    // The dialog owns its text controller: this used to dispose it right
+    // after an un-awaited showDialog, while the field was still using it.
+    final mission = await showDialog<(String, String)>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          title: const Text('Add Custom Mission'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(hintText: 'What do you want to do?'),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: icons.map((ic) {
-                  return GestureDetector(
-                    onTap: () => setDlg(() => selectedIcon = ic),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: selectedIcon == ic ? const Color(0xFFEEF2FF) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
-                        ),
-                      ),
-                      child: Text(ic, style: const TextStyle(fontSize: 22)),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                final title = titleCtrl.text.trim();
-                if (title.isEmpty) return;
-                await SmartAlarmService.addCustomMission(title, selectedIcon);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
+      builder: (ctx) => const _AddMissionDialog(),
+    );
+    if (mission == null) return;
+    await SmartAlarmService.addCustomMission(mission.$1, mission.$2);
+    if (!mounted) return;
+    // Today's three missions are already drawn, so a new one joins the pool
+    // that tomorrow's are picked from. Adding it to today's list would make
+    // every new mission a fresh +XP and move the all-done streak goalpost.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Added. It joins your mission pool from tomorrow.'),
       ),
     );
-    titleCtrl.dispose();
+    await _load();
   }
 
   String _formatDuration(Duration d) {
@@ -141,10 +106,12 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: scheme.surface,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +120,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
             if (_timeToNoon > Duration.zero)
               Text(
                 'Expires in ${_formatDuration(_timeToNoon)}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w400),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w400),
               ),
           ],
         ),
@@ -177,9 +144,9 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
+                        color: const Color(0xFFF97316).withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFED7AA)),
+                        border: Border.all(color: const Color(0xFFF97316).withValues(alpha: 0.35)),
                       ),
                       child: Row(
                         children: [
@@ -187,7 +154,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                           const SizedBox(width: 8),
                           Text(
                             '$_missionStreak-day mission streak!',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+                            style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface),
                           ),
                         ],
                       ),
@@ -229,7 +196,7 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                     secondChild: Text(
                       '${_missions.where((m) => m.isCompleted).length} of ${_missions.length} completed · +$_totalEarnedXp XP so far',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                     ),
                   ),
                 ],
@@ -246,16 +213,20 @@ class _MissionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: mission.isCompleted ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: mission.isCompleted ? const Color(0xFFF0FDF4) : Colors.white,
+          color: mission.isCompleted
+              ? const Color(0xFF22C55E).withValues(alpha: 0.08)
+              : scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: mission.isCompleted ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+            color: mission.isCompleted ? const Color(0xFF86EFAC) : scheme.outlineVariant,
             width: 1.5,
           ),
           boxShadow: mission.isCompleted
@@ -276,7 +247,7 @@ class _MissionTile extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                       decoration: mission.isCompleted ? TextDecoration.lineThrough : null,
-                      color: mission.isCompleted ? const Color(0xFF94A3B8) : Colors.black,
+                      color: mission.isCompleted ? scheme.onSurfaceVariant : scheme.onSurface,
                     ),
                   ),
                   Text(
@@ -298,7 +269,7 @@ class _MissionTile extends StatelessWidget {
                 color: mission.isCompleted ? const Color(0xFF22C55E) : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: mission.isCompleted ? const Color(0xFF22C55E) : const Color(0xFFCBD5E1),
+                  color: mission.isCompleted ? const Color(0xFF22C55E) : scheme.outline,
                   width: 2,
                 ),
               ),
@@ -309,6 +280,75 @@ class _MissionTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AddMissionDialog extends StatefulWidget {
+  const _AddMissionDialog();
+
+  @override
+  State<_AddMissionDialog> createState() => _AddMissionDialogState();
+}
+
+class _AddMissionDialogState extends State<_AddMissionDialog> {
+  static const _icons = ['⭐', '💪', '📚', '🎯', '🌿', '💡', '🏃', '☕', '🎵', '❤️'];
+
+  final _titleCtrl = TextEditingController();
+  String _selectedIcon = '⭐';
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Custom Mission'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(hintText: 'What do you want to do?'),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: _icons.map((ic) {
+              return GestureDetector(
+                onTap: () => setState(() => _selectedIcon = ic),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: _selectedIcon == ic
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
+                    ),
+                  ),
+                  child: Text(ic, style: const TextStyle(fontSize: 22)),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () {
+            final title = _titleCtrl.text.trim();
+            if (title.isEmpty) return;
+            Navigator.pop(context, (title, _selectedIcon));
+          },
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }

@@ -87,6 +87,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final question = _triviaQuestions![_currentIndex];
     final correct = index == question.answerIndex;
+    // Stop the clock: hitting 0 during the 900 ms pause advanced twice.
+    _timer?.cancel();
     setState(() {
       _answered = true;
       _selectedOption = index;
@@ -101,6 +103,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final input = _wordController.text.trim().toLowerCase();
     if (input == _currentWord.toLowerCase()) {
+      _timer?.cancel();
       setState(() {
         _answered = true;
         _correctCount++;
@@ -152,11 +155,13 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
       ),
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          // A bare Center grew to the full screen height in a dialog.
+          ? const SizedBox(
+              height: 160, child: Center(child: CircularProgressIndicator()))
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -189,7 +194,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         _TimerChip(seconds: _timeLeft),
         const SizedBox(width: 10),
         Text('${_currentIndex + 1}/$_totalQuestions',
-            style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -199,6 +204,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
       return const Text('No questions available');
     }
     final question = _triviaQuestions![_currentIndex];
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -209,18 +216,18 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         ).animate().fadeIn(duration: 300.ms),
         const SizedBox(height: 16),
         ...List.generate(question.options.length, (i) {
-          Color bg = const Color(0xFFF8FAFC);
-          Color border = const Color(0xFFE2E8F0);
-          Color text = const Color(0xFF1A1A2E);
+          Color bg = scheme.surfaceContainerHighest;
+          Color border = scheme.outlineVariant;
+          Color text = scheme.onSurface;
           if (_answered) {
             if (i == question.answerIndex) {
-              bg = const Color(0xFFDCFCE7);
+              bg = const Color(0xFF22C55E).withValues(alpha: 0.15);
               border = const Color(0xFF22C55E);
-              text = const Color(0xFF15803D);
+              text = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
             } else if (i == _selectedOption && i != question.answerIndex) {
-              bg = const Color(0xFFFEE2E2);
+              bg = const Color(0xFFEF4444).withValues(alpha: 0.15);
               border = const Color(0xFFEF4444);
-              text = const Color(0xFFB91C1C);
+              text = isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
             }
           }
           return Padding(
@@ -252,8 +259,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Unscramble this word:',
-            style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+        Text('Unscramble this word:',
+            style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 12),
         Center(
           child: Text(

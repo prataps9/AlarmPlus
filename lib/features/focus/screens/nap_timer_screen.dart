@@ -19,6 +19,7 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
   bool _loading = true;
   bool _napActive = false;
   int _remainingSeconds = 0;
+  int _totalSeconds = 0;
   NapPresetType? _selectedPreset;
   int _customMinutes = 30;
   List<Map<String, dynamic>> _history = [];
@@ -40,13 +41,16 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
     final active = await NapService.isNapActive();
     final history = await NapService.getNapHistory();
     int remaining = 0;
+    int total = 0;
     if (active) {
       remaining = await NapService.getRemainingSeconds();
+      total = await NapService.getDurationSeconds();
     }
     if (!mounted) return;
     setState(() {
       _napActive = active && remaining > 0;
       _remainingSeconds = remaining;
+      _totalSeconds = total;
       _history = history;
       _loading = false;
     });
@@ -74,6 +78,7 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
     setState(() {
       _napActive = true;
       _remainingSeconds = minutes * 60;
+      _totalSeconds = minutes * 60;
     });
     _startTicker();
   }
@@ -126,16 +131,15 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
   }
 
   Widget _buildRunningState() {
-    final totalSeconds = (_remainingSeconds > 0)
-        ? _remainingSeconds
-        : 1;
     final mins = _remainingSeconds ~/ 60;
     final secs = _remainingSeconds % 60;
     final label = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
-    // Progress goes from 1 → 0 as time counts down
-    // We need the original duration to compute progress; approximate from remaining
-    final progress = (_remainingSeconds / (totalSeconds.toDouble())).clamp(0.0, 1.0);
+    // 1 → 0 as the nap counts down. It used to divide the remaining time by
+    // itself, so the ring was always full.
+    final progress = _totalSeconds <= 0
+        ? 1.0
+        : (_remainingSeconds / _totalSeconds).clamp(0.0, 1.0);
 
     return SafeArea(
       child: Padding(

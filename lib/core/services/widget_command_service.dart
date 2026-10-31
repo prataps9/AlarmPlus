@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -18,7 +18,6 @@ import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 class WidgetCommandService {
   WidgetCommandService._();
 
-  static const _channel = MethodChannel('alarmplus/alarm_controls');
   static const _pendingKey = 'widget_pending_commands';
 
   static const toggleNext = 'toggleNext';
@@ -27,10 +26,8 @@ class WidgetCommandService {
   /// Handles commands arriving while the app is alive. Call once at startup.
   static void bind() {
     if (kIsWeb) return;
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == 'widgetCommand') {
-        await apply(call.arguments as String? ?? '');
-      }
+    NativeControls.register('widgetCommand', (args) async {
+      await apply(args as String? ?? '');
       return null;
     });
   }
@@ -62,6 +59,9 @@ class WidgetCommandService {
         case snooze:
           final ringingId = AlarmRingFlow.currentRingingId;
           if (ringingId == 0) return;
+          // Like volume keys and the notification: Hardcore alarms can only
+          // be snoozed from the ring screen.
+          if (AlarmService.findByIntId(ringingId)?.hardcoreMode == true) return;
           await AlarmRingFlow.snoozeAlarm(ringingId);
         default:
           debugPrint('WidgetCommandService: unknown command "$command"');
@@ -79,18 +79,23 @@ class WidgetCommandService {
     if (alarms.isEmpty) return;
 
     final now = DateTime.now();
-    final enabled = alarms.where((a) => a.isEnabled).toList();
-
-    if (enabled.isNotEmpty) {
-      enabled.sort(
-        (a, b) => a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)),
-      );
-      await AlarmService.toggleAlarm(enabled.first.id, false);
+    // The same alarm the widget label shows, so a hidden nap/arrival alarm or
+    // an expired one-off is never what gets switched off.
+    final next = WidgetSyncService.nextWidgetAlarm(alarms, now);
+    if (next != null) {
+      await AlarmService.toggleAlarm(next.id, false);
       return;
     }
 
-    // Nothing armed: re-arm whichever alarm comes round soonest.
-    final candidates = [...alarms]..sort(
+    // Nothing visible armed: re-arm whichever alarm comes round soonest. A dated
+    // one-off whose day has gone sorted first forever, and re-arming it just
+    // switched it straight off again, so the toggle did nothing.
+    final candidates = [
+      for (final a in alarms)
+        if (!a.isExpiredAt(now) && !a.isSystem) a,
+    ];
+    if (candidates.isEmpty) return;
+    candidates.sort(
         (a, b) => a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)),
       );
     await AlarmService.toggleAlarm(candidates.first.id, true);

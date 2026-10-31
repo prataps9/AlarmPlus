@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/features/alarm/models/upcoming_rings.dart';
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
@@ -22,12 +23,16 @@ import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
-import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/sleep/widgets/bedtime_card.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  // Last values shown, so a rebuild doesn't flash the sections empty.
+  static (AlarmStats, int)? _lastStats;
+  static List<dynamic>? _lastMissions;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,33 +54,15 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Settings',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      // SettingsScreen draws its own "Settings" heading;
-                      // the bar only adds the back button.
-                      builder: (_) => Scaffold(
-                        appBar: AppBar(),
-                        body: const SettingsScreen(),
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.settings_outlined, size: 28),
-                ),
-                IconButton(
                   tooltip: 'New alarm',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AlarmsScreen(),
-                      ),
-                    );
-                  },
+                  // Straight into the editor; it used to open the alarm list.
+                  onPressed: () => AlarmsScreen.showEditor(context, ref),
                   icon: const Icon(Icons.add, size: 34),
                 ),
               ],
             ),
-            _NextAlarmLine(alarms: alarms),
+            const SizedBox(height: 10),
+            NextAlarmCapsule(alarms: alarms),
             const SizedBox(height: 18),
             const ReliabilityBanner(),
             // Streak / XP hero widget
@@ -84,8 +71,12 @@ class HomeScreen extends ConsumerWidget {
                 SmartAlarmService.getStats(),
                 SmartAlarmService.getXp(),
               ]).then((r) => (r[0] as AlarmStats, r[1] as int)),
+              // The future is new on every rebuild; showing the last result
+              // meanwhile stops the hero collapsing and popping back.
+              initialData: _lastStats,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox(height: 80);
+                _lastStats = snapshot.data;
                 final (stats, xp) = snapshot.data!;
                 return _StreakHeroWidget(
                   stats: stats,
@@ -99,8 +90,10 @@ class HomeScreen extends ConsumerWidget {
             // Morning Missions card
             FutureBuilder<List<dynamic>>(
               future: SmartAlarmService.getTodayMissions(),
+              initialData: _lastMissions,
               builder: (context, snap) {
                 if (!snap.hasData) return const SizedBox.shrink();
+                _lastMissions = snap.data;
                 final missions = snap.data!;
                 final completed = missions.where((m) => (m as dynamic).isCompleted == true).length;
                 final total = missions.length;
@@ -122,7 +115,7 @@ class HomeScreen extends ConsumerWidget {
                             shape: BoxShape.circle,
                             color: i < completed
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.outlineVariant,
+                                : Theme.of(context).colorScheme.outline,
                           ),
                         ),
                     ],
@@ -193,7 +186,7 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...alarms
+            ..._upcomingFirst(alarms)
                 .take(2)
                 .map(
                   (alarm) => AlarmCard(
@@ -302,7 +295,7 @@ class HomeScreen extends ConsumerWidget {
                     label: const Text('Start Focus'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.onSurface,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                     ),
                   ),
                 ),
@@ -319,19 +312,30 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildTodayTiles(BuildContext context, List<AlarmModel> alarms) {
-    final today = DateTime.now().weekday;
-    final now = DateTime.now();
+  /// The alarms that ring soonest, then the rest (so the card list isn't
+  /// just the earliest clock times, switched-off ones included).
+  static List<AlarmModel> _upcomingFirst(List<AlarmModel> alarms) {
+    final next = <AlarmModel>[];
+    for (final r in upcomingRings(alarms, DateTime.now())) {
+      if (!next.contains(r.alarm)) next.add(r.alarm);
+    }
+    return [...next, ...alarms.where((a) => !next.contains(a))];
+  }
 
+  List<Widget> _buildTodayTiles(BuildContext context, List<AlarmModel> alarms) {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+
+    // Rings today, with skips, pauses and dates applied (a skipped or
+    // paused weekday alarm used to be listed anyway).
     final todayAlarms = alarms.where((alarm) {
-      if (!alarm.isEnabled) return false;
-      if (alarm.repeatDays.isEmpty) {
-        final next = alarm.nextDateTimeFrom(now);
-        return next.year == now.year &&
-            next.month == now.month &&
-            next.day == now.day;
-      }
-      return alarm.repeatDays.contains(today);
+      if (!alarm.isEnabled || alarm.isSystem) return false;
+      final from =
+          alarm.repeatDays.isEmpty && alarm.date == null ? now : startOfToday;
+      final next = alarm.nextDateTimeFrom(from);
+      return next.year == now.year &&
+          next.month == now.month &&
+          next.day == now.day;
     }).toList()
       ..sort(
         (a, b) => (a.time.hour * 60 + a.time.minute)
@@ -372,37 +376,6 @@ class HomeScreen extends ConsumerWidget {
     );
 
     return tiles;
-  }
-}
-
-/// Pip's contextual line at the top of Home: greets new users, nags when a
-/// streak has no alarm protecting it, and cheers in the morning.
-/// "Alarm in 7 hr 20 min" — the line every clock app shows, refreshed
-/// each minute.
-class _NextAlarmLine extends StatelessWidget {
-  const _NextAlarmLine({required this.alarms});
-
-  final List<AlarmModel> alarms;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<void>(
-      stream: Stream<void>.periodic(const Duration(seconds: 30)),
-      builder: (context, _) {
-        final now = DateTime.now();
-        DateTime? next;
-        for (final a in alarms.where((a) => a.isEnabled)) {
-          final t = a.nextDateTimeFrom(now);
-          if (next == null || t.isBefore(next)) next = t;
-        }
-        return Text(
-          TimeFormat.alarmIn(next?.difference(now)),
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        );
-      },
-    );
   }
 }
 
@@ -490,8 +463,8 @@ class _StreakHeroWidget extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: progress,
                           backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF111111)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.onSurface),
                           minHeight: 6,
                         ),
                       ),
@@ -521,8 +494,8 @@ class _StreakHeroWidget extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: milestoneProgress.clamp(0.0, 1.0),
                           backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF111111)),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.onSurface),
                           minHeight: 4,
                         ),
                       ),
@@ -539,7 +512,7 @@ class _StreakHeroWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEEEEE),
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                       ),

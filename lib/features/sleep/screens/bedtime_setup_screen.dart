@@ -40,12 +40,16 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
   }
 
   Future<void> _save() async {
-    final schedule = BedtimeSchedule(
+    // Start from what's saved: building a fresh schedule reset the sleep
+    // goal (set on the Bedtime card) to the 8-hour default.
+    final saved = await BedtimeService.load();
+    final base = saved ??
+        BedtimeSchedule(targetBedtime: _bedtime);
+    await BedtimeService.save(base.copyWith(
       targetBedtime: _bedtime,
       windDownMinutes: _windDownMinutes,
       isEnabled: _isEnabled,
-    );
-    await BedtimeService.save(schedule);
+    ));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Bedtime schedule saved!')),
@@ -60,15 +64,16 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
     final period = h >= 12 ? 'PM' : 'AM';
     final displayH = h % 12 == 0 ? 12 : h % 12;
     final timeLabel = '$displayH:${m.toString().padLeft(2, '0')} $period';
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'WIND DOWN',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 3, color: scheme.onSurfaceVariant),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
       ),
       body: Padding(
@@ -78,12 +83,12 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Enable Wind Down', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                      Text('Get notified before bedtime', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                      Text('Enable Wind Down', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: scheme.onSurface)),
+                      Text('Get notified before bedtime', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -94,35 +99,35 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
                   trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
                       states.contains(WidgetState.selected)
                           ? const Color(0xFF22C55E)
-                          : const Color(0xFFE2E8F0)),
+                          : scheme.outlineVariant),
                 ),
               ],
             ),
             const SizedBox(height: 28),
-            const Text('TARGET BEDTIME', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 2, color: Color(0xFF94A3B8))),
+            Text('TARGET BEDTIME', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 2, color: scheme.onSurfaceVariant)),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: _pickBedtime,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.bedtime_rounded, color: Color(0xFF6366F1)),
                     const SizedBox(width: 12),
-                    Text(timeLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
+                    Text(timeLabel, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: scheme.onSurface)),
                     const Spacer(),
-                    const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                    Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 28),
-            const Text('WIND DOWN DURATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 2, color: Color(0xFF94A3B8))),
+            Text('WIND DOWN DURATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 2, color: scheme.onSurfaceVariant)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 10,
@@ -131,9 +136,10 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
                 return ChoiceChip(
                   label: Text('$min min'),
                   selected: selected,
-                  selectedColor: const Color(0xFF0F172A),
+                  selectedColor: scheme.onSurface,
+                  checkmarkColor: scheme.surface,
                   labelStyle: TextStyle(
-                    color: selected ? Colors.white : const Color(0xFF0F172A),
+                    color: selected ? scheme.surface : scheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                   onSelected: (_) => setState(() => _windDownMinutes = min),
@@ -143,7 +149,7 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
             const SizedBox(height: 12),
             Text(
               'You\'ll be notified at ${_windDownTimeLabel()} to start winding down',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
             ),
             const Spacer(),
             SizedBox(
@@ -151,8 +157,8 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
               child: ElevatedButton(
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F172A),
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.onSurface,
+                  foregroundColor: scheme.surface,
                   minimumSize: const Size(double.infinity, 58),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                 ),

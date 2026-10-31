@@ -32,8 +32,11 @@ class SleepAnalyticsService {
 
   static Future<List<AlarmRingEvent>> getLast7Days() async {
     final all = await _loadAll();
-    final cutoff = DateTime.now().subtract(const Duration(days: 7));
-    return all.where((e) => e.scheduledTime.isAfter(cutoff)).toList();
+    // Today and the six calendar days before it, the same days the daily
+    // chart shows (a rolling 168 hours took in part of an eighth day).
+    final now = DateTime.now();
+    final cutoff = DateTime(now.year, now.month, now.day - 6);
+    return all.where((e) => !e.scheduledTime.isBefore(cutoff)).toList();
   }
 
   static Future<List<AlarmRingEvent>> getLast30Days() async {
@@ -90,7 +93,8 @@ class SleepAnalyticsService {
     final scores = List<double>.filled(7, 0);
 
     for (var i = 0; i < 7; i++) {
-      final day = now.subtract(Duration(days: 6 - i));
+      // Calendar days: 24-hour steps skip or repeat a day across DST.
+      final day = DateTime(now.year, now.month, now.day - (6 - i));
       final dayEvents = events.where((e) =>
         e.scheduledTime.year == day.year &&
         e.scheduledTime.month == day.month &&

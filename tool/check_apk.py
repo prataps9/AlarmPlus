@@ -39,6 +39,13 @@ REQUIRED_ASSETS = [
     "assets/data/trivia_fallback.json",
     "assets/data/read_aloud_sentences.json",
     "assets/icon/app_icon.png",
+    # The theme's fonts (google_fonts loads them from here, not the network).
+    "assets/google_fonts/SpaceGrotesk-Bold.ttf",
+    "assets/google_fonts/SpaceGrotesk-SemiBold.ttf",
+    "assets/google_fonts/DMSans-Regular.ttf",
+    "assets/google_fonts/DMSans-Medium.ttf",
+    "assets/google_fonts/DMSans-SemiBold.ttf",
+    "assets/google_fonts/DMSans-Bold.ttf",
 ]
 # Resources the app or system finds by name (not statically referenced).
 NAMED_RESOURCES = [("drawable", "splash_logo_animated"), ("color", "splash_background"),

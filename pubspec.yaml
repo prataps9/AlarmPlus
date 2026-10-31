@@ -108,6 +108,9 @@ flutter:
     - assets/icon/app_icon.png
     - assets/sounds/
     - assets/data/
+    # Space Grotesk and DM Sans, bundled so the theme never waits on (or needs)
+    # a font download. google_fonts finds these by file name (Family-Weight).
+    - assets/google_fonts/
 
 flutter_launcher_icons:
   android: true

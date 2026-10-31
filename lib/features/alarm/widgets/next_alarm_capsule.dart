@@ -129,16 +129,20 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
           ),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: urgent ? 0.25 + 0.3 * _glow.value : 0.14),
-              blurRadius: urgent ? 18 + 14 * _glow.value : 18,
-              spreadRadius: urgent ? 1 + 2 * _glow.value : 0,
+              color: accent.withValues(alpha: urgent ? 0.2 + 0.2 * _glow.value : 0.14),
+              blurRadius: urgent ? 18 + 12 * _glow.value : 18,
+              spreadRadius: urgent ? 1 * _glow.value : 0,
               offset: const Offset(0, 8),
             ),
           ],
         ),
         child: child,
       ),
-      child: Padding(
+      child: LayoutBuilder(builder: (context, constraints) {
+        // Row width left once the ring, padding and gaps are taken out.
+        final free = constraints.maxWidth - 34 - 58 - 24;
+        final rightMax = (free * 0.4).clamp(72.0, 150.0);
+        return Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 20, 14),
         child: Row(
           children: [
@@ -167,7 +171,12 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(
+              // Scales down on a narrow phone or a big system font rather
+              // than wrapping "NEXT ALARM" letter by letter.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -187,9 +196,15 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
                   ),
                 ],
               ),
+              ),
             ),
             const SizedBox(width: 10),
-            Flexible(
+            // Not Flexible: that split the row 50/50 with the countdown and
+            // left this column floating mid-card. Capped at 40% of the row
+            // (at most 150), so a long label ellipsizes instead of squeezing
+            // the countdown.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: rightMax),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
@@ -218,7 +233,8 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
             ),
           ],
         ),
-      ),
+        );
+      }),
     );
 
     final semantics = Semantics(

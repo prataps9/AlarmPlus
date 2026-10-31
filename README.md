@@ -114,6 +114,10 @@ roadmap, and `IMPLEMENTATION_PLAN.md` for in-progress work.
 ## Tech stack
 
 - **Flutter / Dart** (Flutter 3.47.5 in CI)
+- **Fonts:** Space Grotesk and DM Sans are bundled (`assets/google_fonts/`,
+  SIL OFL) and loaded by `google_fonts` from the app itself, so text looks
+  right on the first frame and offline; `tool/check_apk.py` fails a build
+  that ships without them.
 - **State management:** Riverpod (`flutter_riverpod`) for app-level/theme
   state, plus `provider`-style singleton services for alarm/storage logic.
   Consolidating this mix is a known, deferred cleanup — see

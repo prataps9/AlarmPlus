@@ -5,10 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
 
-AlarmModel _alarm(int hour, {bool on = true}) => AlarmModel(
+AlarmModel _alarm(int hour, {bool on = true, String label = 'Gym'}) => AlarmModel(
       id: 'a$hour',
       time: TimeOfDay(hour: hour, minute: 0),
-      label: 'Gym',
+      label: label,
       tag: '',
       sound: 'default',
       isEnabled: on,
@@ -65,6 +65,35 @@ void main() {
       });
     }
   }
+
+  testWidgets('a long label never squeezes the countdown on a narrow phone',
+      (tester) async {
+    // A fixed-width right column once left the countdown column ~10px wide,
+    // so "NEXT ALARM" wrapped letter by letter and the row overflowed.
+    tester.view.physicalSize = const Size(640, 1400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: MediaQuery(
+        data: const MediaQueryData(size: Size(320, 700)),
+        child: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(22),
+            child: NextAlarmCapsule(
+                alarms: [_alarm(7, label: 'A very long alarm label that goes on')]),
+          ),
+        ),
+      ),
+    ));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(tester.takeException(), isNull);
+    final caption = tester.getSize(find.text('NEXT ALARM'));
+    expect(caption.height, lessThan(20), reason: 'caption stays on one line');
+    expect(caption.width, greaterThan(60));
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('says so when there is no alarm', (tester) async {
     await tester.pumpWidget(const MaterialApp(

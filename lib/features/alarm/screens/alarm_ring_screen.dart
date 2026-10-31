@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/features/alarm/challenges/photo_hash.dart';
 import 'package:alarm_plus/features/alarm/challenges/photo_proof_challenge_widget.dart';
@@ -56,7 +57,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   DismissChallengeType _defaultChallenge = DismissChallengeType.math;
   late final AnimationController _pulseController;
   late final AnimationController _ringController;
-  double _dragDx = 0.0;
   bool _isDismissing = false;
   PersonalityConfig _personality = PersonalityConfig.all[AlarmPersonality.gentle]!;
   int _wrongAnswers = 0;
@@ -184,10 +184,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
           passed = await _showChallenge(challenge!);
         }
 
-        if (!passed) {
-          setState(() => _dragDx = 0.0);
-          return;
-        }
+        if (!passed) return;
       }
 
       _stopGentleWake();
@@ -701,6 +698,84 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     );
   }
 
+  Widget _snoozeButton(
+    BuildContext context, {
+    required int alarmId,
+    required int snoozeMinutes,
+    required bool limitReached,
+  }) {
+    return FilledButton(
+      onPressed: (_isDismissing || limitReached)
+          ? null
+          : () async {
+              HapticFeedback.lightImpact();
+              final snoozed = await AlarmRingFlow.snoozeAlarm(alarmId);
+              if (!snoozed && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('No more snoozes — time to get up!')),
+                );
+              }
+            },
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.14),
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.white.withValues(alpha: 0.06),
+        disabledForegroundColor: Colors.white.withValues(alpha: 0.35),
+        minimumSize: const Size.fromHeight(72),
+        shape: const StadiumBorder(),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            limitReached ? 'No snoozes left' : 'Snooze',
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
+          ),
+          if (!limitReached)
+            Text('$snoozeMinutes min', style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _stopButton(int alarmId) {
+    return FilledButton(
+      onPressed: _isDismissing
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              _triggerDismiss(alarmId);
+            },
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0B1220),
+        disabledBackgroundColor: Colors.white.withValues(alpha: 0.3),
+        minimumSize: const Size.fromHeight(72),
+        shape: const StadiumBorder(),
+      ),
+      child: const Text('Stop',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  /// Whether Stop leads into a wake challenge (the alarm's own, a quest, or
+  /// the one chosen in Settings). Mirrors the choice in [_triggerDismiss].
+  bool _needsChallenge(AlarmModel? alarm) {
+    if (alarm != null && (alarm.questMode || alarm.challengeType != null)) {
+      return true;
+    }
+    return ChallengeService.defaultChallenge(
+          _defaultChallenge,
+          isPro: PremiumService.isPro.value,
+        ) !=
+        null;
+  }
+
+  /// The stock alarm screen is dark whatever the app theme: it is read half
+  /// asleep, at night.
+  static const _ringBackground = Color(0xFF05070D);
+
   @override
   Widget build(BuildContext context) {
     final alarmId = _alarmId;
@@ -712,273 +787,222 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       used: AlarmRingFlow.snoozeCountFor(alarmId),
       maxSnoozes: maxSnoozes,
     );
-    final screenWidth = MediaQuery.of(context).size.width;
-    final dismissThreshold = screenWidth * 0.40;
-    final isDismissDir = _dragDx > 0;
-    final isSnoozeDir = _dragDx < 0;
-    final dragProgress = (_dragDx.abs() / dismissThreshold).clamp(0.0, 1.0);
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // The personality's pastel tint is a light-only colour; in dark mode use
-    // its main hue at low alpha so the chip and bell disc don't glow.
-    final accentFill = isDark
-        ? _personality.primaryColor.withValues(alpha: 0.2)
-        : _personality.accentColor;
+    final accent = _personality.primaryColor;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final rawLabel = alarm?.label.trim() ?? '';
+    final label = alarm?.tag == AlarmModel.napTag
+        ? 'Nap Over! 😴'
+        : (rawLabel.isEmpty ? 'Alarm' : rawLabel);
 
-    // Light keeps its slate-50 page; dark sits on the theme surface. The
-    // swipe tints are the green/red hues at low alpha so they work on both.
-    final baseBg = isDark ? scheme.surface : const Color(0xFFF8FAFC);
-    final dismissBg = isDark
-        ? Color.alphaBlend(const Color(0xFF22C55E).withValues(alpha: 0.18), baseBg)
-        : const Color(0xFFDCFCE7);
-    final snoozeBg = isDark
-        ? Color.alphaBlend(const Color(0xFFEF4444).withValues(alpha: 0.18), baseBg)
-        : const Color(0xFFFEF2F2);
-    Color bgColor = baseBg;
-    if (isDismissDir) {
-      bgColor = Color.lerp(baseBg, dismissBg, dragProgress)!;
-    } else if (isSnoozeDir) {
-      bgColor = Color.lerp(baseBg, snoozeBg, dragProgress)!;
-    }
+    Widget banner(Widget child) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: child,
+        );
 
-    Widget body = GestureDetector(
-      onHorizontalDragUpdate: (d) {
-        if (_isDismissing) return;
-        final wasArmed = _dragDx.abs() >= dismissThreshold;
-        setState(() {
-          _dragDx = (_dragDx + d.delta.dx).clamp(-dismissThreshold * 1.2, dismissThreshold * 1.2);
-        });
-        // A tick when the swipe crosses the "let go to act" point, like
-        // Android's own slide-to-answer.
-        if (!wasArmed && _dragDx.abs() >= dismissThreshold) {
-          HapticFeedback.mediumImpact();
-        }
-      },
-      onHorizontalDragEnd: (d) {
-        if (_isDismissing) return;
-        if (_dragDx >= dismissThreshold) {
-          _triggerDismiss(alarmId);
-        } else if (_dragDx <= -dismissThreshold) {
-          setState(() => _dragDx = 0.0);
-          if (snoozeLimitReached) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No more snoozes — time to get up!')),
-            );
-          } else {
-            AlarmRingFlow.snoozeAlarm(alarmId);
-          }
-        } else {
-          setState(() => _dragDx = 0.0);
-        }
-      },
-      onHorizontalDragCancel: () => setState(() => _dragDx = 0.0),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 24, top: 0, bottom: 0,
-            child: AnimatedOpacity(
-              opacity: isSnoozeDir ? dragProgress : 0,
-              duration: Duration.zero,
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bedtime_rounded, size: 40, color: Color(0xFFEF4444)),
-                  SizedBox(height: 6),
-                  Text('SNOOZE', style: TextStyle(fontSize: 11, letterSpacing: 2, color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: 24, top: 0, bottom: 0,
-            child: AnimatedOpacity(
-              opacity: isDismissDir ? dragProgress : 0,
-              duration: Duration.zero,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle_rounded, size: 40, color: _personality.primaryColor),
-                  const SizedBox(height: 6),
-                  Text('DISMISS', style: TextStyle(fontSize: 11, letterSpacing: 2, color: _personality.primaryColor, fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Transform.translate(
-              offset: Offset(_dragDx * 0.15, 0),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-                child: Column(
-                  children: [
-                    if (isHardcore)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(color: const Color(0xFF7C3AED), borderRadius: BorderRadius.circular(12)),
-                        child: const Text('🔒 HARDCORE MODE — Back button disabled', textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 11)),
-                      ).animate().fadeIn(duration: 400.ms),
-                    if (_isBossMode)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(color: const Color(0xFFE53935), borderRadius: BorderRadius.circular(12)),
-                        child: const Text('BOSS MODE', textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 13)),
-                      ).animate().shake(duration: 600.ms),
-                    if (alarm?.gentleWake == true && _gentleSecondsLeft > 0)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFFfbbf24), Color(0xFFf97316)]),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '🌅 Gentle Wake — ${_gentleSecondsLeft}s remaining',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    // The current time, live — after a snooze the alarm's
-                    // set time would be stale.
-                    _LiveClock(color: _personality.primaryColor),
-                    const SizedBox(height: 12),
-                    Text(
-                      alarm?.tag == AlarmModel.napTag
-                          ? 'Nap Over! 😴'
-                          : (alarm?.label ?? 'Wake Up'),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 24, color: scheme.onSurfaceVariant)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: accentFill, borderRadius: BorderRadius.circular(999)),
-                      child: Text('${_personality.emoji} ${_personality.name} · ${alarm?.repeatLabel ?? 'Once'}',
-                        style: TextStyle(fontSize: 13, color: _personality.primaryColor, fontWeight: FontWeight.w600)),
-                    ),
-                    const Spacer(),
-                    Transform.translate(
-                      offset: Offset(_dragDx * 0.05, 0),
-                      child: Container(
-                        width: 220, height: 220,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _personality.primaryColor.withValues(alpha: 0.2), width: 3)),
-                        child: Center(
-                          child: AnimatedBuilder(
-                            animation: _ringController,
-                            builder: (context, _) => Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                _RadiatingRing(progress: _ringController.value, baseRadius: 55, color: _personality.primaryColor),
-                                _RadiatingRing(progress: (_ringController.value + 0.5) % 1.0, baseRadius: 55, color: _personality.primaryColor),
-                                ScaleTransition(
-                                  scale: Tween<double>(begin: 0.92, end: 1.08).animate(_pulseController),
-                                  child: Container(
-                                    width: 140, height: 140,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: accentFill,
-                                      border: Border.all(color: _personality.primaryColor, width: 2)),
-                                    child: Center(
-                                      // A ringing bell that swings back and
-                                      // forth, like the system clock app.
-                                      child: Transform.rotate(
-                                        angle: _isDismissing
-                                            ? 0
-                                            : math.sin(_ringController.value * math.pi * 8) * 0.28,
-                                        alignment: Alignment.topCenter,
-                                        child: Icon(
-                                          Icons.notifications_active_rounded,
-                                          size: 56,
-                                          color: _personality.primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(children: [
-                          Icon(Icons.chevron_left_rounded, color: scheme.outline, size: 24),
-                          Text('Snooze', style: TextStyle(fontSize: 11, color: scheme.outline, letterSpacing: 1)),
-                        ]),
-                        Column(children: [
-                          Icon(Icons.chevron_right_rounded, color: _personality.primaryColor.withValues(alpha: 0.4), size: 24),
-                          Text('Dismiss', style: TextStyle(fontSize: 11, color: _personality.primaryColor.withValues(alpha: 0.4), letterSpacing: 1)),
-                        ]),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: (_isDismissing || snoozeLimitReached)
-                                ? null
-                                : () async {
-                                    final snoozed =
-                                        await AlarmRingFlow.snoozeAlarm(alarmId);
-                                    if (!snoozed && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'No more snoozes — time to get up!'),
-                                        ),
-                                      );
-                                    }
-                                  },
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(62),
-                              side: BorderSide(color: scheme.onSurface, width: 1.5),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
-                            child: Text(snoozeLimitReached
-                                ? 'No more snoozes'
-                                : 'Snooze · $snoozeMinutes min')),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _isDismissing ? null : () => _triggerDismiss(alarmId),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _personality.primaryColor,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(62),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
-                            child: const Text('Stop Alarm')),
-                        ),
-                      ],
-                    ),
-                  ],
+    Widget body = Stack(
+      children: [
+        // A soft glow behind the time that breathes with the ring.
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, _) => DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.3),
+                    radius: 0.95,
+                    colors: [
+                      accent.withValues(
+                          alpha: 0.10 + 0.14 * _pulseController.value),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+            child: Column(
+              children: [
+                if (isHardcore)
+                  banner(Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF7C3AED),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Text('🔒 HARDCORE MODE — Back button disabled',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                            fontSize: 11)),
+                  ).animate().fadeIn(duration: 400.ms)),
+                if (_isBossMode)
+                  banner(Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFE53935),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Text('BOSS MODE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2,
+                            fontSize: 13)),
+                  ).animate().shake(duration: 600.ms)),
+                if (alarm?.gentleWake == true && _gentleSecondsLeft > 0)
+                  banner(Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFfbbf24), Color(0xFFf97316)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '🌅 Gentle Wake — ${_gentleSecondsLeft}s remaining',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13),
+                    ),
+                  )),
+                const SizedBox(height: 6),
+                // Swinging bell and today's date, like the stock clock.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _ringController,
+                      builder: (context, child) => Transform.rotate(
+                        angle: _isDismissing || reduceMotion
+                            ? 0
+                            : math.sin(_ringController.value * math.pi * 8) *
+                                0.3,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      ),
+                      child: Icon(Icons.notifications_active_rounded,
+                          size: 22, color: accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          DateFormat('EEE, d MMM').format(DateTime.now()),
+                          style: TextStyle(
+                              fontSize: 16,
+                              letterSpacing: 0.3,
+                              color: Colors.white.withValues(alpha: 0.7)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // The time and label sit centred in the space between the
+                // date and the buttons, and scroll only if a huge system
+                // font leaves no room.
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                // The current time, live: after a snooze the alarm's set
+                // time would be stale.
+                const _LiveClock(color: Colors.white),
+                const SizedBox(height: 14),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ).animate().fadeIn(duration: 500.ms).slideY(
+                    begin: 0.15, end: 0, duration: 500.ms, curve: Curves.easeOutCubic),
+                const SizedBox(height: 8),
+                Text(
+                  '${_personality.emoji} ${_personality.name} · ${alarm?.repeatLabel ?? 'Once'}',
+                  style: TextStyle(
+                      fontSize: 14, color: Colors.white.withValues(alpha: 0.5)),
+                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_needsChallenge(alarm))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Text(
+                      'Finish the wake challenge to stop',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.55)),
+                    ),
+                  ),
+                Builder(builder: (context) {
+                  final snooze = _snoozeButton(
+                    context,
+                    alarmId: alarmId,
+                    snoozeMinutes: snoozeMinutes,
+                    limitReached: snoozeLimitReached,
+                  );
+                  final stop = _stopButton(alarmId);
+                  // Side by side stops fitting at very large system text.
+                  final stacked =
+                      MediaQuery.textScalerOf(context).scale(1) > 1.6;
+                  return stacked
+                      ? Column(children: [
+                          SizedBox(width: double.infinity, child: stop),
+                          const SizedBox(height: 12),
+                          SizedBox(width: double.infinity, child: snooze),
+                        ])
+                      : Row(children: [
+                          Expanded(child: snooze),
+                          const SizedBox(width: 14),
+                          Expanded(child: stop),
+                        ]);
+                }).animate().fadeIn(duration: 450.ms).slideY(
+                    begin: 0.25,
+                    end: 0,
+                    duration: 450.ms,
+                    curve: Curves.easeOutCubic),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
 
-    // Wrap with sunrise gradient for gentle wake alarms
+    // Gentle wake alarms rise through the sunrise gradient instead.
     if (alarm?.gentleWake == true) {
       body = SunriseGradient(
         durationSeconds: alarm!.gentleWakeDurationSeconds,
         child: body,
       );
     } else {
-      body = ColoredBox(color: bgColor, child: body);
+      body = ColoredBox(color: _ringBackground, child: body);
     }
 
     // A ringing alarm is ended by Stop or Snooze, never by Back: Back used
@@ -986,7 +1010,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     // the screen back. (Hardcore already blocked it; a preview allows it.)
     return PopScope(
       canPop: _isPreview,
-      child: Scaffold(body: body),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // Light status-bar icons on the dark screen.
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: _ringBackground,
+          body: body,
+        ),
+      ),
     );
   }
 }
@@ -1074,24 +1105,6 @@ class _ScoreBar extends StatelessWidget {
   }
 }
 
-class _RadiatingRing extends StatelessWidget {
-  const _RadiatingRing({required this.progress, required this.baseRadius, required this.color});
-  final double progress;
-  final double baseRadius;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = baseRadius + (progress * 55);
-    final opacity = (1.0 - progress).clamp(0.0, 1.0);
-    return Container(
-      width: radius * 2, height: radius * 2,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: opacity * 0.35), width: 1.5)));
-  }
-}
-
 extension on DateTime {
   int get _dayOfYear => difference(DateTime(year, 1, 1)).inDays;
 }
@@ -1122,17 +1135,39 @@ class _LiveClockState extends State<_LiveClock> {
     final now = DateTime.now();
     final c = TimeFormat.clock(now.hour, now.minute,
         use24h: MediaQuery.alwaysUse24HourFormatOf(context));
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(c.time,
-            style: theme.textTheme.headlineLarge?.copyWith(
-                fontSize: 90, fontWeight: FontWeight.w400, color: widget.color)),
-        if (c.period != null)
-          Text(c.period!,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                  fontSize: 52, color: widget.color.withValues(alpha: 0.5))),
-      ],
+    // Thin, tabular figures like the stock clock; scaled down on narrow
+    // phones or large system text instead of overflowing.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            c.time,
+            style: TextStyle(
+              fontSize: 112,
+              height: 1.0,
+              fontWeight: FontWeight.w200,
+              letterSpacing: -2,
+              color: widget.color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          if (c.period != null) ...[
+            const SizedBox(width: 8),
+            Text(
+              c.period!,
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w300,
+                color: widget.color.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

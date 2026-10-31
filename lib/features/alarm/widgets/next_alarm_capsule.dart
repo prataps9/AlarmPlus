@@ -229,12 +229,16 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
       excludeSemantics: true,
       child: card,
     );
-    return reduceMotion
-        ? semantics
-        : semantics
-            .animate()
-            .fadeIn(duration: 350.ms)
-            .slideY(begin: 0.12, end: 0, duration: 450.ms, curve: Curves.easeOutCubic);
+    // Repaints every second near the ring: keep that to its own layer.
+    return RepaintBoundary(
+      child: reduceMotion
+          ? semantics
+          : semantics.animate().fadeIn(duration: 350.ms).slideY(
+              begin: 0.12,
+              end: 0,
+              duration: 450.ms,
+              curve: Curves.easeOutCubic),
+    );
   }
 
   Widget _empty(BuildContext context, bool reduceMotion) {

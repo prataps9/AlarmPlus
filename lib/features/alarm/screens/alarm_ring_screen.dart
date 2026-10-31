@@ -1137,7 +1137,7 @@ class _LiveClockState extends State<_LiveClock> {
         use24h: MediaQuery.alwaysUse24HourFormatOf(context));
     // Thin, tabular figures like the stock clock; scaled down on narrow
     // phones or large system text instead of overflowing.
-    return FittedBox(
+    return RepaintBoundary(child: FittedBox(
       fit: BoxFit.scaleDown,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1168,7 +1168,7 @@ class _LiveClockState extends State<_LiveClock> {
           ],
         ],
       ),
-    );
+    ));
   }
 }
 

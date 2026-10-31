@@ -30,6 +30,10 @@ import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  // Last values shown, so a rebuild doesn't flash the sections empty.
+  static (AlarmStats, int)? _lastStats;
+  static List<dynamic>? _lastMissions;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alarmsAsync = ref.watch(alarmsListProvider);
@@ -67,8 +71,12 @@ class HomeScreen extends ConsumerWidget {
                 SmartAlarmService.getStats(),
                 SmartAlarmService.getXp(),
               ]).then((r) => (r[0] as AlarmStats, r[1] as int)),
+              // The future is new on every rebuild; showing the last result
+              // meanwhile stops the hero collapsing and popping back.
+              initialData: _lastStats,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox(height: 80);
+                _lastStats = snapshot.data;
                 final (stats, xp) = snapshot.data!;
                 return _StreakHeroWidget(
                   stats: stats,
@@ -82,8 +90,10 @@ class HomeScreen extends ConsumerWidget {
             // Morning Missions card
             FutureBuilder<List<dynamic>>(
               future: SmartAlarmService.getTodayMissions(),
+              initialData: _lastMissions,
               builder: (context, snap) {
                 if (!snap.hasData) return const SizedBox.shrink();
+                _lastMissions = snap.data;
                 final missions = snap.data!;
                 final completed = missions.where((m) => (m as dynamic).isCompleted == true).length;
                 final total = missions.length;

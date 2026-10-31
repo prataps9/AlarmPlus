@@ -383,9 +383,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       bottom: false,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-        // Keeps scrolling (and the filter below) smooth on long lists.
-        physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics()),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
           Text('Settings',

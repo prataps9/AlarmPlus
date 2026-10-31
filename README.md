@@ -68,6 +68,11 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   same ticking countdown. A snooze shows "Snoozed" with its countdown, and
   the ringing alarm gets a red "Ringing" capsule. Scheduled natively, so it
   appears with the app closed. Settings → Live Alarm Countdown.
+- **Stock-style ring screen** — a ringing alarm looks like the phone's own:
+  always dark, a huge thin clock, the label, today's date with a swinging
+  bell, a soft breathing glow, and two big buttons, **Snooze** and **Stop**
+  (Stop leads into the wake challenge when one is set). No swipe gestures,
+  so a stray drag never silences an alarm.
 - **Next-alarm capsule card** — the top of the Alarm tab is the in-app twin
   of the status-bar capsule: a dark pill whose ring fills over the last two
   hours, a countdown that rolls like an odometer (and shows seconds inside

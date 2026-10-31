@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
+import 'package:alarm_plus/shared/widgets/press_scale.dart';
 
 class AlarmCard extends StatelessWidget {
   const AlarmCard({
@@ -75,7 +77,7 @@ class AlarmCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.lg),
-      child: Material(
+      child: PressScale(child: Material(
         color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(Radii.xl),
         child: InkWell(
@@ -126,7 +128,13 @@ class AlarmCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: Spacing.sm),
-                    Switch(value: alarm.isEnabled, onChanged: onToggle),
+                    Switch(
+                      value: alarm.isEnabled,
+                      onChanged: (v) {
+                        HapticFeedback.selectionClick();
+                        onToggle(v);
+                      },
+                    ),
                   ],
                 ),
                 if (alarm.label.isNotEmpty) ...[
@@ -200,7 +208,7 @@ class AlarmCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

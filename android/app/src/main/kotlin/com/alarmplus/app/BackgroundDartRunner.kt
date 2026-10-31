@@ -109,15 +109,6 @@ object BackgroundDartRunner {
                             LiveActivity.syncAlarm(context, call.argument<String>("ring"))
                             result.success(null)
                         }
-                        "liveTimerSync" -> {
-                            LiveActivity.syncTimer(
-                                context,
-                                call.argument<Number>("endMs")?.toLong() ?: 0L,
-                                call.argument<String>("title") ?: "Timer",
-                                call.argument<String>("text") ?: "",
-                            )
-                            result.success(null)
-                        }
                         else -> result.notImplemented()
                     }
                 }

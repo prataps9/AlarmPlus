@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -47,6 +48,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _refreshAsyncTiles();
+    PremiumService.isPro.addListener(_onProChanged);
+  }
+
+  @override
+  void dispose() {
+    PremiumService.isPro.removeListener(_onProChanged);
+    super.dispose();
+  }
+
+  // The backup group lists "Restore Purchase" only while Pro is locked.
+  void _onProChanged() {
+    if (mounted) setState(() {});
   }
 
   void _refreshAsyncTiles() {
@@ -63,268 +76,358 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(_refreshAsyncTiles);
   }
 
+  String _query = '';
+
+  // Accent per kind of setting, so a long list can be scanned by colour.
+  static const _blue = Color(0xFF3B82F6);
+  static const _orange = Color(0xFFF59E0B);
+  static const _purple = Color(0xFF8B5CF6);
+  static const _teal = Color(0xFF14B8A6);
+  static const _green = Color(0xFF22C55E);
+  static const _red = Color(0xFFEF4444);
+  static const _indigo = Color(0xFF6366F1);
+  static const _pink = Color(0xFFEC4899);
+  static const _slate = Color(0xFF64748B);
+
   @override
   Widget build(BuildContext context) {
+    // The tab stays alive while hidden: refresh what its tiles show (health,
+    // streak, challenge) whenever it is opened.
+    ref.listen<int>(currentTabIndexProvider, (prev, next) {
+      if (next == AppTab.settings && prev != next) _refreshAndRebuild();
+    });
+
     final vibrationEnabled = ref.watch(vibrationEnabledProvider);
     final scheme = Theme.of(context).colorScheme;
     final muted = scheme.onSurfaceVariant;
+    Widget chevron() => Icon(Icons.chevron_right_rounded, color: muted, size: 22);
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-        children: [
-          Text('Settings',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 24,
-              )),
-          const SizedBox(height: 20),
-          const _ProCard(),
-          const SizedBox(height: 20),
-
-          // ── ALARM section ──────────────────────────────────────
-          _SectionHeader(label: 'ALARM'),
-          _SettingTile(
-            title: 'Sound',
-            subtitle: 'Wake tone and ring volume',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () => Navigator.of(context)
-                .pushNamed(SoundSettingsScreen.routeName),
-          ),
-          _SettingTile(
-            title: 'Vibration',
-            trailing: _AnimatedToggle(
-              value: vibrationEnabled,
-              onChanged: (v) =>
-                  setVibrationEnabled(ref, v),
-            ),
-          ),
-          FutureBuilder<bool>(
-            future: _upcomingNoticeFuture,
-            builder: (context, snapshot) {
-              final on = snapshot.data ?? true;
-              return _SettingTile(
+    final groups = <_Group>[
+      _Group('ALARMS', [
+        _Entry('Sound', 'tone ringtone volume music', () => _SettingTile(
+              icon: Icons.volume_up_rounded,
+              color: _blue,
+              title: 'Sound',
+              subtitle: 'Wake tone and ring volume',
+              trailing: chevron(),
+              onTap: () => Navigator.of(context)
+                  .pushNamed(SoundSettingsScreen.routeName),
+            )),
+        _Entry('Wake Challenge', 'math dismiss puzzle quest', () =>
+            ValueListenableBuilder<bool>(
+              valueListenable: PremiumService.isPro,
+              builder: (context, isPro, _) => FutureBuilder<DismissChallengeType>(
+                future: _dismissChallengeFuture,
+                builder: (context, snapshot) {
+                  final challenge = effectiveChallenge(
+                    snapshot.data ?? DismissChallengeType.math,
+                    isPro: isPro,
+                  );
+                  return _SettingTile(
+                    icon: Icons.psychology_rounded,
+                    color: _orange,
+                    title: 'Wake Challenge',
+                    subtitle: challenge.name.toUpperCase(),
+                    trailing: chevron(),
+                    onTap: () => _showChallengePicker(context, challenge),
+                  );
+                },
+              ),
+            )),
+        _Entry('Vibration', 'haptic buzz', () => _SettingTile(
+              icon: Icons.vibration_rounded,
+              color: _purple,
+              title: 'Vibration',
+              subtitle: 'Buzz while an alarm rings',
+              trailing: _AnimatedToggle(
+                value: vibrationEnabled,
+                label: 'Vibration',
+                onChanged: (v) => setVibrationEnabled(ref, v),
+              ),
+            )),
+        _Entry('Live Alarm Countdown', 'capsule notification lock screen live update skip', () =>
+            FutureBuilder<bool>(
+              future: _upcomingNoticeFuture,
+              builder: (context, snapshot) => _SettingTile(
+                icon: Icons.pending_actions_rounded,
+                color: _blue,
                 title: 'Live Alarm Countdown',
                 subtitle: 'Lock screen and status-bar capsule 2 h before, with Skip',
                 trailing: _AnimatedToggle(
-                  value: on,
+                  value: snapshot.data ?? true,
+                  label: 'Live Alarm Countdown',
                   onChanged: (v) async {
                     await AlarmService.setUpcomingNoticeEnabled(v);
                     _refreshAndRebuild();
                   },
                 ),
-              );
-            },
-          ),
-          FutureBuilder<bool>(
-            future: _briefingFuture,
-            builder: (context, snapshot) {
-              return _SettingTile(
+              ),
+            )),
+        _Entry('Morning Briefing', 'voice speak tts good morning', () =>
+            FutureBuilder<bool>(
+              future: _briefingFuture,
+              builder: (context, snapshot) => _SettingTile(
+                icon: Icons.record_voice_over_rounded,
+                color: _teal,
                 title: 'Morning Briefing',
                 subtitle: 'Reads the time, your wake-up speed and streak aloud',
                 trailing: _AnimatedToggle(
                   value: snapshot.data ?? false,
+                  label: 'Morning Briefing',
                   onChanged: (v) async {
                     await MorningBriefingService.setEnabled(v);
                     _refreshAndRebuild();
                   },
                 ),
-              );
-            },
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: PremiumService.isPro,
-            builder: (context, isPro, _) =>
-                FutureBuilder<DismissChallengeType>(
-                  future: _dismissChallengeFuture,
-                  builder: (context, snapshot) {
-                    final challenge = effectiveChallenge(
-                      snapshot.data ?? DismissChallengeType.math,
-                      isPro: isPro,
-                    );
-                    return _SettingTile(
-                      title: 'Wake Challenge',
-                      subtitle: challenge.name.toUpperCase(),
-                      trailing: Icon(Icons.chevron_right_rounded,
-                          color: muted, size: 20),
-                      onTap: () => _showChallengePicker(context, challenge),
-                    );
-                  },
-                ),
-          ),
-          FutureBuilder<AlarmReliabilityStatus>(
-            future: _reliabilityFuture,
-            builder: (context, snapshot) {
-              final status = snapshot.data;
-              final ok = status?.notificationsGranted == true &&
-                  status?.exactAlarmGranted == true;
-              return _SettingTile(
-                title: 'Alarm Health Check',
-                subtitle: status == null
-                    ? 'Checking…'
-                    : ok
-                        ? 'Test that alarms ring with the app closed'
-                        : 'Action needed',
-                trailing: Icon(
-                  ok ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
-                  color: ok ? scheme.onSurface : muted,
-                  size: 20,
-                ),
-                onTap: () async {
-                  await Navigator.of(context)
-                      .pushNamed(AlarmHealthScreen.routeName);
-                  _refreshAndRebuild();
-                },
-              );
-            },
-          ),
-          _SettingTile(
-            title: 'Preview Alarm Screen',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(AlarmRingScreen.routeName),
-          ),
-          const SizedBox(height: 8),
-
-          // ── SLEEP section ───────────────────────────────────────
-          _SectionHeader(label: 'SLEEP'),
-          _SettingTile(
-            title: 'Sleep Insights',
-            subtitle: 'Weekly score and trends',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(SleepInsightsScreen.routeName),
-          ),
-          // The wind-down reminder lives with the bedtime schedule. The old
-          // "Pre-Alarm Wind-Down" minutes picker here no longer drove any
-          // notification, so it was removed rather than left doing nothing.
-          _SettingTile(
-            title: 'Wind Down / Bedtime',
-            subtitle: 'Bedtime reminder & wind-down',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(BedtimeSetupScreen.routeName),
-          ),
-          _SettingTile(
-            title: 'Sleep Diary',
-            subtitle: 'Log sleep quality daily',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(SleepDiaryScreen.routeName),
-          ),
-          const SizedBox(height: 8),
-
-          // ── SAFETY & AUTOMATION section ─────────────────────────
-          _SectionHeader(label: 'SAFETY & AUTOMATION'),
-          FutureBuilder<String>(
-            future: _guardianWebhookFuture,
-            builder: (context, snapshot) {
-              final url = snapshot.data ?? '';
-              return _SettingTile(
-                title: 'Guardian Alert',
-                subtitle: url.isEmpty ? 'Not configured' : 'Webhook active',
-                trailing: Icon(Icons.chevron_right_rounded,
-                    color: muted, size: 20),
-                onTap: () => _showGuardianDialog(context, url),
-              );
-            },
-          ),
-          _SettingTile(
-            title: 'Location Alarms',
-            subtitle: 'Trigger on arrival',
-            trailing: Icon(Icons.chevron_right_rounded,
-                color: muted, size: 20),
-            onTap: () =>
-                Navigator.of(context).pushNamed(LocationAlarmScreen.routeName),
-          ),
-          FutureBuilder<AlarmStats>(
-            future: _statsFuture,
-            builder: (context, snapshot) {
-              final stats = snapshot.data;
-              return _SettingTile(
-                title: 'Streaks & Metrics',
-                subtitle: stats == null
-                    ? '…'
-                    : 'Streak ${stats.currentStreak} · best ${stats.bestStreak}',
-                trailing: Icon(Icons.insights_outlined,
-                    color: muted, size: 20),
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-
-          // ── APP section ────────────────────────────────────────
-          _SectionHeader(label: 'APP'),
-          _SettingTile(
-            title: 'Theme',
-            subtitle: AppSettings.themeModeLabel(ref.watch(themeModeProvider)),
-            trailing: Icon(Icons.contrast_rounded,
-                color: muted, size: 20),
-            onTap: () => _showThemePicker(context),
-          ),
-          ValueListenableBuilder<MascotOutfit>(
-            valueListenable: MascotService.selectedOutfit,
-            builder: (context, outfit, _) => _SettingTile(
-              title: "Pip's Wardrobe",
-              subtitle: outfit.label,
-              trailing: Icon(Icons.checkroom_rounded,
-                  color: muted, size: 20),
+              ),
+            )),
+        _Entry('Preview Alarm Screen', 'ring screen test', () => _SettingTile(
+              icon: Icons.alarm_on_rounded,
+              color: _red,
+              title: 'Preview Alarm Screen',
+              subtitle: 'See how a ringing alarm looks',
+              trailing: chevron(),
               onTap: () =>
-                  Navigator.of(context).pushNamed(WardrobeScreen.routeName),
-            ),
+                  Navigator.of(context).pushNamed(AlarmRingScreen.routeName),
+            )),
+      ]),
+      _Group('RELIABILITY & SAFETY', [
+        _Entry('Alarm Health Check', 'reliability permissions battery test oppo xiaomi', () =>
+            FutureBuilder<AlarmReliabilityStatus>(
+              future: _reliabilityFuture,
+              builder: (context, snapshot) {
+                final status = snapshot.data;
+                final ok = status?.notificationsGranted == true &&
+                    status?.exactAlarmGranted == true;
+                return _SettingTile(
+                  icon: Icons.health_and_safety_rounded,
+                  color: status == null || ok ? _green : _red,
+                  title: 'Alarm Health Check',
+                  subtitle: status == null
+                      ? 'Checking…'
+                      : ok
+                          ? 'Test that alarms ring with the app closed'
+                          : 'Action needed',
+                  trailing: ok
+                      ? chevron()
+                      : const Icon(Icons.warning_amber_rounded,
+                          color: _red, size: 22),
+                  onTap: () async {
+                    await Navigator.of(context)
+                        .pushNamed(AlarmHealthScreen.routeName);
+                    _refreshAndRebuild();
+                  },
+                );
+              },
+            )),
+        _Entry('Guardian Alert', 'webhook notify contact heavy sleeper', () =>
+            FutureBuilder<String>(
+              future: _guardianWebhookFuture,
+              builder: (context, snapshot) {
+                final url = snapshot.data ?? '';
+                return _SettingTile(
+                  icon: Icons.shield_rounded,
+                  color: _green,
+                  title: 'Guardian Alert',
+                  subtitle: url.isEmpty ? 'Not configured' : 'Webhook active',
+                  trailing: chevron(),
+                  onTap: () => _showGuardianDialog(context, url),
+                );
+              },
+            )),
+        _Entry('Location Alarms', 'arrive geofence place', () => _SettingTile(
+              icon: Icons.location_on_rounded,
+              color: _blue,
+              title: 'Location Alarms',
+              subtitle: 'Ring when you arrive somewhere',
+              trailing: chevron(),
+              onTap: () => Navigator.of(context)
+                  .pushNamed(LocationAlarmScreen.routeName),
+            )),
+      ]),
+      _Group('SLEEP', [
+        _Entry('Sleep Insights', 'weekly score trends', () => _SettingTile(
+              icon: Icons.bedtime_rounded,
+              color: _indigo,
+              title: 'Sleep Insights',
+              subtitle: 'Weekly score and trends',
+              trailing: chevron(),
+              onTap: () => Navigator.of(context)
+                  .pushNamed(SleepInsightsScreen.routeName),
+            )),
+        // The wind-down reminder lives with the bedtime schedule.
+        _Entry('Wind Down / Bedtime', 'bedtime reminder goal', () => _SettingTile(
+              icon: Icons.nights_stay_rounded,
+              color: _purple,
+              title: 'Wind Down / Bedtime',
+              subtitle: 'Bedtime reminder & wind-down',
+              trailing: chevron(),
+              onTap: () => Navigator.of(context)
+                  .pushNamed(BedtimeSetupScreen.routeName),
+            )),
+        _Entry('Sleep Diary', 'log quality journal', () => _SettingTile(
+              icon: Icons.menu_book_rounded,
+              color: _teal,
+              title: 'Sleep Diary',
+              subtitle: 'Log sleep quality daily',
+              trailing: chevron(),
+              onTap: () => Navigator.of(context)
+                  .pushNamed(SleepDiaryScreen.routeName),
+            )),
+        _Entry('Streaks & Metrics', 'streak best xp', () =>
+            FutureBuilder<AlarmStats>(
+              future: _statsFuture,
+              builder: (context, snapshot) {
+                final stats = snapshot.data;
+                return _SettingTile(
+                  icon: Icons.local_fire_department_rounded,
+                  color: _orange,
+                  title: 'Streaks & Metrics',
+                  subtitle: stats == null
+                      ? '…'
+                      : 'Streak ${stats.currentStreak} · best ${stats.bestStreak}',
+                  trailing: const SizedBox.shrink(),
+                );
+              },
+            )),
+      ]),
+      _Group('APPEARANCE', [
+        _Entry('Theme', 'dark light mode night', () => _SettingTile(
+              icon: Icons.contrast_rounded,
+              color: _slate,
+              title: 'Theme',
+              subtitle:
+                  AppSettings.themeModeLabel(ref.watch(themeModeProvider)),
+              trailing: chevron(),
+              onTap: () => _showThemePicker(context),
+            )),
+        _Entry("Pip's Wardrobe", 'mascot outfit pro', () =>
+            ValueListenableBuilder<MascotOutfit>(
+              valueListenable: MascotService.selectedOutfit,
+              builder: (context, outfit, _) => _SettingTile(
+                icon: Icons.checkroom_rounded,
+                color: _pink,
+                title: "Pip's Wardrobe",
+                subtitle: outfit.label,
+                trailing: chevron(),
+                onTap: () =>
+                    Navigator.of(context).pushNamed(WardrobeScreen.routeName),
+              ),
+            )),
+      ]),
+      _Group('BACKUP', [
+        _Entry('Back Up Alarms & Settings', 'export save share file', () => _SettingTile(
+              icon: Icons.cloud_upload_rounded,
+              color: _blue,
+              title: 'Back Up Alarms & Settings',
+              subtitle: 'Save a file to Drive, email or anywhere',
+              trailing: chevron(),
+              onTap: () => _backup(context),
+            )),
+        _Entry('Restore From Backup', 'import file', () => _SettingTile(
+              icon: Icons.settings_backup_restore_rounded,
+              color: _teal,
+              title: 'Restore From Backup',
+              subtitle: 'Replace your alarms with a saved backup',
+              trailing: chevron(),
+              onTap: () => _restoreBackup(context),
+            )),
+        if (!PremiumService.isPro.value)
+          _Entry('Restore Purchase', 'pro buy google play', () => _SettingTile(
+                icon: Icons.restore_rounded,
+                color: _orange,
+                title: 'Restore Purchase',
+                subtitle: 'Already bought Pro? Get it back here',
+                trailing: chevron(),
+                onTap: () => _restorePurchase(context),
+              )),
+      ]),
+      _Group('ABOUT', [
+        _Entry('About Alarm+', 'version info', () =>
+            FutureBuilder<PackageInfo>(
+              future: _packageInfoFuture,
+              builder: (context, snapshot) {
+                final info = snapshot.data;
+                return _SettingTile(
+                  icon: Icons.info_rounded,
+                  color: _slate,
+                  title: 'About Alarm+',
+                  subtitle: info == null
+                      ? ''
+                      : 'v${info.version} (${info.buildNumber})',
+                  trailing: chevron(),
+                  onTap: () => _showAboutDialog(context, info),
+                );
+              },
+            )),
+        _Entry('Privacy Policy', 'terms data', () => _SettingTile(
+              icon: Icons.privacy_tip_rounded,
+              color: _slate,
+              title: 'Privacy Policy',
+              trailing: Icon(Icons.open_in_new_rounded, color: muted, size: 20),
+              onTap: () => _openPrivacyPolicy(context),
+            )),
+      ]),
+    ];
+
+    final q = _query.trim().toLowerCase();
+    bool matches(_Entry e) =>
+        q.isEmpty || '${e.title} ${e.keywords}'.toLowerCase().contains(q);
+    final visible = [
+      for (final g in groups)
+        if (g.entries.any(matches))
+          _Group(g.label, g.entries.where(matches).toList()),
+    ];
+
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
+        // Keeps scrolling (and the filter below) smooth on long lists.
+        physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics()),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          Text('Settings',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 30,
+                  )),
+          const SizedBox(height: 14),
+          _SearchField(
+            onChanged: (v) => setState(() => _query = v),
           ),
-          _SettingTile(
-            title: 'Back Up Alarms & Settings',
-            subtitle: 'Save a file to Drive, email or anywhere',
-            trailing: Icon(Icons.cloud_upload_outlined,
-                color: muted, size: 20),
-            onTap: () => _backup(context),
-          ),
-          _SettingTile(
-            title: 'Restore From Backup',
-            subtitle: 'Replace your alarms with a saved backup',
-            trailing: Icon(Icons.settings_backup_restore_rounded,
-                color: muted, size: 20),
-            onTap: () => _restoreBackup(context),
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: PremiumService.isPro,
-            builder: (context, isPro, _) => isPro
-                ? const SizedBox.shrink()
-                : _SettingTile(
-                    title: 'Restore Purchase',
-                    subtitle: 'Already bought Pro? Get it back here',
-                    trailing: Icon(Icons.restore_rounded,
-                        color: muted, size: 20),
-                    onTap: () => _restorePurchase(context),
+          const SizedBox(height: 18),
+          if (q.isEmpty) ...[
+            const _ProCard(),
+            const SizedBox(height: 22),
+          ],
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: visible.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48),
+                    child: Column(
+                      children: [
+                        Icon(Icons.search_off_rounded, size: 44, color: muted),
+                        const SizedBox(height: 10),
+                        Text('No settings match "$_query"',
+                            style: TextStyle(color: muted)),
+                      ],
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final g in visible)
+                        _SettingGroup(
+                          label: g.label,
+                          children: [for (final e in g.entries) e.builder()],
+                        ),
+                    ],
                   ),
-          ),
-          FutureBuilder<PackageInfo>(
-            future: _packageInfoFuture,
-            builder: (context, snapshot) {
-              final info = snapshot.data;
-              final version = info == null
-                  ? ''
-                  : 'v${info.version} (${info.buildNumber})';
-              return _SettingTile(
-                title: 'About Alarm+',
-                subtitle: version,
-                trailing: Icon(Icons.info_outline_rounded,
-                    color: muted, size: 20),
-                onTap: () => _showAboutDialog(context, info),
-              );
-            },
-          ),
-          _SettingTile(
-            title: 'Privacy Policy',
-            trailing: Icon(Icons.open_in_new_rounded,
-                color: muted, size: 20),
-            onTap: () => _openPrivacyPolicy(context),
           ),
         ],
       ),
@@ -773,66 +876,170 @@ class _ProCardState extends State<_ProCard> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label});
+class _Entry {
+  const _Entry(this.title, this.keywords, this.builder);
+
+  final String title;
+
+  /// Extra words that find this setting in the search box.
+  final String keywords;
+  final Widget Function() builder;
+}
+
+class _Group {
+  const _Group(this.label, this.entries);
+
   final String label;
+  final List<_Entry> entries;
+}
+
+/// A titled card holding related rows, with hairlines between them.
+class _SettingGroup extends StatelessWidget {
+  const _SettingGroup({required this.label, required this.children});
+
+  final String label;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2.0,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.only(bottom: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 8),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.0,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(21),
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < children.length; i++) ...[
+                      if (i > 0)
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: 66,
+                          color: scheme.outlineVariant.withValues(alpha: 0.6),
+                        ),
+                      children[i],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TextField(
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search settings',
+        prefixIcon: const Icon(Icons.search_rounded),
+        filled: true,
+        fillColor: scheme.surfaceContainer,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
       ),
     );
   }
 }
 
+/// A switch with a haptic tick and screen-reader state; same look as before.
 class _AnimatedToggle extends StatelessWidget {
-  const _AnimatedToggle({required this.value, required this.onChanged});
+  const _AnimatedToggle({
+    required this.value,
+    required this.onChanged,
+    required this.label,
+  });
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: 52,
-        height: 28,
-        decoration: BoxDecoration(
-          color: value ? scheme.onSurface : scheme.outlineVariant,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            width: 22,
-            height: 22,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              // On the "on" track (onSurface) the thumb takes the surface
-              // colour so it stays visible when the track inverts in dark.
-              color: value ? scheme.surface : Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+    return Semantics(
+      label: label,
+      toggled: value,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onChanged(!value);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          width: 52,
+          height: 30,
+          decoration: BoxDecoration(
+            color: value ? scheme.onSurface : scheme.outlineVariant,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutBack,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 24,
+              height: 24,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                // On the "on" track (onSurface) the thumb takes the surface
+                // colour so it stays visible when the track inverts in dark.
+                color: value ? scheme.surface : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -843,12 +1050,16 @@ class _AnimatedToggle extends StatelessWidget {
 
 class _SettingTile extends StatelessWidget {
   const _SettingTile({
+    required this.icon,
+    required this.color,
     required this.title,
     this.subtitle,
     required this.trailing,
     this.onTap,
   });
 
+  final IconData icon;
+  final Color color;
   final String title;
   final String? subtitle;
   final Widget trailing;
@@ -858,21 +1069,26 @@ class _SettingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: subtitle != null ? 12 : 14,
-        ),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
+      onTap: onTap == null
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Row(
           children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,11 +1098,11 @@ class _SettingTile extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      fontSize: 15.5,
                       color: scheme.onSurface,
                     ),
                   ),
-                  if (subtitle != null) ...[
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
@@ -899,7 +1115,7 @@ class _SettingTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             trailing,
           ],
         ),

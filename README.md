@@ -30,11 +30,11 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   as the launcher icon). On Android 12+ the system splash shows the logo with
   its minute hand sweeping once (`res/drawable/splash_logo_animated.xml`), and
   the Flutter splash continues from that exact frame.
-- **Clock tabs** — Alarm, Clock (world clock with city search), Timer (keypad
-  entry, presets, +1:00; rings through an insistent alarm-sound notification
-  even when the app is closed), Stopwatch (laps, with the fastest and slowest
-  highlighted; keeps running if the app is killed) and Insights. Settings
-  sits behind the gear on the Alarm tab.
+- **Four tabs** — Alarm, Clock (world clock with city search), Insights
+  and Settings, a bottom-bar tab with grouped, searchable settings. Tabs
+  are built the first time they are opened and fade in. (The timer and
+  stopwatch were removed; a "time's up" left scheduled by an older version
+  is cleaned up on the first start.)
 - **Reliability guardrails** — the Alarm tab warns, with a one-tap fix,
   whenever notifications or exact alarms are off. Every alarm gets a
   2-hours-ahead "Upcoming alarm" notice with **Dismiss now**. Times follow
@@ -61,8 +61,7 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
-- **Live alarm capsule (Android)** — 2 hours before an alarm (and for a
-  running timer) Alarm+ posts a live countdown with a **Skip** button. On
+- **Live alarm capsule (Android)** — 2 hours before an alarm Alarm+ posts a live countdown with a **Skip** button. On
   Android 16+ (ColorOS 16 / OxygenOS 16 / One UI 8 …) it is a *Live Update*
   and is promoted to the status-bar capsule, the slot food-delivery
   trackers use; older phones show it as an ongoing notification with the

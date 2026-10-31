@@ -145,15 +145,6 @@ class MainActivity : FlutterActivity() {
                         LiveActivity.syncAlarm(this, call.argument<String>("ring"))
                         result.success(null)
                     }
-                    "liveTimerSync" -> {
-                        LiveActivity.syncTimer(
-                            this,
-                            call.argument<Number>("endMs")?.toLong() ?: 0L,
-                            call.argument<String>("title") ?: "Timer",
-                            call.argument<String>("text") ?: "",
-                        )
-                        result.success(null)
-                    }
                     "startHealthTest" -> {
                         val delay = call.argument<Int>("delaySeconds") ?: 60
                         result.success(ReliabilityTest.start(this, delay))

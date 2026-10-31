@@ -16,9 +16,8 @@ import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 abstract final class AppTab {
   static const alarm = 0;
   static const clock = 1;
-  static const timer = 2;
-  static const stopwatch = 3;
-  static const insights = 4;
+  static const insights = 2;
+  static const settings = 3;
 }
 
 /// Provider for the current tab index (see [AppTab]).

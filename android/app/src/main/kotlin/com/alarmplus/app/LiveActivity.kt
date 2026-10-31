@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 
 /**
- * The "live" alarm and timer: an ongoing countdown that sits on the lock
+ * The "live" alarm: an ongoing countdown that sits on the lock
  * screen and, on Android 16+ (ColorOS 16, OxygenOS 16, One UI 8…), is
  * promoted to a status-bar capsule, the same slot Swiggy/Zomato delivery
  * trackers use. Older phones show it as an ordinary ongoing notification
@@ -33,7 +33,6 @@ object LiveActivity {
     private const val KEY_ALARM = "alarm"
     private const val CHANNEL_ID = "alarmplus_live"
     private const val ID_ALARM = 7401
-    private const val ID_TIMER = 7402
 
     const val ACTION_SHOW = "alarmplus.LIVE_SHOW"
     const val ACTION_SKIP = "alarmplus.LIVE_SKIP"
@@ -153,28 +152,6 @@ object LiveActivity {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    // ── Timer ────────────────────────────────────────────────────────────────
-
-    /** A running timer's countdown, ending at [endMs]; [endMs] <= 0 clears it. */
-    fun syncTimer(context: Context, endMs: Long, title: String, text: String) {
-        val ctx = context.applicationContext
-        val now = System.currentTimeMillis()
-        if (endMs <= now) {
-            notificationManager(ctx).cancel(ID_TIMER)
-            return
-        }
-        val builder = base(ctx)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
-            .setWhen(endMs)
-            .setShowWhen(true)
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
-            .setTimeoutAfter(endMs - now + 1_000)
-        notify(ctx, ID_TIMER, builder)
-    }
-
     // ── Shared ───────────────────────────────────────────────────────────────
 
     private fun base(ctx: Context): NotificationCompat.Builder {
@@ -202,8 +179,8 @@ object LiveActivity {
             // Low importance is silent but still allowed to be promoted
             // (IMPORTANCE_MIN is not).
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Live alarm and timer", NotificationManager.IMPORTANCE_LOW)
-                    .apply { description = "Countdown to your next alarm and running timer" }
+                NotificationChannel(CHANNEL_ID, "Live alarm countdown", NotificationManager.IMPORTANCE_LOW)
+                    .apply { description = "Countdown to your next alarm" }
             )
         }
         try {

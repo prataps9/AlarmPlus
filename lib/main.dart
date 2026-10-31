@@ -12,9 +12,8 @@ import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/features/clock/screens/stopwatch_screen.dart';
-import 'package:alarm_plus/features/clock/screens/timer_screen.dart';
 import 'package:alarm_plus/features/clock/screens/world_clock_screen.dart';
+import 'package:alarm_plus/features/clock/services/clock_service.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
 import 'package:alarm_plus/features/focus/screens/nap_timer_screen.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
@@ -30,6 +29,7 @@ import 'package:alarm_plus/features/location/screens/location_picker_screen.dart
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
 import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
+import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/settings/screens/sound_settings_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/bedtime_setup_screen.dart';
 import 'package:alarm_plus/features/sleep/screens/morning_check_in_screen.dart';
@@ -52,16 +52,18 @@ import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Every step is isolated (see runStartupStep): a plugin that fails or hangs
-  // on someone's phone costs that feature, never the whole app. Order matters
-  // only where noted.
+  // on someone's phone costs that feature, never the whole app. Only what
+  // the first frame (or a ringing alarm that launched the app) needs runs
+  // before runApp; the rest follows the first frame.
   await runStartupStep('storage', StorageService.init);
   await runStartupStep('settings', AppSettings.load);
-  await runStartupStep('premium', PremiumService.init);
-  await runStartupStep('mascot', MascotService.init);
-  await runStartupStep('alarm engine', AlarmService.init);
+  // Independent of each other, so they overlap instead of adding up.
+  await Future.wait([
+    runStartupStep('premium', PremiumService.init),
+    runStartupStep('mascot', MascotService.init),
+    runStartupStep('alarm engine', AlarmService.init),
+  ]);
   await runStartupStep('restore alarms', AlarmService.restoreEnabledAlarms);
-  await runStartupStep('widget sync', WidgetSyncService.refresh);
-  await runStartupStep('streak reminder', StreakReminderService.refresh);
   // Bound early so a ring event that launched the app isn't missed.
   await runStartupStep('ring events', AlarmRingFlow.bindNativeAlarmEvents);
   await runStartupStep('widget commands', () async {
@@ -69,16 +71,22 @@ Future<void> main() async {
     await WidgetCommandService.drainPending();
   });
   await runStartupStep('system events', BackgroundTasks.bindForegroundHandlers);
+  runApp(const AlarmPlusApp());
+  unawaited(_afterFirstFrame());
+}
+
+/// Work nothing on screen waits for: widget and reminder refreshes, the
+/// location monitor, shortcuts. Running it after the first frame gets the
+/// app on screen noticeably sooner.
+Future<void> _afterFirstFrame() async {
+  await WidgetsBinding.instance.endOfFrame;
+  await runStartupStep('retired timer', ClockService.clearRetiredTimer);
+  await runStartupStep('widget sync', WidgetSyncService.refresh);
+  await runStartupStep('streak reminder', StreakReminderService.refresh);
   await runStartupStep('missed nap', NapService.checkMissedNap);
   await runStartupStep('location alarms', LocationAlarmService.startMonitoring);
   await runStartupStep('shortcuts', AppShortcutsService.init);
-  runApp(const AlarmPlusApp());
 }
-
-/// Started by Android (BackgroundDartRunner) for a timezone change or a
-/// location arrival while the app is closed. No UI.
-@pragma('vm:entry-point')
-Future<void> backgroundMain(List<String> args) => BackgroundTasks.runTask(args);
 
 class AlarmPlusApp extends StatelessWidget {
   const AlarmPlusApp({super.key});
@@ -143,8 +151,6 @@ class MainScaffold extends ConsumerStatefulWidget {
 
 class _MainScaffoldState extends ConsumerState<MainScaffold>
     with WidgetsBindingObserver {
-  StreamSubscription<String>? _openRequests;
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -156,29 +162,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Tapping "Time's up" opens the Timer tab, on top of whatever was open.
-    _openRequests = AlarmService.openRequests.listen((what) {
-      if (what != 'timer' || !mounted) return;
-      Navigator.of(context).popUntil((r) => r.isFirst || r.settings.name == '/app');
-      ref.read(currentTabIndexProvider.notifier).state = AppTab.timer;
-    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _openRequests?.cancel();
     super.dispose();
   }
 
-  // Order must match AppTab. Settings is behind the gear on the Alarm tab,
-  // as in the stock clock app.
+  // Order must match AppTab.
   static const _destinations = [
-    (icon: Icons.alarm_rounded, label: 'Alarm'),
-    (icon: Icons.public_rounded, label: 'Clock'),
-    (icon: Icons.hourglass_bottom_rounded, label: 'Timer'),
-    (icon: Icons.timer_outlined, label: 'Stopwatch'),
-    (icon: Icons.insights_rounded, label: 'Insights'),
+    (icon: Icons.alarm_outlined, selected: Icons.alarm_rounded, label: 'Alarm'),
+    (icon: Icons.public_outlined, selected: Icons.public_rounded, label: 'Clock'),
+    (icon: Icons.insights_outlined, selected: Icons.insights_rounded, label: 'Insights'),
+    (icon: Icons.settings_outlined, selected: Icons.settings_rounded, label: 'Settings'),
   ];
 
   static bool _isDesktop(BuildContext context) {
@@ -194,8 +191,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     if (ref.read(currentTabIndexProvider) == index) return;
     HapticFeedback.selectionClick();
     ref.read(currentTabIndexProvider.notifier).state = index;
-    // The IndexedStack keeps Insights alive, so without this it kept
-    // showing the numbers from before this morning's alarm.
+    // The tabs stay alive, so without this Insights kept showing the numbers
+    // from before this morning's alarm.
     if (index == AppTab.insights) ref.invalidate(insightsSummaryProvider);
   }
 
@@ -203,17 +200,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   Widget build(BuildContext context) {
     final currentTabIndex = ref.watch(currentTabIndexProvider);
 
-    // IndexedStack keeps each tab alive across switches. Previously the tabs
-    // were indexed out of a list, so every switch rebuilt the screen from
-    // scratch and re-ran its data loads.
-    final body = IndexedStack(
+    // Tabs stay alive across switches (no rebuilding, no re-running their
+    // data loads) but are only built the first time they are opened, so
+    // launch builds one screen instead of four.
+    final body = _LazyTabs(
       index: currentTabIndex,
-      children: const [
-        HomeScreen(),
-        WorldClockScreen(),
-        TimerScreen(),
-        StopwatchScreen(),
-        InsightsScreen(),
+      builders: const [
+        _tab0,
+        _tab1,
+        _tab2,
+        _tab3,
       ],
     );
 
@@ -236,6 +232,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
                 for (final d in _destinations)
                   NavigationRailDestination(
                     icon: Icon(d.icon),
+                    selectedIcon: Icon(d.selected),
                     label: Text(d.label),
                   ),
               ],
@@ -256,9 +253,75 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
           for (final d in _destinations)
             NavigationDestination(
               icon: Icon(d.icon),
+              selectedIcon: Icon(d.selected),
               label: d.label,
             ),
         ],
+      ),
+    );
+  }
+
+  static Widget _tab0(BuildContext _) => const HomeScreen();
+  static Widget _tab1(BuildContext _) => const WorldClockScreen();
+  static Widget _tab2(BuildContext _) => const InsightsScreen();
+  static Widget _tab3(BuildContext _) => const SettingsScreen();
+}
+
+/// An [IndexedStack] that builds each tab the first time it is shown and
+/// fades the new tab in (reduced to nothing when the system asks for less
+/// motion). Built tabs keep their state while hidden.
+class _LazyTabs extends StatefulWidget {
+  const _LazyTabs({required this.index, required this.builders});
+
+  final int index;
+  final List<WidgetBuilder> builders;
+
+  @override
+  State<_LazyTabs> createState() => _LazyTabsState();
+}
+
+class _LazyTabsState extends State<_LazyTabs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+    value: 1,
+  );
+  late final Animation<double> _curve =
+      CurvedAnimation(parent: _fade, curve: Curves.easeOutCubic);
+  late final Set<int> _built = {widget.index};
+
+  @override
+  void didUpdateWidget(_LazyTabs old) {
+    super.didUpdateWidget(old);
+    if (old.index == widget.index) return;
+    _built.add(widget.index);
+    if (!MediaQuery.disableAnimationsOf(context)) _fade.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _curve,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.985, end: 1).animate(_curve),
+        child: IndexedStack(
+          index: widget.index,
+          children: [
+            for (var i = 0; i < widget.builders.length; i++)
+              // Each tab repaints on its own: the per-second clocks on one
+              // never repaint the others.
+              _built.contains(i)
+                  ? RepaintBoundary(child: widget.builders[i](context))
+                  : const SizedBox.shrink(),
+          ],
+        ),
       ),
     );
   }

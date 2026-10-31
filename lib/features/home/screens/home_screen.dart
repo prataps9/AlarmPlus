@@ -23,7 +23,6 @@ import 'package:alarm_plus/features/sleep/screens/wind_down_screen.dart';
 import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
-import 'package:alarm_plus/features/settings/screens/settings_screen.dart';
 import 'package:alarm_plus/features/sleep/widgets/bedtime_card.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
@@ -50,20 +49,6 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  tooltip: 'Settings',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      // SettingsScreen draws its own "Settings" heading;
-                      // the bar only adds the back button.
-                      builder: (_) => Scaffold(
-                        appBar: AppBar(),
-                        body: const SettingsScreen(),
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.settings_outlined, size: 28),
-                ),
                 IconButton(
                   tooltip: 'New alarm',
                   // Straight into the editor; it used to open the alarm list.

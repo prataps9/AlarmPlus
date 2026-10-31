@@ -44,11 +44,6 @@ class AlarmService {
   static Stream<void> get changes => _changes.stream;
   static void notifyChanged() => _changes.add(null);
 
-  /// Bottom-nav tab requests from notifications (e.g. "Time's up" → Timer).
-  static final StreamController<String> _openRequests =
-      StreamController<String>.broadcast();
-  static Stream<String> get openRequests => _openRequests.stream;
-
   static const _upcomingNoticeKey = 'alarm.upcoming_notice';
 
   /// How long before an alarm its "Upcoming alarm" notice appears.
@@ -192,10 +187,9 @@ class AlarmService {
       return;
     }
 
-    if (payload == 'timer') {
-      _openRequests.add('timer');
-      return;
-    }
+    // A "time's up" scheduled by the removed timer, still pending on a phone
+    // that updated mid-countdown: nothing to open any more.
+    if (payload == 'timer') return;
 
     // Wake-up check notification: user confirmed they're awake — cancel re-ring
     if (payload.startsWith('wakecheck:')) {

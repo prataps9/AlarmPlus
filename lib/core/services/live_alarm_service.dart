@@ -9,7 +9,6 @@ import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/models/upcoming_rings.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/features/clock/models/clock_models.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
 
 /// The next ring the live countdown is about.
@@ -118,28 +117,6 @@ class LiveAlarmService {
       });
     } catch (e) {
       debugPrint('Live alarm sync failed: $e');
-    }
-  }
-
-  /// A running timer's countdown in the shade and capsule; anything else clears it.
-  static Future<void> syncTimer(CountdownState? timer) async {
-    if (!_isAndroid) return;
-    try {
-      final end = timer?.isRunning == true ? timer!.endsAt : null;
-      await _invoke<void>('liveTimerSync', {
-        'endMs': end?.millisecondsSinceEpoch ?? 0,
-        'title': 'Timer',
-        'text': end == null
-            ? ''
-            : 'Ends at ${TimeFormat.clockLabel(
-                end.hour,
-                end.minute,
-                use24h: WidgetsBinding
-                    .instance.platformDispatcher.alwaysUse24HourFormat,
-              )}',
-      });
-    } catch (e) {
-      debugPrint('Live timer sync failed: $e');
     }
   }
 }

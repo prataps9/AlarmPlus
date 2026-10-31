@@ -10,7 +10,6 @@ import 'package:alarm_plus/core/services/live_alarm_service.dart';
 import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
-import 'package:alarm_plus/features/clock/models/clock_models.dart';
 
 AlarmModel _alarm(
   String id,
@@ -126,20 +125,6 @@ void main() {
     tearDown(() {
       debugDefaultTargetPlatformOverride = null;
       messenger.setMockMethodCallHandler(NativeControls.channel, null);
-    });
-
-    test('a running timer sends its end time; a paused or cleared one clears it', () async {
-      final end = DateTime(2026, 10, 28, 5, 10);
-      await LiveAlarmService.syncTimer(
-          CountdownState(total: const Duration(minutes: 10), endsAt: end));
-      expect(calls.last.method, 'liveTimerSync');
-      expect((calls.last.arguments as Map)['endMs'], end.millisecondsSinceEpoch);
-
-      await LiveAlarmService.syncTimer(const CountdownState(
-          total: Duration(minutes: 10), pausedRemaining: Duration(minutes: 4)));
-      expect((calls.last.arguments as Map)['endMs'], 0);
-      await LiveAlarmService.syncTimer(null);
-      expect((calls.last.arguments as Map)['endMs'], 0);
     });
 
     test('the ring payload carries id, due time and the 2 h window', () async {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:alarm_plus/features/focus/models/nap_preset.dart';
 import 'package:alarm_plus/features/focus/services/nap_service.dart';
 import 'package:alarm_plus/shared/widgets/focus_ring.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class NapTimerScreen extends StatefulWidget {
   const NapTimerScreen({super.key});
@@ -102,25 +103,25 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF1e3a5f),
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      return Scaffold(
+        backgroundColor: context.colors.surface,
+        body: Center(child: CircularProgressIndicator(color: context.colors.onSurface)),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1e3a5f),
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.onSurface.withValues(alpha: 0.7)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'NAP TIMER',
           style: TextStyle(
-              color: Colors.white,
+              color: context.colors.onSurface,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 3),
@@ -146,15 +147,15 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
         padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Rest and recharge',
-              style: TextStyle(color: Colors.white54, fontSize: 15),
+              style: TextStyle(color: context.colors.onSurfaceVariant, fontSize: 15),
             ),
             const SizedBox(height: 8),
             Text(
               'Wake up in ${(_remainingSeconds / 60).ceil()} min',
-              style: const TextStyle(
-                  color: Colors.white70,
+              style: TextStyle(
+                  color: context.colors.onSurface.withValues(alpha: 0.7),
                   fontSize: 17,
                   fontWeight: FontWeight.w600),
             ),
@@ -167,8 +168,8 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
                   child: OutlinedButton(
                     onPressed: _cancelNap,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white38),
-                      foregroundColor: Colors.white70,
+                      side: BorderSide(color: context.colors.onSurfaceVariant.withValues(alpha: 0.7)),
+                      foregroundColor: context.colors.onSurface.withValues(alpha: 0.7),
                       minimumSize: const Size(double.infinity, 54),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(40)),
@@ -187,8 +188,8 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colors.primary,
+                      foregroundColor: context.colors.onPrimary,
                       minimumSize: const Size(double.infinity, 54),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(40)),
@@ -219,10 +220,10 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Center(
+            Center(
               child: Text(
                 'Choose your nap length',
-                style: TextStyle(color: Colors.white70, fontSize: 15),
+                style: TextStyle(color: context.colors.onSurface.withValues(alpha: 0.7), fontSize: 15),
               ),
             ),
             const SizedBox(height: 24),
@@ -240,20 +241,20 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
             ),
             if (_selectedPreset == NapPresetType.custom) ...[
               const SizedBox(height: 20),
-              const Text('Custom duration',
-                  style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+              Text('Custom duration',
+                  style: TextStyle(color: context.colors.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.timer_outlined, color: Colors.white54),
+                  Icon(Icons.timer_outlined, color: context.colors.onSurfaceVariant),
                   Expanded(
                     child: Slider(
                       value: _customMinutes.toDouble(),
                       min: 5,
                       max: 120,
                       divisions: 23,
-                      activeColor: const Color(0xFF6366F1),
-                      inactiveColor: Colors.white12,
+                      activeColor: context.colors.primary,
+                      inactiveColor: context.colors.outlineVariant,
                       label: '$_customMinutes min',
                       onChanged: (v) =>
                           setState(() => _customMinutes = v.round()),
@@ -261,8 +262,8 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
                   ),
                   Text(
                     '$_customMinutes min',
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: context.colors.onSurface,
                         fontWeight: FontWeight.w700,
                         fontSize: 16),
                   ),
@@ -276,8 +277,8 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
                 child: ElevatedButton(
                   onPressed: () => _startNap(_selectedMinutes),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.colors.primary,
+                    foregroundColor: context.colors.onPrimary,
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40)),
@@ -291,9 +292,9 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
               ),
             if (_history.isNotEmpty) ...[
               const SizedBox(height: 32),
-              const Text('Recent Naps',
+              Text('Recent Naps',
                   style: TextStyle(
-                      color: Colors.white70,
+                      color: context.colors.onSurface.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w700,
                       fontSize: 15)),
               const SizedBox(height: 12),
@@ -313,13 +314,13 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF6366F1).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.07),
+              ? context.colors.primary.withValues(alpha: 0.25)
+              : context.colors.onSurface.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF6366F1)
-                : Colors.white.withValues(alpha: 0.1),
+                ? context.colors.primary
+                : context.colors.onSurface.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -331,13 +332,13 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
             Text(
               preset.label,
               style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected ? context.colors.onSurface : context.colors.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w700,
                   fontSize: 13),
             ),
             Text(
               '${preset.durationMinutes} min',
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: context.colors.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 12),
             ),
           ],
         ),
@@ -353,13 +354,13 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF6366F1).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.07),
+              ? context.colors.primary.withValues(alpha: 0.25)
+              : context.colors.onSurface.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF6366F1)
-                : Colors.white.withValues(alpha: 0.1),
+                ? context.colors.primary
+                : context.colors.onSurface.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -371,13 +372,13 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
             Text(
               'Custom',
               style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected ? context.colors.onSurface : context.colors.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w700,
                   fontSize: 13),
             ),
             Text(
               isSelected ? '$_customMinutes min' : 'Choose duration',
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: context.colors.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 12),
             ),
           ],
         ),
@@ -394,7 +395,7 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: context.colors.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -407,14 +408,14 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
               children: [
                 Text(
                   NapService.formatDuration(duration),
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: context.colors.onSurface,
                       fontWeight: FontWeight.w700,
                       fontSize: 14),
                 ),
                 Text(date,
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 12)),
+                    style: TextStyle(
+                        color: context.colors.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 12)),
               ],
             ),
           ),
@@ -424,8 +425,8 @@ class _NapTimerScreenState extends State<NapTimerScreen> {
               (i) => Icon(
                 i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
                 color: i < rating
-                    ? const Color(0xFFFBBF24)
-                    : Colors.white.withValues(alpha: 0.2),
+                    ? context.colors.primary
+                    : context.colors.onSurface.withValues(alpha: 0.2),
                 size: 16,
               ),
             ),

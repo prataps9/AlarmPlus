@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/features/missions/models/mission_model.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MorningMissionsScreen extends StatefulWidget {
   const MorningMissionsScreen({super.key});
@@ -144,9 +145,9 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF97316).withValues(alpha: 0.10),
+                        color: context.colors.primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF97316).withValues(alpha: 0.35)),
+                        border: Border.all(color: context.colors.primary.withValues(alpha: 0.35)),
                       ),
                       child: Row(
                         children: [
@@ -180,14 +181,14 @@ class _MorningMissionsScreenState extends State<MorningMissionsScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF22C55E),
+                        color: context.semantics.success,
                         borderRadius: BorderRadius.circular(40),
                       ),
                       child: Text(
                         'All done! 🎉 +$_totalEarnedXp XP',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: scheme.surface,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                         ),
@@ -222,11 +223,11 @@ class _MissionTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
           color: mission.isCompleted
-              ? const Color(0xFF22C55E).withValues(alpha: 0.08)
+              ? context.semantics.success.withValues(alpha: 0.08)
               : scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: mission.isCompleted ? const Color(0xFF86EFAC) : scheme.outlineVariant,
+            color: mission.isCompleted ? context.semantics.success.withValues(alpha: 0.5) : scheme.outlineVariant,
             width: 1.5,
           ),
           boxShadow: mission.isCompleted
@@ -254,7 +255,7 @@ class _MissionTile extends StatelessWidget {
                     '+${mission.xpReward} XP',
                     style: TextStyle(
                       fontSize: 12,
-                      color: mission.isCompleted ? const Color(0xFF86EFAC) : const Color(0xFF22C55E),
+                      color: mission.isCompleted ? context.semantics.success.withValues(alpha: 0.5) : context.semantics.success,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -266,15 +267,15 @@ class _MissionTile extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: mission.isCompleted ? const Color(0xFF22C55E) : Colors.transparent,
+                color: mission.isCompleted ? context.semantics.success : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: mission.isCompleted ? const Color(0xFF22C55E) : scheme.outline,
+                  color: mission.isCompleted ? context.semantics.success : scheme.outline,
                   width: 2,
                 ),
               ),
               child: mission.isCompleted
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                  ? Icon(Icons.check_rounded, color: scheme.surface, size: 16)
                   : null,
             ),
           ],
@@ -324,11 +325,11 @@ class _AddMissionDialogState extends State<_AddMissionDialog> {
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: _selectedIcon == ic
-                        ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                        ? context.colors.primary.withValues(alpha: 0.12)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _selectedIcon == ic ? const Color(0xFF6366F1) : Colors.transparent,
+                      color: _selectedIcon == ic ? context.colors.primary : Colors.transparent,
                     ),
                   ),
                   child: Text(ic, style: const TextStyle(fontSize: 22)),

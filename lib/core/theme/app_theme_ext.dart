@@ -39,7 +39,7 @@ class AppSemantics extends ThemeExtension<AppSemantics> {
   final Color chartGrid;
 
   static const light = AppSemantics(
-    success: Palette.green600,
+    success: Palette.green700,
     warning: Palette.orange700,
     danger: Palette.red600,
     streakGold: Palette.orange700,

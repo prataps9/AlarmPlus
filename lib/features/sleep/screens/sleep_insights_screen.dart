@@ -7,6 +7,7 @@ import 'package:alarm_plus/features/sleep/models/sleep_entry.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_diary_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class SleepInsightsScreen extends StatefulWidget {
   const SleepInsightsScreen({super.key});
@@ -116,10 +117,10 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
   Widget _buildScoreCard(_InsightsData data) {
     final scheme = Theme.of(context).colorScheme;
     final color = data.weeklyScore >= 80
-        ? const Color(0xFF22C55E)
+        ? context.semantics.success
         : data.weeklyScore >= 60
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFFEF4444);
+            ? scheme.primary
+            : context.semantics.danger;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -217,11 +218,11 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
         barGroups: List.generate(7, (i) {
           final score = data.dailyScores[i];
           final color = score >= 80
-              ? const Color(0xFF22C55E)
+              ? context.semantics.success
               : score >= 60
-                  ? const Color(0xFFF59E0B)
+                  ? scheme.primary
                   : score > 0
-                      ? const Color(0xFFEF4444)
+                      ? context.semantics.danger
                       : scheme.outlineVariant;
           return BarChartGroupData(
             x: i,
@@ -329,12 +330,12 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                           : FlSpot.nullSpot;
                     }),
                     isCurved: true,
-                    color: const Color(0xFF6366F1),
+                    color: context.colors.primary,
                     barWidth: 3,
                     dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      color: context.colors.primary.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -363,13 +364,13 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: scheme.outlineVariant),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Text('📓', style: TextStyle(fontSize: 20)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text('Start logging your sleep diary →',
-                        style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
+                        style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -393,7 +394,7 @@ class _SleepInsightsScreenState extends State<SleepInsightsScreen> {
 
   Widget _buildPremiumBanner(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const accent = Color(0xFFF97316);
+    final accent = scheme.primary;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(

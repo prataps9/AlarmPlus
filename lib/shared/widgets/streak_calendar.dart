@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class StreakCalendarWidget extends StatelessWidget {
   const StreakCalendarWidget({super.key, required this.history});
@@ -9,7 +10,6 @@ class StreakCalendarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final today = DateTime.now();
     final startDate = today.subtract(const Duration(days: 89));
     final days = List.generate(90, (i) => startDate.add(Duration(days: i)));
@@ -70,9 +70,9 @@ class StreakCalendarWidget extends StatelessWidget {
                 } else if (status == null) {
                   cellColor = scheme.outlineVariant;
                 } else if (status) {
-                  cellColor = const Color(0xFF22C55E);
+                  cellColor = context.semantics.success;
                 } else {
-                  cellColor = const Color(0xFFEF4444);
+                  cellColor = context.semantics.danger;
                 }
 
                 return Expanded(
@@ -83,7 +83,7 @@ class StreakCalendarWidget extends StatelessWidget {
                       color: cellColor,
                       borderRadius: BorderRadius.circular(3),
                       border: isToday
-                          ? Border.all(color: isDark ? scheme.onSurface : const Color(0xFF1E40AF), width: 1.5)
+                          ? Border.all(color: scheme.onSurface, width: 1.5)
                           : null,
                     ),
                   ),
@@ -95,9 +95,9 @@ class StreakCalendarWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            _LegendDot(color: const Color(0xFF22C55E), label: 'Dismissed'),
+            _LegendDot(color: context.semantics.success, label: 'Dismissed'),
             const SizedBox(width: 12),
-            _LegendDot(color: const Color(0xFFEF4444), label: 'Missed'),
+            _LegendDot(color: context.semantics.danger, label: 'Missed'),
             const SizedBox(width: 12),
             _LegendDot(color: scheme.outlineVariant, label: 'No alarm'),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/features/sleep/models/bedtime_schedule.dart';
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class BedtimeSetupScreen extends StatefulWidget {
   const BedtimeSetupScreen({super.key});
@@ -95,10 +96,10 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
                 Switch(
                   value: _isEnabled,
                   onChanged: (v) => setState(() => _isEnabled = v),
-                  thumbColor: WidgetStatePropertyAll(Colors.white),
+                  thumbColor: WidgetStatePropertyAll(context.colors.onPrimary),
                   trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
                       states.contains(WidgetState.selected)
-                          ? const Color(0xFF22C55E)
+                          ? context.colors.primary
                           : scheme.outlineVariant),
                 ),
               ],
@@ -117,7 +118,7 @@ class _BedtimeSetupScreenState extends State<BedtimeSetupScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.bedtime_rounded, color: Color(0xFF6366F1)),
+                    Icon(Icons.bedtime_rounded, color: context.colors.primary),
                     const SizedBox(width: 12),
                     Text(timeLabel, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: scheme.onSurface)),
                     const Spacer(),

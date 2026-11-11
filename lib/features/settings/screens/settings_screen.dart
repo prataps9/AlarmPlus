@@ -78,17 +78,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String _query = '';
 
-  // Accent per kind of setting, so a long list can be scanned by colour.
-  static const _blue = Color(0xFF3B82F6);
-  static const _orange = Color(0xFFF59E0B);
-  static const _purple = Color(0xFF8B5CF6);
-  static const _teal = Color(0xFF14B8A6);
-  static const _green = Color(0xFF22C55E);
-  static const _red = Color(0xFFEF4444);
-  static const _indigo = Color(0xFF6366F1);
-  static const _pink = Color(0xFFEC4899);
-  static const _slate = Color(0xFF64748B);
-
   @override
   Widget build(BuildContext context) {
     // The tab stays alive while hidden: refresh what its tiles show (health,
@@ -106,7 +95,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _Group('ALARMS', [
         _Entry('Sound', 'tone ringtone volume music', () => _SettingTile(
               icon: Icons.volume_up_rounded,
-              color: _blue,
               title: 'Sound',
               subtitle: 'Wake tone and ring volume',
               trailing: chevron(),
@@ -125,7 +113,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                   return _SettingTile(
                     icon: Icons.psychology_rounded,
-                    color: _orange,
                     title: 'Wake Challenge',
                     subtitle: challenge.name.toUpperCase(),
                     trailing: chevron(),
@@ -136,7 +123,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Vibration', 'haptic buzz', () => _SettingTile(
               icon: Icons.vibration_rounded,
-              color: _purple,
               title: 'Vibration',
               subtitle: 'Buzz while an alarm rings',
               trailing: _AnimatedToggle(
@@ -150,7 +136,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               future: _upcomingNoticeFuture,
               builder: (context, snapshot) => _SettingTile(
                 icon: Icons.pending_actions_rounded,
-                color: _blue,
                 title: 'Live Alarm Countdown',
                 subtitle: 'Lock screen and status-bar capsule 2 h before, with Skip',
                 trailing: _AnimatedToggle(
@@ -168,7 +153,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               future: _briefingFuture,
               builder: (context, snapshot) => _SettingTile(
                 icon: Icons.record_voice_over_rounded,
-                color: _teal,
                 title: 'Morning Briefing',
                 subtitle: 'Reads the time, your wake-up speed and streak aloud',
                 trailing: _AnimatedToggle(
@@ -183,7 +167,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Preview Alarm Screen', 'ring screen test', () => _SettingTile(
               icon: Icons.alarm_on_rounded,
-              color: _red,
               title: 'Preview Alarm Screen',
               subtitle: 'See how a ringing alarm looks',
               trailing: chevron(),
@@ -201,7 +184,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     status?.exactAlarmGranted == true;
                 return _SettingTile(
                   icon: Icons.health_and_safety_rounded,
-                  color: status == null || ok ? _green : _red,
+                  
                   title: 'Alarm Health Check',
                   subtitle: status == null
                       ? 'Checking…'
@@ -210,8 +193,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           : 'Action needed',
                   trailing: ok
                       ? chevron()
-                      : const Icon(Icons.warning_amber_rounded,
-                          color: _red, size: 22),
+                      : const Icon(Icons.warning_amber_rounded, size: 22),
                   onTap: () async {
                     await Navigator.of(context)
                         .pushNamed(AlarmHealthScreen.routeName);
@@ -227,7 +209,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 final url = snapshot.data ?? '';
                 return _SettingTile(
                   icon: Icons.shield_rounded,
-                  color: _green,
                   title: 'Guardian Alert',
                   subtitle: url.isEmpty ? 'Not configured' : 'Webhook active',
                   trailing: chevron(),
@@ -237,7 +218,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Location Alarms', 'arrive geofence place', () => _SettingTile(
               icon: Icons.location_on_rounded,
-              color: _blue,
               title: 'Location Alarms',
               subtitle: 'Ring when you arrive somewhere',
               trailing: chevron(),
@@ -248,7 +228,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _Group('SLEEP', [
         _Entry('Sleep Insights', 'weekly score trends', () => _SettingTile(
               icon: Icons.bedtime_rounded,
-              color: _indigo,
               title: 'Sleep Insights',
               subtitle: 'Weekly score and trends',
               trailing: chevron(),
@@ -258,7 +237,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // The wind-down reminder lives with the bedtime schedule.
         _Entry('Wind Down / Bedtime', 'bedtime reminder goal', () => _SettingTile(
               icon: Icons.nights_stay_rounded,
-              color: _purple,
               title: 'Wind Down / Bedtime',
               subtitle: 'Bedtime reminder & wind-down',
               trailing: chevron(),
@@ -267,7 +245,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Sleep Diary', 'log quality journal', () => _SettingTile(
               icon: Icons.menu_book_rounded,
-              color: _teal,
               title: 'Sleep Diary',
               subtitle: 'Log sleep quality daily',
               trailing: chevron(),
@@ -281,7 +258,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 final stats = snapshot.data;
                 return _SettingTile(
                   icon: Icons.local_fire_department_rounded,
-                  color: _orange,
                   title: 'Streaks & Metrics',
                   subtitle: stats == null
                       ? '…'
@@ -297,7 +273,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               valueListenable: MascotService.selectedOutfit,
               builder: (context, outfit, _) => _SettingTile(
                 icon: Icons.checkroom_rounded,
-                color: _pink,
                 title: "Pip's Wardrobe",
                 subtitle: outfit.label,
                 trailing: chevron(),
@@ -309,7 +284,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _Group('BACKUP', [
         _Entry('Back Up Alarms & Settings', 'export save share file', () => _SettingTile(
               icon: Icons.cloud_upload_rounded,
-              color: _blue,
               title: 'Back Up Alarms & Settings',
               subtitle: 'Save a file to Drive, email or anywhere',
               trailing: chevron(),
@@ -317,7 +291,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Restore From Backup', 'import file', () => _SettingTile(
               icon: Icons.settings_backup_restore_rounded,
-              color: _teal,
               title: 'Restore From Backup',
               subtitle: 'Replace your alarms with a saved backup',
               trailing: chevron(),
@@ -326,7 +299,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!PremiumService.isPro.value)
           _Entry('Restore Purchase', 'pro buy google play', () => _SettingTile(
                 icon: Icons.restore_rounded,
-                color: _orange,
                 title: 'Restore Purchase',
                 subtitle: 'Already bought Pro? Get it back here',
                 trailing: chevron(),
@@ -341,7 +313,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 final info = snapshot.data;
                 return _SettingTile(
                   icon: Icons.info_rounded,
-                  color: _slate,
                   title: 'About Alarm+',
                   subtitle: info == null
                       ? ''
@@ -353,7 +324,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
         _Entry('Privacy Policy', 'terms data', () => _SettingTile(
               icon: Icons.privacy_tip_rounded,
-              color: _slate,
               title: 'Privacy Policy',
               trailing: Icon(Icons.open_in_new_rounded, color: muted, size: 20),
               onTap: () => _openPrivacyPolicy(context),
@@ -746,20 +716,13 @@ class _ProCardState extends State<_ProCard> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    const amber = Color(0xFFFBBF24);
     return ValueListenableBuilder<bool>(
       valueListenable: PremiumService.isPro,
       builder: (context, isPro, _) => Material(
-        color: isDark
-            ? amber.withValues(alpha: 0.12)
-            : const Color(0xFFFFFBEB),
+        color: scheme.primaryContainer,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-              color: isDark
-                  ? amber.withValues(alpha: 0.35)
-                  : const Color(0xFFFDE68A)),
+          side: BorderSide(color: scheme.primary.withValues(alpha: 0.35)),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
@@ -774,12 +737,12 @@ class _ProCardState extends State<_ProCard> {
                 Container(
                   width: 52,
                   height: 52,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFBBF24),
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.workspace_premium_rounded,
-                      color: Color(0xFF0F172A), size: 30),
+                  child: Icon(Icons.workspace_premium_rounded,
+                      color: scheme.onPrimary, size: 30),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -815,9 +778,7 @@ class _ProCardState extends State<_ProCard> {
                 ),
                 Icon(
                   isPro ? Icons.verified_rounded : Icons.chevron_right_rounded,
-                  color: isPro
-                      ? (isDark ? amber : const Color(0xFFD97706))
-                      : scheme.onSurface,
+                  color: isPro ? scheme.primary : scheme.onSurface,
                 ),
               ],
             ),
@@ -968,7 +929,7 @@ class _AnimatedToggle extends StatelessWidget {
           width: 52,
           height: 30,
           decoration: BoxDecoration(
-            color: value ? scheme.onSurface : scheme.outlineVariant,
+            color: value ? scheme.primary : scheme.outline,
             borderRadius: BorderRadius.circular(15),
           ),
           child: AnimatedAlign(
@@ -980,13 +941,13 @@ class _AnimatedToggle extends StatelessWidget {
               height: 24,
               margin: const EdgeInsets.symmetric(horizontal: 3),
               decoration: BoxDecoration(
-                // On the "on" track (onSurface) the thumb takes the surface
-                // colour so it stays visible when the track inverts in dark.
-                color: value ? scheme.surface : Colors.white,
+                // White-ish thumb on the accent track; on the grey "off"
+                // track it takes the surface tone so it stays visible.
+                color: value ? scheme.onPrimary : scheme.surface,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: const Color(0x26000000),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
@@ -1003,7 +964,6 @@ class _AnimatedToggle extends StatelessWidget {
 class _SettingTile extends StatelessWidget {
   const _SettingTile({
     required this.icon,
-    required this.color,
     required this.title,
     this.subtitle,
     required this.trailing,
@@ -1011,7 +971,6 @@ class _SettingTile extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color color;
   final String title;
   final String? subtitle;
   final Widget trailing;
@@ -1035,10 +994,10 @@ class _SettingTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
+                color: scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 21),
+              child: Icon(icon, color: scheme.primary, size: 21),
             ),
             const SizedBox(width: 14),
             Expanded(

@@ -7,6 +7,7 @@ import 'package:alarm_plus/features/missions/models/wake_routine_step.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/services/wake_routine_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class WakeRoutineScreen extends StatefulWidget {
   const WakeRoutineScreen({super.key});
@@ -174,8 +175,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF22C55E),
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.primary,
+                  foregroundColor: context.colors.onPrimary,
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(40),
@@ -193,9 +194,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                 Navigator.pop(ctx);
                 Navigator.of(context).pushNamed('/morning-checkin');
               },
-              child: const Text(
+              child: Text(
                 'Sleep Check-In',
-                style: TextStyle(color: Color(0xFF6366F1)),
+                style: TextStyle(color: context.colors.primary),
               ),
             ),
             TextButton(
@@ -251,8 +252,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: scheme.outlineVariant,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF22C55E),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  context.colors.primary,
                 ),
                 minHeight: 6,
               ),
@@ -332,8 +333,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                   child: ElevatedButton(
                     onPressed: _stepDone ? () => _advance(completed: true) : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colors.primary,
+                      foregroundColor: context.colors.onPrimary,
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40),
@@ -369,7 +370,7 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
               size: const Size(140, 140),
               painter: _RingPainter(
                 progress: 1.0 - _timerController.value,
-                color: const Color(0xFF22C55E),
+                color: context.colors.primary,
                 trackColor: Theme.of(context).colorScheme.outlineVariant,
               ),
             ),
@@ -402,9 +403,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.2),
+                  color: context.colors.primary.withValues(alpha: 0.2),
                   border: Border.all(
-                    color: const Color(0xFF22C55E),
+                    color: context.colors.primary,
                     width: 3,
                   ),
                 ),

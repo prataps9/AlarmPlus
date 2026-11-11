@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class VoiceMemoRecorder extends StatefulWidget {
   const VoiceMemoRecorder({
@@ -151,17 +152,17 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444),
+                    color: context.semantics.danger,
                     borderRadius: BorderRadius.circular(40),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.stop_rounded, color: Colors.white, size: 18),
+                      Icon(Icons.stop_rounded, color: context.colors.onError, size: 18),
                       const SizedBox(width: 6),
                       Text(
                         'Stop  ${_seconds}s',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.colors.onError, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -179,15 +180,15 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF22C55E),
+          color: context.colors.primary,
           borderRadius: BorderRadius.circular(40),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.mic_rounded, color: Colors.white, size: 18),
+            Icon(Icons.mic_rounded, color: context.colors.onPrimary, size: 18),
             SizedBox(width: 6),
-            Text('Tap to Record', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text('Tap to Record', style: TextStyle(color: context.colors.onPrimary, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -209,7 +210,7 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
                 height: h,
                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E),
+                  color: context.colors.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               );
@@ -226,12 +227,12 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
         IconButton(
           icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
           onPressed: _playPause,
-          color: const Color(0xFF22C55E),
+          color: context.colors.primary,
         ),
         Text('Voice memo saved', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
         const Spacer(),
         IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+          icon: Icon(Icons.delete_outline_rounded, color: context.semantics.danger),
           onPressed: _delete,
         ),
       ],

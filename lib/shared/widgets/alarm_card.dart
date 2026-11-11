@@ -238,7 +238,7 @@ class _SkipChip extends StatelessWidget {
       avatar: const Icon(Icons.event_busy_rounded, size: 18),
       onDeleted: () => onChanged(false),
       deleteButtonTooltipMessage: 'Undo skip',
-      backgroundColor: const Color(0xFFFEF3C7),
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       side: BorderSide.none,
       visualDensity: VisualDensity.compact,
     );

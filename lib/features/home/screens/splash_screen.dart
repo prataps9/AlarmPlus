@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/shared/widgets/alarm_logo.dart';
+import 'package:alarm_plus/core/theme/app_tokens.dart';
 
 /// Launch screen: white, with the Alarm+ logo.
 ///
@@ -108,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const ink = Color(0xFF0F172A);
+    const ink = Palette.stone900;
     return Scaffold(
       backgroundColor: SplashScreen.background,
       body: GestureDetector(
@@ -162,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen>
                           'Wake up on time, every time.',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF64748B),
+                            color: Palette.stone500,
                           ),
                         ),
                       ),

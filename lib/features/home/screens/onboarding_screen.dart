@@ -126,13 +126,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         onPressed: _grantPermissions,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
-                          side: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                          side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(40)),
                         ),
-                        child: const Text('Grant Permissions',
+                        child: Text('Grant Permissions',
                             style: TextStyle(
-                                color: Color(0xFF22C55E),
+                                color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w700)),
                       ),
                     ),

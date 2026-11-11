@@ -42,7 +42,7 @@ class Palette {
   // Status colours: the only other hues in the app.
   static const red600 = Color(0xFFDC2626);
   static const red400 = Color(0xFFF87171);
-  static const green600 = Color(0xFF16A34A);
+  static const green700 = Color(0xFF15803D); // 5:1 on white, safe as text
   static const green400 = Color(0xFF4ADE80);
 }
 

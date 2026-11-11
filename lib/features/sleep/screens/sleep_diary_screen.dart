@@ -4,6 +4,7 @@ import 'package:alarm_plus/features/sleep/models/sleep_entry.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_diary_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class SleepDiaryScreen extends StatefulWidget {
   const SleepDiaryScreen({super.key});
@@ -132,17 +133,17 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
                       _deepSleepMinutes == 0
                           ? 'Not sure'
                           : '$_deepSleepMinutes min',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: Color(0xFF6366F1)),
+                          color: context.colors.primary),
                     ),
                     Slider(
                       value: _deepSleepMinutes.toDouble(),
                       min: 0,
                       max: 120,
                       divisions: 12,
-                      activeColor: const Color(0xFF6366F1),
+                      activeColor: context.colors.primary,
                       inactiveColor: scheme.outlineVariant,
                       onChanged: (v) =>
                           setState(() => _deepSleepMinutes = v.round()),
@@ -171,8 +172,8 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                              color: Color(0xFF6366F1)),
+                          borderSide: BorderSide(
+                              color: context.colors.primary),
                         ),
                       ),
                     ),
@@ -312,12 +313,12 @@ class _SleepDiaryScreenState extends State<SleepDiaryScreen> {
             height: 58,
             decoration: BoxDecoration(
               color: isSelected
-                  ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                  ? context.colors.primary.withValues(alpha: 0.12)
                   : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected
-                    ? const Color(0xFF6366F1)
+                    ? context.colors.primary
                     : scheme.outlineVariant,
                 width: isSelected ? 2 : 1,
               ),

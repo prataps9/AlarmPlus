@@ -41,7 +41,8 @@ object LiveActivity {
     /** Android 16's opt-in for a status-bar capsule (Notification.EXTRA_REQUEST_PROMOTED_ONGOING). */
     private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
 
-    private const val ACCENT = 0xFF3B82F6.toInt()
+    // The app's one accent (orange); the notification tints its icon with it.
+    private const val ACCENT = 0xFFEA580C.toInt()
 
     private class Ring(
         val alarmId: Int,
@@ -50,6 +51,8 @@ object LiveActivity {
         val title: String,
         val text: String,
         val canSkip: Boolean,
+        /** False when the user turned the countdown notification off: only the system alarm stays. */
+        val showLive: Boolean,
     )
 
     // ── Alarm ────────────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ object LiveActivity {
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (json.isNullOrEmpty()) {
             prefs.edit().remove(KEY_ALARM).apply()
+            clearSystemAlarm(ctx)
             return
         }
         prefs.edit().putString(KEY_ALARM, json).apply()
@@ -85,6 +89,7 @@ object LiveActivity {
                 title = o.getString("title"),
                 text = o.optString("text"),
                 canSkip = o.optBoolean("canSkip", true),
+                showLive = o.optBoolean("showLive", true),
             )
         } catch (e: Exception) {
             Log.w(TAG, "Bad stored ring", e)
@@ -93,15 +98,63 @@ object LiveActivity {
     }
 
     private fun apply(ctx: Context) {
-        val ring = load(ctx) ?: return
+        val ring = load(ctx)
+        if (ring == null) {
+            clearSystemAlarm(ctx)
+            return
+        }
         val now = System.currentTimeMillis()
         if (ring.dueMs <= now) {
             notificationManager(ctx).cancel(ID_ALARM)
+            // Rung (or missed): Dart registers the next one when the app runs.
+            clearSystemAlarm(ctx)
+            return
+        }
+        // The system's own "next alarm": status-bar alarm icon, lock screen,
+        // Quick Settings and the assistant all read it.
+        registerSystemAlarm(ctx, ring)
+        if (!ring.showLive) {
+            notificationManager(ctx).cancel(ID_ALARM)
+            cancelShow(ctx)
             return
         }
         val showAt = ring.dueMs - ring.windowMs
         if (now >= showAt) post(ctx, ring) else scheduleShow(ctx, showAt)
     }
+
+    // ── System "next alarm" ──────────────────────────────────────────────────
+
+    /**
+     * Registers [ring] with AlarmManager as an alarm clock, which is what the
+     * stock Clock does. This is a status indicator and a Doze/OEM-priority
+     * hint only: the alarm plugin's own exact alarm still rings, so the
+     * operation just re-checks the stored ring ([SystemAlarmClockReceiver]).
+     */
+    private fun registerSystemAlarm(ctx: Context, ring: Ring) {
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val show = WidgetCommandBridge.launchIntent(ctx)?.let {
+            PendingIntent.getActivity(
+                ctx, 0, it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        try {
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(ring.dueMs, show), systemAlarmIntent(ctx))
+        } catch (e: SecurityException) {
+            Log.w(TAG, "System alarm clock not registered", e)
+        }
+    }
+
+    private fun clearSystemAlarm(ctx: Context) {
+        (ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(systemAlarmIntent(ctx))
+    }
+
+    private fun systemAlarmIntent(ctx: Context): PendingIntent =
+        PendingIntent.getBroadcast(
+            ctx, 7402,
+            Intent(ctx, SystemAlarmClockReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun post(ctx: Context, ring: Ring) {
         val now = System.currentTimeMillis()
@@ -210,5 +263,12 @@ class LiveAlarmReceiver : BroadcastReceiver() {
                 BackgroundDartRunner.dispatch(context, "skipUpcoming", listOf(id.toString()), goAsync())
             }
         }
+    }
+}
+
+/** The system alarm clock's operation: the registered ring is due, so re-check and clear it. */
+class SystemAlarmClockReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        LiveActivity.restore(context)
     }
 }

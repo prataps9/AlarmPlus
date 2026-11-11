@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/core/services/storage_service.dart';
+import 'package:alarm_plus/core/services/system_alarm_request.dart';
 import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/startup.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -22,6 +24,7 @@ class BackgroundTasks {
   static const timezoneChanged = 'timezoneChanged';
   static const geofenceEntered = 'geofenceEntered';
   static const skipUpcoming = 'skipUpcoming';
+  static const setAlarm = 'setAlarm';
 
   static const _channel = MethodChannel('alarmplus/background');
 
@@ -29,6 +32,10 @@ class BackgroundTasks {
   static void bindForegroundHandlers() {
     NativeControls.register(timezoneChanged, (_) async {
       await followTimezone(force: true);
+      return null;
+    });
+    NativeControls.register(setAlarm, (args) async {
+      await _setAlarm(_ids(args));
       return null;
     });
     NativeControls.register(skipUpcoming, (args) async {
@@ -61,6 +68,12 @@ class BackgroundTasks {
           await runStartupStep(
             'location arrival',
             () => LocationAlarmService.handleArrivals(args.sublist(1)),
+            timeout: const Duration(seconds: 15),
+          );
+        case setAlarm:
+          await runStartupStep(
+            'set alarm',
+            () => _setAlarm(args.sublist(1)),
             timeout: const Duration(seconds: 15),
           );
         case skipUpcoming:
@@ -99,6 +112,22 @@ class BackgroundTasks {
   static Future<void> _skip(List<String> ids) async {
     for (final id in ids.map(int.tryParse).whereType<int>()) {
       await AlarmService.dismissUpcoming(id);
+    }
+  }
+
+  /// A `SET_ALARM` intent (Assistant, Wear OS...): [args] is one JSON map.
+  static Future<void> _setAlarm(List<String> args) async {
+    if (args.isEmpty) return;
+    try {
+      final request = SystemAlarmRequest.parse(
+          Map<String, dynamic>.from(jsonDecode(args.first) as Map));
+      if (request == null) {
+        debugPrint('BackgroundTasks: ignored a SET_ALARM with no valid time');
+        return;
+      }
+      await request.apply();
+    } catch (e) {
+      debugPrint('BackgroundTasks: SET_ALARM failed: $e');
     }
   }
 

@@ -34,6 +34,8 @@ object BackgroundDartRunner {
     private class Task(
         val args: List<String>,
         val pending: BroadcastReceiver.PendingResult?,
+        /** Called on the main thread once the work is finished (or gave up). */
+        val onDone: (() -> Unit)? = null,
     )
 
     private val main = Handler(Looper.getMainLooper())
@@ -52,10 +54,11 @@ object BackgroundDartRunner {
         task: String,
         args: List<String>,
         pending: BroadcastReceiver.PendingResult?,
+        onDone: (() -> Unit)? = null,
     ) {
         val live = WidgetCommandBridge.liveEngine()
         if (live == null) {
-            run(context, listOf(task) + args, pending)
+            run(context, listOf(task) + args, pending, onDone)
             return
         }
         try {
@@ -65,16 +68,22 @@ object BackgroundDartRunner {
             Log.e(TAG, "Could not deliver $task to the app", e)
         }
         pending?.finish()
+        onDone?.invoke()
     }
 
     /**
      * Queues [args] (the task name first) for `backgroundMain`. [pending]
      * comes from the caller's goAsync() and is finished when Dart is done.
      */
-    fun run(context: Context, args: List<String>, pending: BroadcastReceiver.PendingResult?) {
+    fun run(
+        context: Context,
+        args: List<String>,
+        pending: BroadcastReceiver.PendingResult?,
+        onDone: (() -> Unit)? = null,
+    ) {
         val appContext = context.applicationContext
         main.post {
-            queue.addLast(Task(args, pending))
+            queue.addLast(Task(args, pending, onDone))
             if (current == null) startNext(appContext)
         }
     }
@@ -84,7 +93,7 @@ object BackgroundDartRunner {
         // The app was opened while this waited: hand it over instead, so
         // Hive is never open in two isolates.
         if (WidgetCommandBridge.liveEngine() != null) {
-            dispatch(context, task.args.first(), task.args.drop(1), task.pending)
+            dispatch(context, task.args.first(), task.args.drop(1), task.pending, task.onDone)
             startNext(context)
             return
         }
@@ -143,6 +152,7 @@ object BackgroundDartRunner {
         } catch (e: IllegalStateException) {
             Log.w(TAG, "Broadcast already finished", e)
         }
+        task.onDone?.invoke()
         startNext(context)
     }
 }

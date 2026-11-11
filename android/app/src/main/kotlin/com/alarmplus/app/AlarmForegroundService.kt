@@ -242,7 +242,7 @@ class AlarmForegroundService : Service() {
             .setContentTitle("Alarm ringing")
             .setContentText("Open Alarm+ and beat the challenge to stop it")
             .setSmallIcon(R.drawable.ic_stat_alarm)
-            .setColor(0xFFEF4444.toInt())
+            .setColor(0xFFDC2626.toInt())
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

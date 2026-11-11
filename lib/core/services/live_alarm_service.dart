@@ -89,10 +89,10 @@ class LiveAlarmService {
   static Future<void> sync() async {
     if (!_isAndroid) return;
     try {
-      if (!await AlarmService.upcomingNoticeEnabled()) {
-        await _invoke<void>('liveAlarmSync', {'ring': null});
-        return;
-      }
+      // The system "next alarm" (status bar, lock screen, Quick Settings,
+      // assistant) is always kept up to date; the setting only controls the
+      // countdown notification.
+      final showLive = await AlarmService.upcomingNoticeEnabled();
       final alarms = AlarmService.getAllAlarms().toList();
       final now = DateTime.now();
       final ring = pickNext(alarms, now, await AlarmService.pendingRings(alarms));
@@ -113,6 +113,7 @@ class LiveAlarmService {
           'title': words.title,
           'text': words.text,
           'canSkip': !ring.snoozed,
+          'showLive': showLive,
         }),
       });
     } catch (e) {

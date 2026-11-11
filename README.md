@@ -61,6 +61,15 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   setting, like the rest of the app.
 - **Backup & restore** — export all alarms and settings to a JSON file via
   the share sheet, and restore it later. Backups never carry the Pro unlock.
+- **A real Android alarm app** — Alarm+ registers its next alarm with the
+  system (`AlarmManager.setAlarmClock`), so the alarm icon shows in the
+  status bar and the next alarm shows on the lock screen, in Quick Settings
+  and to the assistant, like the stock Clock. It also answers Android's
+  standard alarm intents (`SET_ALARM`, `SHOW_ALARMS`, `SNOOZE_ALARM`,
+  `DISMISS_ALARM`), so "Hey Google, set an alarm for 6:30", Wear OS and other
+  apps can create alarms in Alarm+ (an identical alarm is never duplicated;
+  dismissing from outside opens the ring screen, so the wake challenge can't
+  be skipped).
 - **Live alarm capsule (Android)** — 2 hours before an alarm Alarm+ posts a live countdown with a **Skip** button. On
   Android 16+ (ColorOS 16 / OxygenOS 16 / One UI 8 …) it is a *Live Update*
   and is promoted to the status-bar capsule, the slot food-delivery

@@ -68,6 +68,33 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The standard alarm intents (Google Assistant, Wear OS, Android
+             Auto, other apps): lets Alarm+ be chosen as the phone's alarm
+             app. No UI; see AlarmIntentActivity. -->
+        <activity
+            android:name=".AlarmIntentActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SET_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SHOW_ALARMS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SNOOZE_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DISMISS_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
         <service
             android:name=".AlarmForegroundService"
             android:foregroundServiceType="mediaPlayback"
@@ -122,6 +149,10 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- The system alarm clock registration's operation (LiveActivity). -->
+        <receiver
+            android:name=".SystemAlarmClockReceiver"
+            android:exported="false" />
         <!-- Alarm Health Check test alarm (ReliabilityTest): fired by
              AlarmManager through our own PendingIntent. -->
         <receiver

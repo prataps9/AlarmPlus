@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:alarm_plus/core/theme/app_tokens.dart';
+
 class SunriseGradient extends StatefulWidget {
   const SunriseGradient({
     super.key,
@@ -19,11 +21,11 @@ class _SunriseGradientState extends State<SunriseGradient>
   late final AnimationController _controller;
 
   static const _stops = [
-    Color(0xFF1a0533), // midnight purple
-    Color(0xFF7c3aed), // deep violet
-    Color(0xFFf97316), // deep orange
-    Color(0xFFfbbf24), // golden
-    Color(0xFFfef9c3), // soft white-yellow
+    Palette.night, // still dark
+    Palette.orange900, // first glow
+    Palette.orange700, // deep orange
+    Palette.orange400, // golden
+    Palette.orange100, // soft morning light
   ];
 
   @override

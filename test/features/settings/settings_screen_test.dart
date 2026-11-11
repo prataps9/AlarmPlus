@@ -57,7 +57,9 @@ void main() {
     }
     expect(find.text('Live Alarm Countdown'), findsOneWidget);
     expect(find.text('Alarm Health Check'), findsOneWidget);
-    expect(find.text('Theme'), findsOneWidget);
+    expect(find.text("Pip's Wardrobe"), findsOneWidget);
+    expect(find.text('Theme'), findsNothing,
+        reason: 'there is one theme; the picker is gone');
   });
 
   testWidgets('search narrows the list by title or keyword', (tester) async {

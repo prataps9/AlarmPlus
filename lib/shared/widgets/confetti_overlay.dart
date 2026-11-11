@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:alarm_plus/core/theme/app_tokens.dart';
+
 /// A hand-rolled, single-burst confetti particle system. No external
 /// package or asset is used — everything is generated and drawn on one
 /// [CustomPainter] pass per frame.
@@ -16,11 +18,11 @@ class ConfettiOverlayState extends State<ConfettiOverlay>
     with SingleTickerProviderStateMixin {
   static const _durationMs = 1500;
   static const _palette = [
-    Color(0xFF22C55E),
-    Color(0xFFF59E0B),
-    Color(0xFF6366F1),
-    Color(0xFFEC4899),
-    Color(0xFFFBBF24),
+    Palette.orange400,
+    Palette.orange700,
+    Palette.orange200,
+    Palette.stone300,
+    Palette.stone500,
   ];
 
   late final AnimationController _controller;

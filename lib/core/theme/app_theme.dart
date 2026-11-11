@@ -13,46 +13,70 @@ import 'package:alarm_plus/core/theme/app_tokens.dart';
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData get light => build(Brightness.light);
-  static ThemeData get dark => build(Brightness.dark);
+  // Built once: they are read on every MaterialApp rebuild and by NightTheme.
+  static final ThemeData light = build(Brightness.light);
+  static final ThemeData dark = build(Brightness.dark);
 
   /// [useGoogleFonts] exists so tests can build the theme without google_fonts
   /// reaching for the network. Production always leaves it true.
   static ThemeData build(Brightness brightness, {bool useGoogleFonts = true}) {
     final isDark = brightness == Brightness.dark;
 
+    // One palette, two brightnesses (see Palette). Tertiary is the accent
+    // too, so nothing in the app can pick up a stray Material hue.
     final colorScheme = isDark
         ? const ColorScheme.dark(
-            primary: Palette.green500,
-            onPrimary: Palette.slate900,
-            secondary: Palette.slate400,
-            onSecondary: Palette.slate900,
-            surface: Palette.slate900,
-            onSurface: Colors.white,
-            surfaceContainer: Palette.slate800,
-            surfaceContainerHighest: Palette.slate700,
-            onSurfaceVariant: Palette.slate300,
-            outline: Palette.slate600,
-            outlineVariant: Palette.slate700,
-            // Tonal buttons; the derived default was a pale slate that
-            // glared on the dark surface.
-            secondaryContainer: Palette.slate700,
-            onSecondaryContainer: Colors.white,
-            error: Palette.red500,
+            primary: Palette.orange400,
+            onPrimary: Palette.stone900,
+            primaryContainer: Palette.orangeDeep,
+            onPrimaryContainer: Palette.orange200,
+            secondary: Palette.stone400,
+            onSecondary: Palette.stone900,
+            // Tonal buttons and selected chips.
+            secondaryContainer: Palette.nightHigh,
+            onSecondaryContainer: Palette.stone50,
+            tertiary: Palette.orange400,
+            onTertiary: Palette.stone900,
+            tertiaryContainer: Palette.orangeDeep,
+            onTertiaryContainer: Palette.orange200,
+            surface: Palette.night,
+            onSurface: Palette.stone50,
+            surfaceContainerLowest: Palette.night,
+            surfaceContainerLow: Palette.night,
+            surfaceContainer: Palette.nightRaised,
+            surfaceContainerHigh: Palette.nightHigh,
+            surfaceContainerHighest: Palette.nightHigh,
+            onSurfaceVariant: Palette.stone400,
+            outline: Palette.nightLine,
+            outlineVariant: Palette.nightHigh,
+            error: Palette.red400,
+            onError: Palette.stone900,
           )
         : const ColorScheme.light(
-            primary: Palette.green600,
+            primary: Palette.orange700,
             onPrimary: Colors.white,
-            secondary: Palette.slate500,
+            primaryContainer: Palette.orange100,
+            onPrimaryContainer: Palette.orange900,
+            secondary: Palette.stone500,
             onSecondary: Colors.white,
-            surface: Colors.white,
-            onSurface: Palette.slate900,
+            secondaryContainer: Palette.stone200,
+            onSecondaryContainer: Palette.stone900,
+            tertiary: Palette.orange700,
+            onTertiary: Colors.white,
+            tertiaryContainer: Palette.orange100,
+            onTertiaryContainer: Palette.orange900,
+            surface: Palette.stone50,
+            onSurface: Palette.stone900,
+            surfaceContainerLowest: Colors.white,
+            surfaceContainerLow: Palette.stone50,
             surfaceContainer: Colors.white,
-            surfaceContainerHighest: Palette.slate100,
-            onSurfaceVariant: Palette.slate600,
-            outline: Palette.slate300,
-            outlineVariant: Palette.slate200,
-            error: Palette.red500,
+            surfaceContainerHigh: Palette.stone100,
+            surfaceContainerHighest: Palette.stone100,
+            onSurfaceVariant: Palette.stone500,
+            outline: Palette.stone300,
+            outlineVariant: Palette.stone200,
+            error: Palette.red600,
+            onError: Colors.white,
           );
 
     final onSurface = colorScheme.onSurface;
@@ -324,8 +348,9 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isDark ? Palette.slate700 : Palette.slate900,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
+        backgroundColor: isDark ? Palette.nightHigh : Palette.stone900,
+        contentTextStyle:
+            textTheme.bodyMedium?.copyWith(color: Palette.stone50),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.md),
         ),

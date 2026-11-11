@@ -29,6 +29,8 @@ import 'package:alarm_plus/features/alarm/services/challenge_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
 import 'package:alarm_plus/core/services/morning_briefing_service.dart';
 import 'package:alarm_plus/core/services/premium_service.dart';
+import 'package:alarm_plus/core/theme/app_theme.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
 import 'package:alarm_plus/shared/models/quest_model.dart';
@@ -520,7 +522,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         mood.at.year == now.year && mood.at.month == now.month && mood.at.day == now.day;
     if (!mounted) return null;
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return showModalBottomSheet<_AfterWake>(
       context: context,
@@ -546,15 +547,15 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             const SizedBox(height: 8),
             if (reward != null) ...[
               Text(_personality.wakeMessage, textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _personality.primaryColor))
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: scheme.primary))
                   .animate().fadeIn(duration: 300.ms),
               const SizedBox(height: 12),
               Text('+${reward.xpEarned + _quickSolveXp} XP',
-                style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800, color: Color(0xFF22C55E)))
+                style: TextStyle(fontSize: 44, fontWeight: FontWeight.w800, color: scheme.primary))
                   .animate().scale(begin: const Offset(0.5, 0.5), duration: 400.ms, curve: Curves.elasticOut).fadeIn(duration: 200.ms),
               if (_quickSolveXp > 0)
                 Text('+$_quickSolveXp Quick-Solve Bonus!',
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 14, color: scheme.primary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Text(SmartAlarmService.levelLabel(reward.totalXp),
                 style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
@@ -565,13 +566,13 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFEF4444)]),
+                    color: scheme.primary,
                     borderRadius: BorderRadius.circular(16)),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Text('🔥', style: TextStyle(fontSize: 24)),
                     const SizedBox(width: 8),
                     Text('${reward.hitStreakMilestone}-Day Milestone!',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                      style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
                   ]),
                 ).animate().slideY(begin: -0.2, end: 0, duration: 400.ms).fadeIn(),
               if (reward.comebackBonus != null)
@@ -580,26 +581,26 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                    color: scheme.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.35))),
+                    border: Border.all(color: scheme.primary.withValues(alpha: 0.35))),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Text('💫', style: TextStyle(fontSize: 20)),
                     const SizedBox(width: 8),
                     Text('Comeback Bonus +${reward.comebackBonus} XP!',
-                      style: TextStyle(color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5), fontWeight: FontWeight.w700)),
+                      style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
                   ]),
                 ).animate().fadeIn(duration: 300.ms),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: reward.stats.currentStreak >= 7
-                      ? const Color(0xFFF97316).withValues(alpha: 0.12)
+                      ? scheme.primary.withValues(alpha: 0.12)
                       : scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(
                     color: reward.stats.currentStreak >= 7
-                        ? const Color(0xFFF97316).withValues(alpha: 0.35)
+                        ? scheme.primary.withValues(alpha: 0.35)
                         : scheme.outlineVariant)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(reward.stats.currentStreak >= 30 ? '🔥🔥🔥'
@@ -621,9 +622,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                      color: scheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4))),
+                      border: Border.all(color: scheme.primary.withValues(alpha: 0.4))),
                     child: Row(children: [
                       const Text('🏅', style: TextStyle(fontSize: 20)),
                       const SizedBox(width: 10),
@@ -654,8 +655,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   label: const Text('Share My Streak'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
-                    foregroundColor: const Color(0xFF22C55E),
-                    side: const BorderSide(color: Color(0xFF22C55E), width: 1.5),
+                    foregroundColor: scheme.primary,
+                    side: BorderSide(color: scheme.primary, width: 1.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
                   ),
                 ),
@@ -670,7 +671,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                 onPressed: () => Navigator.pop(ctx, _AfterWake.checkIn),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
-                  side: const BorderSide(color: Color(0xFF94A3B8)),
+                  side: BorderSide(color: scheme.outline),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40))),
                 child: const Text('Do Morning Check-In')),
               const SizedBox(height: 10),
@@ -689,8 +690,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(ctx, _AfterWake.checkIn),
-              child: const Text('Quick Sleep Check-In',
-                  style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text('Quick Sleep Check-In',
+                  style: TextStyle(color: scheme.primary)),
             ),
           ],
         ),
@@ -700,6 +701,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   Widget _snoozeButton(
     BuildContext context, {
+    required ColorScheme night,
     required int alarmId,
     required int snoozeMinutes,
     required bool limitReached,
@@ -718,10 +720,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
               }
             },
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: 0.14),
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: Colors.white.withValues(alpha: 0.06),
-        disabledForegroundColor: Colors.white.withValues(alpha: 0.35),
+        backgroundColor: night.onSurface.withValues(alpha: 0.14),
+        foregroundColor: night.onSurface,
+        disabledBackgroundColor: night.onSurface.withValues(alpha: 0.06),
+        disabledForegroundColor: night.onSurface.withValues(alpha: 0.35),
         minimumSize: const Size.fromHeight(72),
         shape: const StadiumBorder(),
       ),
@@ -739,7 +741,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     );
   }
 
-  Widget _stopButton(int alarmId) {
+  Widget _stopButton(int alarmId, ColorScheme night) {
     return FilledButton(
       onPressed: _isDismissing
           ? null
@@ -748,9 +750,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
               _triggerDismiss(alarmId);
             },
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0B1220),
-        disabledBackgroundColor: Colors.white.withValues(alpha: 0.3),
+        backgroundColor: night.primary,
+        foregroundColor: night.onPrimary,
+        disabledBackgroundColor: night.onSurface.withValues(alpha: 0.3),
         minimumSize: const Size.fromHeight(72),
         shape: const StadiumBorder(),
       ),
@@ -774,7 +776,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   /// The stock alarm screen is dark whatever the app theme: it is read half
   /// asleep, at night.
-  static const _ringBackground = Color(0xFF05070D);
 
   @override
   Widget build(BuildContext context) {
@@ -787,7 +788,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
       used: AlarmRingFlow.snoozeCountFor(alarmId),
       maxSnoozes: maxSnoozes,
     );
-    final accent = _personality.primaryColor;
+    // The ring screen is always dark (read half asleep): the app's dark
+    // palette, not the phone's current brightness.
+    final night = AppTheme.dark.colorScheme;
+    final accent = night.primary;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final rawLabel = alarm?.label.trim() ?? '';
     final label = alarm?.tag == AlarmModel.napTag
@@ -832,12 +836,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                        color: const Color(0xFF7C3AED),
+                        color: night.primaryContainer,
                         borderRadius: BorderRadius.circular(12)),
-                    child: const Text('🔒 HARDCORE MODE — Back button disabled',
+                    child: Text('🔒 HARDCORE MODE — Back button disabled',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white,
+                            color: night.onPrimaryContainer,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1,
                             fontSize: 11)),
@@ -847,12 +851,12 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFE53935),
+                        color: AppSemantics.dark.danger,
                         borderRadius: BorderRadius.circular(12)),
-                    child: const Text('BOSS MODE',
+                    child: Text('BOSS MODE',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white,
+                            color: night.onError,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 2,
                             fontSize: 13)),
@@ -862,15 +866,14 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFFfbbf24), Color(0xFFf97316)]),
+                      color: night.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '🌅 Gentle Wake — ${_gentleSecondsLeft}s remaining',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Colors.white,
+                      style: TextStyle(
+                          color: night.onPrimary,
                           fontWeight: FontWeight.w700,
                           fontSize: 13),
                     ),
@@ -902,7 +905,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                           style: TextStyle(
                               fontSize: 16,
                               letterSpacing: 0.3,
-                              color: Colors.white.withValues(alpha: 0.7)),
+                              color: night.onSurface.withValues(alpha: 0.7)),
                         ),
                       ),
                     ),
@@ -924,7 +927,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                             children: [
                 // The current time, live: after a snooze the alarm's set
                 // time would be stale.
-                const _LiveClock(color: Colors.white),
+                _LiveClock(color: night.onSurface),
                 const SizedBox(height: 14),
                 Text(
                   label,
@@ -934,7 +937,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: night.onSurface.withValues(alpha: 0.9),
                   ),
                 ).animate().fadeIn(duration: 500.ms).slideY(
                     begin: 0.15, end: 0, duration: 500.ms, curve: Curves.easeOutCubic),
@@ -942,7 +945,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                 Text(
                   '${_personality.emoji} ${_personality.name} · ${alarm?.repeatLabel ?? 'Once'}',
                   style: TextStyle(
-                      fontSize: 14, color: Colors.white.withValues(alpha: 0.5)),
+                      fontSize: 14, color: night.onSurface.withValues(alpha: 0.5)),
                 ),
                             ],
                           ),
@@ -958,17 +961,18 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
                       'Finish the wake challenge to stop',
                       style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.55)),
+                          color: night.onSurface.withValues(alpha: 0.55)),
                     ),
                   ),
                 Builder(builder: (context) {
                   final snooze = _snoozeButton(
                     context,
+                    night: night,
                     alarmId: alarmId,
                     snoozeMinutes: snoozeMinutes,
                     limitReached: snoozeLimitReached,
                   );
-                  final stop = _stopButton(alarmId);
+                  final stop = _stopButton(alarmId, night);
                   // Side by side stops fitting at very large system text.
                   final stacked =
                       MediaQuery.textScalerOf(context).scale(1) > 1.6;
@@ -1002,7 +1006,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         child: body,
       );
     } else {
-      body = ColoredBox(color: _ringBackground, child: body);
+      body = ColoredBox(color: night.surface, child: body);
     }
 
     // A ringing alarm is ended by Stop or Snooze, never by Back: Back used
@@ -1014,7 +1018,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         // Light status-bar icons on the dark screen.
         value: SystemUiOverlayStyle.light,
         child: Scaffold(
-          backgroundColor: _ringBackground,
+          backgroundColor: night.surface,
           body: body,
         ),
       ),
@@ -1030,9 +1034,9 @@ class _WakeScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = score.total >= 80 ? const Color(0xFF22C55E)
-        : score.total >= 50 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444);
+    final sem = context.semantics;
+    final color = score.total >= 80 ? sem.success
+        : score.total >= 50 ? scheme.primary : sem.danger;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1047,11 +1051,11 @@ class _WakeScoreCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                color: scheme.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(40),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4))),
+                border: Border.all(color: scheme.primary.withValues(alpha: 0.4))),
               child: Text('New Best!', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF92400E)))),
+                  color: scheme.primary))),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -1066,10 +1070,10 @@ class _WakeScoreCard extends StatelessWidget {
             ])),
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _ScoreBar(label: 'Speed', value: score.speedPoints, max: 25, color: const Color(0xFF6366F1)),
-            _ScoreBar(label: 'Math', value: score.accuracyPoints, max: 25, color: const Color(0xFF22C55E)),
-            _ScoreBar(label: 'Snooze', value: score.snoozePoints, max: 25, color: const Color(0xFFF59E0B)),
-            _ScoreBar(label: 'Mood', value: score.moodPoints, max: 25, color: const Color(0xFFEC4899)),
+            _ScoreBar(label: 'Speed', value: score.speedPoints, max: 25, color: scheme.primary),
+            _ScoreBar(label: 'Math', value: score.accuracyPoints, max: 25, color: scheme.primary),
+            _ScoreBar(label: 'Snooze', value: score.snoozePoints, max: 25, color: scheme.primary),
+            _ScoreBar(label: 'Mood', value: score.moodPoints, max: 25, color: scheme.primary),
           ])),
         ]),
       ]),

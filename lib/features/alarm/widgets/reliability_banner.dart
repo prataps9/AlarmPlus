@@ -3,6 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:alarm_plus/core/services/alarm_health_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
@@ -102,34 +103,27 @@ class _ReliabilityBannerState extends State<ReliabilityBanner>
             await Navigator.of(context).pushNamed(AlarmHealthScreen.routeName);
             await _check(force: true);
           };
-    // Pale red in light; a red tint with light-red text in dark.
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final danger = context.semantics.danger;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Material(
-        color: dark
-            ? Palette.red500.withValues(alpha: 0.16)
-            : const Color(0xFFFEF2F2),
+        // A tint of the one danger colour; text stays the normal text colour.
+        color: danger.withValues(alpha: 0.10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.lg),
-          side: BorderSide(
-              color: dark
-                  ? Palette.red500.withValues(alpha: 0.4)
-                  : const Color(0xFFFECACA)),
+          side: BorderSide(color: danger.withValues(alpha: 0.35)),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.sm, Spacing.md),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Palette.red500),
+              Icon(Icons.warning_amber_rounded, color: danger),
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: Text(problem,
                     style: TextStyle(
-                        color: dark
-                            ? const Color(0xFFFCA5A5)
-                            : const Color(0xFF991B1B),
-                        fontWeight: FontWeight.w600)),
+                        color: scheme.onSurface, fontWeight: FontWeight.w600)),
               ),
               TextButton(onPressed: onFix, child: const Text('Fix')),
             ],

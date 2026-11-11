@@ -48,6 +48,7 @@ import 'package:alarm_plus/core/services/streak_reminder_service.dart';
 import 'package:alarm_plus/core/services/widget_command_service.dart';
 import 'package:alarm_plus/core/services/widget_sync_service.dart';
 import 'package:alarm_plus/shared/widgets/celebration_overlay_host.dart';
+import 'package:alarm_plus/shared/widgets/night_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,15 +105,14 @@ class _AppWithTheme extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
-
     return MaterialApp(
       navigatorKey: appNavigatorKey,
       title: 'Alarm+',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: themeMode,
+      // One palette in two brightnesses; the phone's setting picks.
+      themeMode: ThemeMode.system,
       builder: (context, child) =>
           CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
       routes: {
@@ -127,13 +127,13 @@ class _AppWithTheme extends ConsumerWidget {
           WakeRoutineScreen.routeName: (_) => const WakeRoutineScreen(),
           SleepInsightsScreen.routeName: (_) => const SleepInsightsScreen(),
           BedtimeSetupScreen.routeName: (_) => const BedtimeSetupScreen(),
-          WindDownScreen.routeName: (_) => const WindDownScreen(),
+          WindDownScreen.routeName: (_) => const NightTheme(child: WindDownScreen()),
           LocationAlarmScreen.routeName: (_) => const LocationAlarmScreen(),
           LocationPickerScreen.routeName: (_) => const LocationPickerScreen(),
-          SleepSoundsScreen.routeName: (_) => const SleepSoundsScreen(),
+          SleepSoundsScreen.routeName: (_) => const NightTheme(child: SleepSoundsScreen()),
           SleepDiaryScreen.routeName: (_) => const SleepDiaryScreen(),
-          MorningCheckInScreen.routeName: (_) => const MorningCheckInScreen(),
-          NapTimerScreen.routeName: (_) => const NapTimerScreen(),
+          MorningCheckInScreen.routeName: (_) => const NightTheme(child: MorningCheckInScreen()),
+          NapTimerScreen.routeName: (_) => const NightTheme(child: NapTimerScreen()),
           SoundSettingsScreen.routeName: (_) => const SoundSettingsScreen(),
           AlarmHealthScreen.routeName: (_) => const AlarmHealthScreen(),
           WardrobeScreen.routeName: (_) => const WardrobeScreen(),

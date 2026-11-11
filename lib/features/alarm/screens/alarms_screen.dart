@@ -949,10 +949,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                         margin: const EdgeInsets.only(right: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: selected ? config.primaryColor : scheme.surfaceContainerHighest,
+                          color: selected ? scheme.primary : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selected ? config.primaryColor : scheme.outlineVariant,
+                            color: selected ? scheme.primary : scheme.outlineVariant,
                             width: 2,
                           ),
                         ),

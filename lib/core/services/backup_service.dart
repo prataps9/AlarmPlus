@@ -41,6 +41,8 @@ class BackupCodec {
       !key.startsWith('alarm.scheduled_for.') &&
       !key.startsWith('alarm.wakecheck_rering.') &&
       !key.startsWith('alarms.') &&
+      // The theme picker was removed; an old backup may still carry its key.
+      !key.startsWith('appearance.') &&
       key != 'clock.stopwatch' &&
       key != 'clock.timer';
 

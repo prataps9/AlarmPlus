@@ -292,15 +292,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             )),
       ]),
       _Group('APPEARANCE', [
-        _Entry('Theme', 'dark light mode night', () => _SettingTile(
-              icon: Icons.contrast_rounded,
-              color: _slate,
-              title: 'Theme',
-              subtitle:
-                  AppSettings.themeModeLabel(ref.watch(themeModeProvider)),
-              trailing: chevron(),
-              onTap: () => _showThemePicker(context),
-            )),
         _Entry("Pip's Wardrobe", 'mascot outfit pro', () =>
             ValueListenableBuilder<MascotOutfit>(
               valueListenable: MascotService.selectedOutfit,
@@ -443,41 +434,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _showThemePicker(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => Consumer(
-        builder: (ctx, ref, _) {
-          final current = ref.watch(themeModeProvider);
-          return SafeArea(
-            child: RadioGroup<ThemeMode>(
-              groupValue: current,
-              onChanged: (mode) {
-                if (mode == null) return;
-                ref.read(themeModeProvider.notifier).state = mode;
-                AppSettings.setThemeMode(mode);
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final mode in const [
-                    ThemeMode.light,
-                    ThemeMode.dark,
-                    ThemeMode.system,
-                  ])
-                    RadioListTile<ThemeMode>(
-                      value: mode,
-                      title: Text(AppSettings.themeModeLabel(mode)),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Future<void> _restoreBackup(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final BackupData? data;
@@ -518,7 +474,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await BackupService.restore(data);
     await MascotService.init();
     await AppSettings.load();
-    ref.read(themeModeProvider.notifier).state = AppSettings.themeMode;
     ref.read(vibrationEnabledProvider.notifier).state =
         AppSettings.vibrationEnabled;
     ref.invalidate(alarmsMapProvider);

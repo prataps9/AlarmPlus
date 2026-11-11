@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/core/services/live_alarm_service.dart';
+import 'package:alarm_plus/core/theme/app_theme.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 
@@ -106,10 +108,12 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
 
     final remaining = ring.at.difference(_now);
     final urgent = remaining < const Duration(minutes: 5);
+    // Always the dark pill (like the system capsule), in the dark palette.
+    final night = AppTheme.dark.colorScheme;
     final accent = urgent
-        ? Color.lerp(const Color(0xFFF59E0B), const Color(0xFFEF4444),
+        ? Color.lerp(night.primary, AppSemantics.dark.danger,
             1 - remaining.inSeconds.clamp(0, 300) / 300)!
-        : const Color(0xFF3B82F6);
+        : night.primary;
     if (urgent && !reduceMotion) {
       if (!_glow.isAnimating) _glow.repeat(reverse: true);
     } else if (_glow.isAnimating) {
@@ -122,11 +126,13 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
       builder: (context, child) => DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(32),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0B1220), Color(0xFF1E293B)],
+            colors: [night.surface, night.surfaceContainerHigh],
           ),
+          // A hairline so the pill still reads on a dark page.
+          border: Border.all(color: night.outline),
           boxShadow: [
             BoxShadow(
               color: accent.withValues(alpha: urgent ? 0.2 + 0.2 * _glow.value : 0.14),
@@ -162,7 +168,7 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
                       ring.snoozed
                           ? Icons.snooze_rounded
                           : Icons.alarm_rounded,
-                      color: Colors.white,
+                      color: night.onSurface,
                       size: 24,
                     ),
                   ),
@@ -186,7 +192,7 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.8,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: night.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -213,10 +219,10 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
                     words.title.split(' · ').last,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: night.onSurface,
                     ),
                   ),
                   Text(
@@ -225,7 +231,7 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: night.onSurface.withValues(alpha: 0.65),
                     ),
                   ),
                 ],
@@ -298,12 +304,12 @@ class _Odometer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(
+    final style = TextStyle(
       fontSize: 30,
       height: 1.1,
       fontWeight: FontWeight.w800,
-      color: Colors.white,
-      fontFeatures: [FontFeature.tabularFigures()],
+      color: AppTheme.dark.colorScheme.onSurface,
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
     if (!animate) return Text(text, style: style);
     return AnimatedSwitcher(
@@ -348,7 +354,7 @@ class _RingPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
-        ..color = Colors.white.withValues(alpha: 0.14),
+        ..color = AppTheme.dark.colorScheme.onSurface.withValues(alpha: 0.14),
     );
     if (progress <= 0) return;
     canvas.drawArc(

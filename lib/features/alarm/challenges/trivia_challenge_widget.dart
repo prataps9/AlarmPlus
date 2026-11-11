@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/features/missions/services/trivia_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 enum TriviaMode { trivia, wordScramble }
 
@@ -177,9 +178,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
 
   Widget _buildHeader() {
     final modeLabel = widget.mode == TriviaMode.trivia ? 'Trivia' : 'Word Scramble';
-    final color = widget.mode == TriviaMode.trivia
-        ? const Color(0xFF6366F1)
-        : const Color(0xFF10B981);
+    final color = context.colors.primary;
     return Row(
       children: [
         Icon(
@@ -205,7 +204,6 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     }
     final question = _triviaQuestions![_currentIndex];
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -221,13 +219,13 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
           Color text = scheme.onSurface;
           if (_answered) {
             if (i == question.answerIndex) {
-              bg = const Color(0xFF22C55E).withValues(alpha: 0.15);
-              border = const Color(0xFF22C55E);
-              text = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
+              bg = context.semantics.success.withValues(alpha: 0.15);
+              border = context.semantics.success;
+              text = context.semantics.success;
             } else if (i == _selectedOption && i != question.answerIndex) {
-              bg = const Color(0xFFEF4444).withValues(alpha: 0.15);
-              border = const Color(0xFFEF4444);
-              text = isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
+              bg = context.semantics.danger.withValues(alpha: 0.15);
+              border = context.semantics.danger;
+              text = context.semantics.danger;
             }
           }
           return Padding(
@@ -265,11 +263,11 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         Center(
           child: Text(
             _scrambled.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w900,
               letterSpacing: 8,
-              color: Color(0xFF10B981),
+              color: context.colors.primary,
             ),
           ).animate(key: ValueKey(_scrambled)).fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0),
         ),
@@ -284,7 +282,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                color: _wordWrong ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                color: _wordWrong ? context.semantics.danger : context.colors.primary,
                 width: 2,
               ),
             ),
@@ -298,8 +296,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
           child: ElevatedButton(
             onPressed: _answered ? null : _submitWord,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.primary,
+              foregroundColor: context.colors.onPrimary,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
@@ -318,10 +316,10 @@ class _TimerChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = seconds <= 10
-        ? const Color(0xFFEF4444)
+        ? context.semantics.danger
         : seconds <= 20
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF22C55E);
+            ? context.colors.primary
+            : context.semantics.success;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

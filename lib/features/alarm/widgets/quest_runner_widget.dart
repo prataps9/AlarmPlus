@@ -16,6 +16,7 @@ import 'package:alarm_plus/shared/models/quest_model.dart';
 import 'package:alarm_plus/features/alarm/services/challenge_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/widgets/math_challenge_widget.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class QuestRunnerWidget extends StatefulWidget {
   const QuestRunnerWidget({
@@ -101,13 +102,13 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Column(children: [
               Row(children: [
-                const Icon(Icons.rocket_launch_rounded, color: Color(0xFF6366F1), size: 20),
+                Icon(Icons.rocket_launch_rounded, color: scheme.primary, size: 20),
                 const SizedBox(width: 8),
-                const Text('Wake Quest',
+                Text('Wake Quest',
                     style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
-                        color: Color(0xFF6366F1))),
+                        color: scheme.primary)),
                 const Spacer(),
                 Text('${_currentStep + 1} / $total',
                     style: TextStyle(
@@ -243,14 +244,14 @@ class _QuestStepBar extends StatelessWidget {
         Widget icon;
 
         if (isDone) {
-          bg = const Color(0xFF22C55E);
-          border = const Color(0xFF22C55E);
-          icon = const Icon(Icons.check_rounded, color: Colors.white, size: 16);
+          bg = context.semantics.success;
+          border = context.semantics.success;
+          icon = Icon(Icons.check_rounded, color: scheme.onPrimary, size: 16);
         } else if (isActive) {
-          bg = const Color(0xFF6366F1);
-          border = const Color(0xFF6366F1);
+          bg = scheme.primary;
+          border = scheme.primary;
           icon = Icon(_iconFor(steps[i].challengeType),
-              color: Colors.white, size: 16);
+              color: scheme.onPrimary, size: 16);
         } else {
           bg = scheme.surfaceContainerHighest;
           border = scheme.outlineVariant;
@@ -280,7 +281,7 @@ class _QuestStepBar extends StatelessWidget {
                 width: 6,
                 height: 2,
                 color: isDone
-                    ? const Color(0xFF22C55E)
+                    ? context.semantics.success
                     : scheme.outlineVariant,
               ),
           ]),

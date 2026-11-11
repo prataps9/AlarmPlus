@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class TypingChallengeWidget extends StatefulWidget {
   const TypingChallengeWidget({super.key, required this.onPassed, required this.onFailed});
@@ -48,7 +49,6 @@ class _TypingChallengeWidgetState extends State<TypingChallengeWidget> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -66,16 +66,16 @@ class _TypingChallengeWidgetState extends State<TypingChallengeWidget> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+              color: context.semantics.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.45)),
+              border: Border.all(color: context.semantics.success.withValues(alpha: 0.45)),
             ),
             child: Text(
               '"$_target"',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+                color: context.semantics.success,
               ),
               textAlign: TextAlign.center,
             ),
@@ -98,8 +98,8 @@ class _TypingChallengeWidgetState extends State<TypingChallengeWidget> {
             child: ElevatedButton(
               onPressed: _check,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF22C55E),
-                foregroundColor: Colors.white,
+                backgroundColor: context.colors.primary,
+                foregroundColor: context.colors.onPrimary,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
               ),

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class ShakeChallengeWidget extends StatefulWidget {
   const ShakeChallengeWidget({
@@ -146,7 +147,7 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
                       strokeWidth: 3,
                       backgroundColor: scheme.outlineVariant,
                       valueColor: AlwaysStoppedAnimation(
-                        timerFraction > 0.4 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                        timerFraction > 0.4 ? context.colors.primary : context.semantics.danger,
                       ),
                     ),
                     Text('$_secondsLeft',
@@ -174,7 +175,7 @@ class _ShakeChallengeWidgetState extends State<ShakeChallengeWidget> {
               value: progress.clamp(0.0, 1.0),
               minHeight: 12,
               backgroundColor: scheme.outlineVariant,
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF22C55E)),
+              valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
             ),
           ),
         ],

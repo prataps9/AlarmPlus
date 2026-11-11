@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class StepCounterChallengeWidget extends StatefulWidget {
   const StepCounterChallengeWidget({
@@ -89,10 +90,10 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(children: [
-            const Icon(Icons.directions_walk_rounded, color: Color(0xFF10B981), size: 22),
+            Icon(Icons.directions_walk_rounded, color: context.colors.primary, size: 22),
             const SizedBox(width: 8),
-            const Text('Step Counter',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF10B981))),
+            Text('Step Counter',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.primary)),
           ]),
           const SizedBox(height: 24),
           SizedBox(
@@ -106,14 +107,14 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
                   value: progress.clamp(0.0, 1.0),
                   strokeWidth: 10,
                   backgroundColor: scheme.outlineVariant,
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+                  valueColor: AlwaysStoppedAnimation(context.colors.primary),
                 ),
               ),
               Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(
                   '$_stepsDone',
-                  style: const TextStyle(
-                      fontSize: 44, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
+                  style: TextStyle(
+                      fontSize: 44, fontWeight: FontWeight.w900, color: context.colors.primary),
                 ).animate(key: ValueKey(_stepsDone)).scale(
                     begin: const Offset(1.3, 1.3),
                     end: const Offset(1.0, 1.0),
@@ -131,7 +132,7 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: remaining > 0 ? scheme.onSurfaceVariant : const Color(0xFF10B981),
+              color: remaining > 0 ? scheme.onSurfaceVariant : context.colors.primary,
             ),
           ),
           const SizedBox(height: 8),
@@ -143,7 +144,7 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
           LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
             backgroundColor: scheme.outlineVariant,
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+            valueColor: AlwaysStoppedAnimation(context.colors.primary),
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
           ),
@@ -177,8 +178,8 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
               openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.primary,
+              foregroundColor: context.colors.onPrimary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: const Text('Open Settings'),

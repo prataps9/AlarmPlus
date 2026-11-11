@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alarm_plus/core/services/alarm_health_service.dart';
+import 'package:alarm_plus/core/theme/app_theme.dart';
 import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/features/settings/screens/alarm_health_screen.dart';
 
@@ -69,7 +70,9 @@ void main() {
     tester.view.physicalSize = const Size(1080, 3000);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(const MaterialApp(home: AlarmHealthScreen()));
+    await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.build(Brightness.light, useGoogleFonts: false),
+        home: const AlarmHealthScreen()));
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -107,7 +110,7 @@ void main() {
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
-        theme: ThemeData(brightness: Brightness.dark),
+        theme: AppTheme.build(Brightness.dark, useGoogleFonts: false),
         home: const MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
           child: AlarmHealthScreen(),

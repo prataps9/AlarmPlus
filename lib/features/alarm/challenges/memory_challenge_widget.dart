@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MemoryChallengeWidget extends StatefulWidget {
   const MemoryChallengeWidget({super.key, required this.onPassed, required this.onFailed});
@@ -130,7 +131,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
                   child: Center(
                     child: Text(
                       _labels[i],
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                      style: TextStyle(color: context.colors.onPrimary, fontWeight: FontWeight.w800, fontSize: 18),
                     ),
                   ),
                 ),

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MathChallengeWidget extends StatefulWidget {
   const MathChallengeWidget({
@@ -182,14 +183,14 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935),
+                color: context.semantics.danger,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'BOSS MODE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: context.colors.onError,
                   fontWeight: FontWeight.w900,
                   fontSize: 14,
                   letterSpacing: 3,
@@ -206,7 +207,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: i <= _currentQuestion ? const Color(0xFF22C55E) : scheme.outlineVariant,
+                  color: i <= _currentQuestion ? scheme.primary : scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -230,7 +231,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                   strokeWidth: 5,
                   backgroundColor: scheme.outlineVariant,
                   valueColor: AlwaysStoppedAnimation(
-                    timerFraction > 0.4 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                    timerFraction > 0.4 ? scheme.primary : context.semantics.danger,
                   ),
                 ),
                 Text(
@@ -261,16 +262,16 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _showCorrect
-                    ? const Color(0xFF22C55E)
+                    ? context.semantics.success
                     : _showWrong
-                    ? const Color(0xFFEF4444)
+                    ? context.semantics.danger
                     : scheme.outline,
                 width: 2,
               ),
               color: _showCorrect
-                  ? const Color(0xFF22C55E).withValues(alpha: 0.12)
+                  ? context.semantics.success.withValues(alpha: 0.12)
                   : _showWrong
-                  ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                  ? context.semantics.danger.withValues(alpha: 0.12)
                   : scheme.surfaceContainer,
             ),
             child: TextField(
@@ -292,12 +293,12 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
           if (_showWrong)
             Text(
               'Wrong! Try again in 2s…',
-              style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
+              style: TextStyle(color: context.semantics.danger, fontWeight: FontWeight.w600),
             ).animate().fadeIn(duration: 200.ms),
           if (_showCorrect)
-            const Text(
+            Text(
               '✓ Correct!',
-              style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w700, fontSize: 16),
+              style: TextStyle(color: context.semantics.success, fontWeight: FontWeight.w700, fontSize: 16),
             ).animate().fadeIn(duration: 200.ms),
           const SizedBox(height: 8),
           if (!_isLocked && !_showCorrect)

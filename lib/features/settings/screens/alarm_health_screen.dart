@@ -7,6 +7,7 @@ import 'package:alarm_plus/core/services/alarm_health_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/features/alarm/widgets/reliability_banner.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 /// Alarm Health Check: everything that decides whether an alarm actually
 /// rings, in one place, plus a real test alarm with the app closed.
@@ -192,20 +193,20 @@ class _AlarmHealthScreenState extends State<AlarmHealthScreen>
     final (icon, color, title, body) = n > 0
         ? (
             Icons.warning_amber_rounded,
-            const Color(0xFFEF4444),
+            context.semantics.danger,
             n == 1 ? '1 thing to fix' : '$n things to fix',
             'Fix these so your alarms ring.',
           )
         : tested
             ? (
                 Icons.verified_rounded,
-                const Color(0xFF22C55E),
+                context.semantics.success,
                 'Alarms will ring',
                 'Everything is set up, and a test alarm rang with the app closed.',
               )
             : (
                 Icons.help_outline_rounded,
-                const Color(0xFFF59E0B),
+                context.colors.primary,
                 'Run the test to be sure',
                 'Settings look right. Some phones still block alarms; a '
                     '1-minute test shows whether yours does.',
@@ -262,8 +263,8 @@ class _AlarmHealthScreenState extends State<AlarmHealthScreen>
             '✓ It went off with the app closed'
             '${t.lateBy!.inSeconds > 5 ? ' (${t.lateBy!.inSeconds} s late)' : ''}. '
             'Your alarms will ring.',
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Color(0xFF16A34A)));
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: context.semantics.success));
         button = 'Test again';
       case HealthTestState.late:
         body = Text(
@@ -271,16 +272,16 @@ class _AlarmHealthScreenState extends State<AlarmHealthScreen>
             'back to save battery. Turn battery optimisation off'
             '${_maker != null && AlarmHealthService.makerAdvice(_maker) != null ? ' and follow the steps above' : ''}, '
             'then test again.',
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Color(0xFFD97706)));
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: context.colors.primary));
         button = 'Test again';
       case HealthTestState.failed:
         body = Text(
             "✗ It didn't go off. Your phone stopped Alarm+ from starting "
             'while closed, so real alarms would be silent too. Fix the items '
             'above, then test again.',
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Color(0xFFDC2626)));
+            style: TextStyle(
+                fontWeight: FontWeight.w600, color: context.semantics.danger));
         button = 'Test again';
     }
     return _card(
@@ -349,7 +350,7 @@ class _CheckRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(ok ? Icons.check_circle_rounded : Icons.error_rounded,
-                color: ok ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
+                color: ok ? context.semantics.success : context.semantics.danger),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

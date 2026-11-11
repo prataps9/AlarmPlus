@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:alarm_plus/features/location/models/location_alarm.dart';
 import 'package:alarm_plus/features/location/services/location_alarm_service.dart';
 import 'package:alarm_plus/features/location/screens/location_picker_screen.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class LocationAlarmScreen extends StatefulWidget {
   const LocationAlarmScreen({super.key});
@@ -162,10 +163,10 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen>
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                        color: scheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.location_on_rounded, color: Color(0xFF3B82F6)),
+                      child: Icon(Icons.location_on_rounded, color: scheme.primary),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -183,14 +184,14 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen>
                     Switch(
                       value: alarm.isEnabled,
                       onChanged: (v) => _toggle(alarm, v),
-                      thumbColor: WidgetStatePropertyAll(Colors.white),
+                      thumbColor: WidgetStatePropertyAll(scheme.onPrimary),
                       trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
                           states.contains(WidgetState.selected)
-                              ? const Color(0xFF22C55E)
+                              ? scheme.primary
                               : scheme.outlineVariant),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                      icon: Icon(Icons.delete_outline_rounded, color: context.semantics.danger),
                       onPressed: () => _delete(alarm),
                     ),
                   ],

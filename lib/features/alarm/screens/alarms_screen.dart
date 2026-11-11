@@ -25,6 +25,7 @@ import 'package:alarm_plus/shared/models/vibration_pattern_type.dart';
 import 'package:alarm_plus/features/sleep/models/sleep_cycles.dart';
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
 import 'package:alarm_plus/features/sleep/widgets/voice_memo_recorder.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class AlarmsScreen extends ConsumerStatefulWidget {
   const AlarmsScreen({super.key});
@@ -965,7 +966,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: selected ? Colors.white : scheme.onSurface,
+                                color: selected ? scheme.onPrimary : scheme.onSurface,
                               ),
                             ),
                           ],
@@ -1121,8 +1122,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Row(children: [
-                    const Icon(Icons.qr_code_rounded,
-                        color: Color(0xFF10B981), size: 20),
+                    Icon(Icons.qr_code_rounded,
+                        color: scheme.primary, size: 20),
                     const SizedBox(width: 10),
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1137,7 +1138,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                           style: TextStyle(
                             fontSize: 13,
                             color: _savedQrCode != null
-                                ? const Color(0xFF10B981)
+                                ? scheme.primary
                                 : scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1148,7 +1149,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                           ? Icons.check_circle_rounded
                           : Icons.chevron_right_rounded,
                       color: _savedQrCode != null
-                          ? const Color(0xFF10B981)
+                          ? scheme.primary
                           : scheme.outline,
                     ),
                   ]),
@@ -1161,8 +1162,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                       _questSteps.contains(ChallengeType.stepCounter))) ...[
                 const SizedBox(height: 16),
                 Row(children: [
-                  const Icon(Icons.directions_walk_rounded,
-                      color: Color(0xFF10B981), size: 20),
+                  Icon(Icons.directions_walk_rounded,
+                      color: scheme.primary, size: 20),
                   const SizedBox(width: 10),
                   Text('Steps to dismiss: $_stepGoal',
                       style: Theme.of(context).textTheme.bodyLarge
@@ -1174,7 +1175,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   max: 100,
                   divisions: 18,
                   label: '$_stepGoal steps',
-                  activeColor: const Color(0xFF10B981),
+                  activeColor: scheme.primary,
                   onChanged: (v) => setState(() => _stepGoal = v.round()),
                 ),
               ],
@@ -1417,12 +1418,8 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                 child: ElevatedButton(
                   onPressed: _saving ? null : _saveAlarm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: scheme.brightness == Brightness.dark
-                        ? scheme.onSurface
-                        : const Color(0xFF020617),
-                    foregroundColor: scheme.brightness == Brightness.dark
-                        ? scheme.surface
-                        : Colors.white,
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
                     minimumSize: const Size(double.infinity, 62),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
@@ -1869,7 +1866,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to save alarm: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: context.semantics.danger,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -2167,11 +2164,7 @@ class _AnimatedToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Light keeps the near-black "on" track; in dark that would vanish into
-    // the sheet, so the brand green carries "on" instead.
-    final onTrack = scheme.brightness == Brightness.dark
-        ? scheme.primary
-        : const Color(0xFF111111);
+    final onTrack = scheme.primary;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -2192,11 +2185,11 @@ class _AnimatedToggle extends StatelessWidget {
             height: 22,
             margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: scheme.onPrimary,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
+                  color: const Color(0x26000000),
                   blurRadius: 4,
                   offset: const Offset(0, 1),
                 ),

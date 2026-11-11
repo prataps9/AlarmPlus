@@ -114,8 +114,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                               point: _pinned!,
                               radius: _radius,
                               useRadiusInMeter: true,
-                              color: const Color(0xFF22C55E).withValues(alpha: 0.2),
-                              borderColor: const Color(0xFF22C55E),
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                              borderColor: Theme.of(context).colorScheme.primary,
                               borderStrokeWidth: 2,
                             ),
                           ],
@@ -124,7 +124,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           markers: [
                             Marker(
                               point: _pinned!,
-                              child: const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 36),
+                              child: Icon(Icons.location_on_rounded, color: Theme.of(context).colorScheme.primary, size: 36),
                             ),
                           ],
                         ),
@@ -164,7 +164,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   min: 50,
                   max: 1000,
                   divisions: 19,
-                  activeColor: const Color(0xFF22C55E),
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (v) => setState(() => _radius = v),
                 ),
               ],

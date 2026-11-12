@@ -1670,6 +1670,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
       initialTime: TimeOfDay(hour: _hour24, minute: _minute),
     );
     if (picked == null || !mounted) return;
+    HapticFeedback.selectionClick();
     setState(() {
       _isAm = picked.hour < 12;
       _hour = _formatHour(picked.hour);

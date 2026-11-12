@@ -25,7 +25,10 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   unattended for an extended period.
 - **Hardcore Mode** — anti-cheat lockout (blocks back-navigation, keeps the
   foreground alarm service alive) for heavy sleepers.
-- **Clean white UI** — a plain, standard alarm-app look built around the
+- **One flat, simple look** — a single warm-orange accent on stone neutrals,
+  flat shades only (no gradients; a test enforces it), following the phone's
+  light/dark setting. Colours live in `lib/core/theme/`; screens read them from
+  the theme and a test fails if one hard-codes a colour. Built around the
   Alarm+ line-clock logo (`lib/shared/widgets/alarm_logo.dart`, the same mark
   as the launcher icon). On Android 12+ the system splash shows the logo with
   its minute hand sweeping once (`res/drawable/splash_logo_animated.xml`), and
@@ -54,7 +57,8 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   skips, pauses and dates applied.
 - **Pause until a date** — vacation mode: hold every repeating alarm until a
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
-- **Dark mode** — Settings → Theme: Light, Dark or Match phone.
+- **Dark mode** — follows the phone's light/dark setting (no picker); the
+  bedtime screens are always dark.
 - **Undo & duplicate** — swiping an alarm away deletes it with an Undo
   snackbar; long-press an alarm to duplicate it (voice memo included).
 - **24-hour editor** — the alarm time picker follows the phone's 24-hour

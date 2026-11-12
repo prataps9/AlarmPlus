@@ -1,6 +1,8 @@
 package com.alarmplus.app
 
 import android.content.Context
+import android.content.Intent
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
@@ -37,13 +39,26 @@ object WidgetCommandBridge {
      * open the app so Dart can drain it.
      */
     fun dispatch(context: Context, command: String): Boolean {
-        val engine = FlutterEngineCache.getInstance().get(MainActivity.ENGINE_ID)
+        val engine = liveEngine()
         if (engine != null) {
             return try {
+                val appContext = context.applicationContext
                 MethodChannel(
                     engine.dartExecutor.binaryMessenger,
                     MainActivity.METHOD_CHANNEL
-                ).invokeMethod("widgetCommand", command)
+                ).invokeMethod("widgetCommand", command, object : MethodChannel.Result {
+                    override fun success(result: Any?) {}
+
+                    // Dart is up but hasn't bound its handler yet (or it
+                    // threw): keep the command for the next drain.
+                    override fun error(code: String, message: String?, details: Any?) {
+                        enqueue(appContext, command)
+                    }
+
+                    override fun notImplemented() {
+                        enqueue(appContext, command)
+                    }
+                })
                 true
             } catch (_: Exception) {
                 enqueue(context, command)
@@ -53,6 +68,18 @@ object WidgetCommandBridge {
 
         enqueue(context, command)
         return false
+    }
+
+    /**
+     * The app's engine if it is still running Dart, else null. MainActivity
+     * removes it from the cache when it tears the engine down; before that,
+     * a tap after backing out of the app was "delivered" to a destroyed
+     * engine and silently lost.
+     */
+    fun liveEngine(): FlutterEngine? {
+        val engine = FlutterEngineCache.getInstance().get(MainActivity.ENGINE_ID)
+            ?: return null
+        return if (engine.dartExecutor.isExecutingDart) engine else null
     }
 
     /**
@@ -76,9 +103,12 @@ object WidgetCommandBridge {
 
     /** Opens the app so a queued command gets drained promptly. */
     fun launchApp(context: Context) {
-        val intent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName)
-            ?.apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+        val intent = launchIntent(context)
         if (intent != null) context.startActivity(intent)
     }
+
+    fun launchIntent(context: Context): Intent? =
+        context.packageManager
+            .getLaunchIntentForPackage(context.packageName)
+            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
 }

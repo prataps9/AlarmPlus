@@ -38,17 +38,6 @@ class TimeFormat {
     return 'Alarm in ${parts.join(' ')}';
   }
 
-  /// Stopwatch / timer readout: `mm:ss.cc`, or `h:mm:ss.cc` past an hour.
-  static String stopwatch(Duration d, {bool centis = true}) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    final s = d.inSeconds.remainder(60);
-    final cs = (d.inMilliseconds.remainder(1000) ~/ 10);
-    String two(int v) => v.toString().padLeft(2, '0');
-    final base = h > 0 ? '$h:${two(m)}:${two(s)}' : '${two(m)}:${two(s)}';
-    return centis ? '$base.${two(cs)}' : base;
-  }
-
   /// Offset of a city from local time: "Same time", "+5 hr 30 min",
   /// "−3 hr".
   static String offsetFromLocal(Duration diff) {

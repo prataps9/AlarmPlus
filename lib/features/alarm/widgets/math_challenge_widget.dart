@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MathChallengeWidget extends StatefulWidget {
   const MathChallengeWidget({
@@ -100,10 +101,23 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
     widget.onFailed();
   }
 
+  // Enter plus a tap (or a double tap) on the last answer used to call
+  // onCompleted twice; the second pop closed the ring screen underneath.
+  bool _checking = false;
+
   Future<void> _checkAnswer() async {
-    if (_isLocked) return;
+    if (_isLocked || _checking) return;
     final input = int.tryParse(_controller.text.trim());
     if (input == null) return;
+    _checking = true;
+    try {
+      await _check(input);
+    } finally {
+      _checking = false;
+    }
+  }
+
+  Future<void> _check(int input) async {
 
     final solveMs = DateTime.now().millisecondsSinceEpoch - _questionStartMs;
     _questionTimer?.cancel();
@@ -150,11 +164,12 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
   @override
   Widget build(BuildContext context) {
     final timerFraction = _timeLeft / _timeLimitSeconds;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
         boxShadow: const [
           BoxShadow(color: Color(0x18000000), blurRadius: 20, offset: Offset(0, 8)),
@@ -168,14 +183,14 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935),
+                color: context.semantics.danger,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'BOSS MODE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: context.colors.onError,
                   fontWeight: FontWeight.w900,
                   fontSize: 14,
                   letterSpacing: 3,
@@ -192,7 +207,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: i <= _currentQuestion ? const Color(0xFF22C55E) : const Color(0xFFE2E8F0),
+                  color: i <= _currentQuestion ? scheme.primary : scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -201,7 +216,7 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
           const SizedBox(height: 6),
           Text(
             'Question ${_currentQuestion + 1} of $_totalQuestions',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           // Timer ring
@@ -214,9 +229,9 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
                 CircularProgressIndicator(
                   value: timerFraction,
                   strokeWidth: 5,
-                  backgroundColor: const Color(0xFFE2E8F0),
+                  backgroundColor: scheme.outlineVariant,
                   valueColor: AlwaysStoppedAnimation(
-                    timerFraction > 0.4 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                    timerFraction > 0.4 ? scheme.primary : context.semantics.danger,
                   ),
                 ),
                 Text(
@@ -247,17 +262,17 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _showCorrect
-                    ? const Color(0xFF22C55E)
+                    ? context.semantics.success
                     : _showWrong
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFFCBD5E1),
+                    ? context.semantics.danger
+                    : scheme.outline,
                 width: 2,
               ),
               color: _showCorrect
-                  ? const Color(0xFFF0FDF4)
+                  ? context.semantics.success.withValues(alpha: 0.12)
                   : _showWrong
-                  ? const Color(0xFFFEF2F2)
-                  : Colors.white,
+                  ? context.semantics.danger.withValues(alpha: 0.12)
+                  : scheme.surfaceContainer,
             ),
             child: TextField(
               controller: _controller,
@@ -278,12 +293,12 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
           if (_showWrong)
             Text(
               'Wrong! Try again in 2s…',
-              style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
+              style: TextStyle(color: context.semantics.danger, fontWeight: FontWeight.w600),
             ).animate().fadeIn(duration: 200.ms),
           if (_showCorrect)
-            const Text(
+            Text(
               '✓ Correct!',
-              style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w700, fontSize: 16),
+              style: TextStyle(color: context.semantics.success, fontWeight: FontWeight.w700, fontSize: 16),
             ).animate().fadeIn(duration: 200.ms),
           const SizedBox(height: 8),
           if (!_isLocked && !_showCorrect)
@@ -292,8 +307,8 @@ class _MathChallengeWidgetState extends State<MathChallengeWidget> {
               child: ElevatedButton(
                 onPressed: _checkAnswer,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.onSurface,
+                  foregroundColor: scheme.surface,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
                 ),

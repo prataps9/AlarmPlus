@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:alarm_plus/core/services/native_controls.dart';
 
 /// Bridges Flutter to the Android native ringtone picker and RingtoneManager.
 /// On iOS or web, all calls are no-ops and the bundled asset sounds are used.
 class RingtoneService {
-  static const _channel = MethodChannel('alarmplus/alarm_controls');
+  static const _channel = NativeControls.channel;
   static const _prefKey = 'sound.alarm.selected';
   static const _prefTitleKey = 'sound.alarm.selected.title';
 
@@ -13,22 +14,29 @@ class RingtoneService {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   /// Opens the OS ringtone picker. Returns the picked URI string, or null if
-  /// the user cancelled. Saves the selection to SharedPreferences automatically.
+  /// the user cancelled. It doesn't save anything: picking a tone for one
+  /// alarm used to overwrite the app-wide default in Settings.
   static Future<String?> pickRingtone({String? currentUri}) async {
     if (!_isAndroid) return null;
     try {
-      final uri = await _channel.invokeMethod<String>(
+      return await _channel.invokeMethod<String>(
         'pickRingtone',
         {'currentUri': currentUri},
       );
-      if (uri != null) {
-        final title = await getTitleForUri(uri);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefKey, uri);
-        await prefs.setString(_prefTitleKey, title);
-      }
-      return uri;
     } catch (_) {
+      return null;
+    }
+  }
+
+  /// Copies a picked phone ringtone (content://) into the app's own storage
+  /// and returns the file path, so the alarm plugin can play it by itself
+  /// even when the app process is dead. Null if it can't be copied.
+  static Future<String?> cacheToFile(String uri) async {
+    if (!_isAndroid) return null;
+    try {
+      return await _channel.invokeMethod<String>('cacheRingtone', {'uri': uri});
+    } catch (e) {
+      debugPrint('Could not cache ringtone $uri: $e');
       return null;
     }
   }

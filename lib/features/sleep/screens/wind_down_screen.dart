@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/features/sleep/services/bedtime_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_sound_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class WindDownScreen extends StatefulWidget {
   const WindDownScreen({super.key});
@@ -19,16 +20,12 @@ class _WindDownScreenState extends State<WindDownScreen>
   // 4-7-8 breathing: inhale 4s, hold 7s, exhale 8s
   static const _phaseDurations = [4, 7, 8];
   static const _phaseLabels = ['Inhale', 'Hold', 'Exhale'];
-  static const _phaseColors = [
-    Color(0xFF6366F1),
-    Color(0xFF8B5CF6),
-    Color(0xFF3B82F6),
-  ];
 
   int _phase = 0;
   int _phaseSecondsLeft = _phaseDurations[0];
   int _cycleCount = 0;
   bool _inBedDone = false;
+  bool _markingInBed = false;
   Timer? _timer;
   late AnimationController _breathController;
 
@@ -70,6 +67,17 @@ class _WindDownScreenState extends State<WindDownScreen>
   }
 
   Future<void> _markInBed() async {
+    // A double tap paid the +20 XP twice.
+    if (_markingInBed) return;
+    _markingInBed = true;
+    try {
+      await _markInBedOnce();
+    } finally {
+      _markingInBed = false;
+    }
+  }
+
+  Future<void> _markInBedOnce() async {
     if (SleepSoundService.isPlaying()) {
       final stop = await showDialog<bool>(
         context: context,
@@ -90,21 +98,28 @@ class _WindDownScreenState extends State<WindDownScreen>
       );
       if (stop == true) SleepSoundService.stop();
     }
-    await BedtimeService.recordInBed();
+    // recordInBed pays the XP, so only call it once a day; reopening the
+    // screen let the button be pressed (and paid) again every time.
+    final alreadyInBed = await BedtimeService.isInBedToday();
+    if (!alreadyInBed) await BedtimeService.recordInBed();
     if (!mounted) return;
     setState(() => _inBedDone = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('+20 XP — Sweet dreams! 🌙')),
+      SnackBar(
+        content: Text(alreadyInBed
+            ? 'Sweet dreams! 🌙'
+            : '+20 XP — Sweet dreams! 🌙'),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final phaseColor = _phaseColors[_phase];
+    final phaseColor = context.colors.primary;
     final phaseLabel = _phaseLabels[_phase];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f172a),
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
@@ -113,25 +128,25 @@ class _WindDownScreenState extends State<WindDownScreen>
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                    icon: Icon(Icons.close, color: context.colors.onSurfaceVariant),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Spacer(),
                   Text(
                     'Cycle $_cycleCount',
-                    style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: TextStyle(color: context.colors.onSurfaceVariant, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
               const Spacer(),
-              const Text(
+              Text(
                 '4-7-8 Breathing',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 24),
+                style: TextStyle(color: context.colors.onSurface, fontWeight: FontWeight.w800, fontSize: 24),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Breathe in for 4 · Hold for 7 · Out for 8',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                style: TextStyle(color: context.colors.onSurfaceVariant, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -162,7 +177,7 @@ class _WindDownScreenState extends State<WindDownScreen>
                           ),
                           Text(
                             '$_phaseSecondsLeft s',
-                            style: const TextStyle(color: Colors.white54, fontSize: 16),
+                            style: TextStyle(color: context.colors.onSurfaceVariant, fontSize: 16),
                           ),
                         ],
                       ),
@@ -179,8 +194,8 @@ class _WindDownScreenState extends State<WindDownScreen>
                   label: const Text('Sleep Sounds',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Color(0xFF334155)),
+                    foregroundColor: context.colors.onSurface.withValues(alpha: 0.7),
+                    side: BorderSide(color: context.colors.outline),
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40)),
@@ -196,8 +211,8 @@ class _WindDownScreenState extends State<WindDownScreen>
                     icon: const Text('🌙', style: TextStyle(fontSize: 20)),
                     label: const Text("I'm In Bed  +20 XP", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colors.primary,
+                      foregroundColor: context.colors.onPrimary,
                       minimumSize: const Size(double.infinity, 58),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
                     ),
@@ -207,16 +222,16 @@ class _WindDownScreenState extends State<WindDownScreen>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                    color: context.colors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                    border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('✓', style: TextStyle(color: Color(0xFF6366F1), fontSize: 20)),
+                      Text('✓', style: TextStyle(color: context.colors.primary, fontSize: 20)),
                       SizedBox(width: 8),
-                      Text('Bedtime logged. Sleep well!', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                      Text('Bedtime logged. Sleep well!', style: TextStyle(color: context.colors.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),

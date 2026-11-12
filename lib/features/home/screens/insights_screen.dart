@@ -61,7 +61,7 @@ class _InsightsBody extends StatelessWidget {
         _WakeScoreHero(summary: summary),
         const SizedBox(height: Spacing.xxl),
 
-        const SectionHeader(title: 'This week'),
+        const SectionHeader(title: 'All time'),
         _StatGrid(summary: summary),
         const SizedBox(height: Spacing.xxl),
 

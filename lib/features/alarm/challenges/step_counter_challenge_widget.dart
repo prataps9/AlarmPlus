@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class StepCounterChallengeWidget extends StatefulWidget {
   const StepCounterChallengeWidget({
@@ -77,44 +78,49 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
 
     final progress = widget.stepGoal > 0 ? _stepsDone / widget.stepGoal : 0.0;
     final remaining = (widget.stepGoal - _stepsDone).clamp(0, widget.stepGoal);
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(children: [
-            const Icon(Icons.directions_walk_rounded, color: Color(0xFF10B981), size: 22),
+            Icon(Icons.directions_walk_rounded, color: context.colors.primary, size: 22),
             const SizedBox(width: 8),
-            const Text('Step Counter',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF10B981))),
+            Text('Step Counter',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.colors.primary)),
           ]),
           const SizedBox(height: 24),
           SizedBox(
             width: 160,
             height: 160,
             child: Stack(alignment: Alignment.center, children: [
-              CircularProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                strokeWidth: 10,
-                backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+              // Fill the 160px box: a Stack passes loose constraints, so on
+              // its own the indicator shrank to its 36px default.
+              Positioned.fill(
+                child: CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: 10,
+                  backgroundColor: scheme.outlineVariant,
+                  valueColor: AlwaysStoppedAnimation(context.colors.primary),
+                ),
               ),
               Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(
                   '$_stepsDone',
-                  style: const TextStyle(
-                      fontSize: 44, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
+                  style: TextStyle(
+                      fontSize: 44, fontWeight: FontWeight.w900, color: context.colors.primary),
                 ).animate(key: ValueKey(_stepsDone)).scale(
                     begin: const Offset(1.3, 1.3),
                     end: const Offset(1.0, 1.0),
                     duration: 200.ms,
                     curve: Curves.easeOut),
-                const Text('steps', style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
+                Text('steps', style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
               ]),
             ]),
           ),
@@ -126,19 +132,19 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: remaining > 0 ? const Color(0xFF475467) : const Color(0xFF10B981),
+              color: remaining > 0 ? scheme.onSurfaceVariant : context.colors.primary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Walk around to wake up fully!',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           LinearProgressIndicator(
             value: progress.clamp(0.0, 1.0),
-            backgroundColor: const Color(0xFFE2E8F0),
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF10B981)),
+            backgroundColor: scheme.outlineVariant,
+            valueColor: AlwaysStoppedAnimation(context.colors.primary),
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
           ),
@@ -148,22 +154,23 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
   }
 
   Widget _buildPermissionDenied() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(28)),
+          color: scheme.surfaceContainer, borderRadius: BorderRadius.circular(28)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.directions_walk_rounded, color: Color(0xFF94A3B8), size: 40),
+          Icon(Icons.directions_walk_rounded, color: scheme.onSurfaceVariant, size: 40),
           const SizedBox(height: 16),
           const Text('Activity Permission Required',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Enable Activity Recognition in Settings to use the Step Counter challenge.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -171,8 +178,8 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
               openAppSettings();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.primary,
+              foregroundColor: context.colors.onPrimary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: const Text('Open Settings'),
@@ -180,7 +187,7 @@ class _StepCounterChallengeWidgetState extends State<StepCounterChallengeWidget>
           const SizedBox(height: 8),
           TextButton(
             onPressed: widget.onPassed,
-            child: const Text('Skip for now', style: TextStyle(color: Color(0xFF94A3B8))),
+            child: Text('Skip for now', style: TextStyle(color: scheme.onSurfaceVariant)),
           ),
         ],
       ),

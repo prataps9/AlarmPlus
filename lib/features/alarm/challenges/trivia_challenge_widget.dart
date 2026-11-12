@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:alarm_plus/features/missions/services/trivia_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 enum TriviaMode { trivia, wordScramble }
 
@@ -87,6 +88,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final question = _triviaQuestions![_currentIndex];
     final correct = index == question.answerIndex;
+    // Stop the clock: hitting 0 during the 900 ms pause advanced twice.
+    _timer?.cancel();
     setState(() {
       _answered = true;
       _selectedOption = index;
@@ -101,6 +104,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     if (_answered) return;
     final input = _wordController.text.trim().toLowerCase();
     if (input == _currentWord.toLowerCase()) {
+      _timer?.cancel();
       setState(() {
         _answered = true;
         _correctCount++;
@@ -152,11 +156,13 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(28),
       ),
       child: _loading
-          ? const Center(child: CircularProgressIndicator())
+          // A bare Center grew to the full screen height in a dialog.
+          ? const SizedBox(
+              height: 160, child: Center(child: CircularProgressIndicator()))
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -172,9 +178,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
 
   Widget _buildHeader() {
     final modeLabel = widget.mode == TriviaMode.trivia ? 'Trivia' : 'Word Scramble';
-    final color = widget.mode == TriviaMode.trivia
-        ? const Color(0xFF6366F1)
-        : const Color(0xFF10B981);
+    final color = context.colors.primary;
     return Row(
       children: [
         Icon(
@@ -189,7 +193,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         _TimerChip(seconds: _timeLeft),
         const SizedBox(width: 10),
         Text('${_currentIndex + 1}/$_totalQuestions',
-            style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -199,6 +203,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
       return const Text('No questions available');
     }
     final question = _triviaQuestions![_currentIndex];
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -209,18 +214,18 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
         ).animate().fadeIn(duration: 300.ms),
         const SizedBox(height: 16),
         ...List.generate(question.options.length, (i) {
-          Color bg = const Color(0xFFF8FAFC);
-          Color border = const Color(0xFFE2E8F0);
-          Color text = const Color(0xFF1A1A2E);
+          Color bg = scheme.surfaceContainerHighest;
+          Color border = scheme.outlineVariant;
+          Color text = scheme.onSurface;
           if (_answered) {
             if (i == question.answerIndex) {
-              bg = const Color(0xFFDCFCE7);
-              border = const Color(0xFF22C55E);
-              text = const Color(0xFF15803D);
+              bg = context.semantics.success.withValues(alpha: 0.15);
+              border = context.semantics.success;
+              text = context.semantics.success;
             } else if (i == _selectedOption && i != question.answerIndex) {
-              bg = const Color(0xFFFEE2E2);
-              border = const Color(0xFFEF4444);
-              text = const Color(0xFFB91C1C);
+              bg = context.semantics.danger.withValues(alpha: 0.15);
+              border = context.semantics.danger;
+              text = context.semantics.danger;
             }
           }
           return Padding(
@@ -252,17 +257,17 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Unscramble this word:',
-            style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+        Text('Unscramble this word:',
+            style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 12),
         Center(
           child: Text(
             _scrambled.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w900,
               letterSpacing: 8,
-              color: Color(0xFF10B981),
+              color: context.colors.primary,
             ),
           ).animate(key: ValueKey(_scrambled)).fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0),
         ),
@@ -277,7 +282,7 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                color: _wordWrong ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                color: _wordWrong ? context.semantics.danger : context.colors.primary,
                 width: 2,
               ),
             ),
@@ -291,8 +296,8 @@ class _TriviaChallengeWidgetState extends State<TriviaChallengeWidget> {
           child: ElevatedButton(
             onPressed: _answered ? null : _submitWord,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.primary,
+              foregroundColor: context.colors.onPrimary,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
@@ -311,10 +316,10 @@ class _TimerChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = seconds <= 10
-        ? const Color(0xFFEF4444)
+        ? context.semantics.danger
         : seconds <= 20
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF22C55E);
+            ? context.colors.primary
+            : context.semantics.success;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(

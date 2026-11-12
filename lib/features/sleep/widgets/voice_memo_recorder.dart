@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:alarm_plus/features/sleep/services/voice_memo_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class VoiceMemoRecorder extends StatefulWidget {
   const VoiceMemoRecorder({
@@ -28,11 +30,16 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   Timer? _timer;
   late AnimationController _waveController;
   final _rng = Random();
+  StreamSubscription<void>? _completed;
 
   @override
   void initState() {
     super.initState();
     _savedPath = widget.initialPath;
+    // The play button stayed on "pause" after a memo finished.
+    _completed = VoiceMemoService.playbackCompleted.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -42,14 +49,31 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   @override
   void dispose() {
     _timer?.cancel();
+    _completed?.cancel();
     _waveController.dispose();
-    if (_recording) VoiceMemoService.stopRecording();
+    // An unfinished recording isn't attached to anything: drop the file.
+    if (_recording) {
+      VoiceMemoService.stopRecording().then((path) {
+        if (path != null) VoiceMemoService.deleteMemo(path);
+      });
+    }
     super.dispose();
   }
 
   Future<void> _startRecording() async {
     final started = await VoiceMemoService.startRecording();
-    if (started == null) return;
+    if (started == null) {
+      // Microphone refused: say so instead of a button that does nothing.
+      final mic = await VoiceMemoService.microphoneStatus();
+      if (!mounted || mic.granted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Alarm+ needs the microphone to record a memo.'),
+        action: mic.canAsk
+            ? null
+            : SnackBarAction(label: 'Settings', onPressed: openAppSettings),
+      ));
+      return;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _seconds++);
     });
@@ -81,7 +105,10 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
   }
 
   Future<void> _delete() async {
-    if (_savedPath != null) {
+    // A memo recorded just now can go at once. The one the alarm already
+    // had is the owner's to delete when it saves: deleting it here lost it
+    // even when the edit was then abandoned.
+    if (_savedPath != null && _savedPath != widget.initialPath) {
       await VoiceMemoService.deleteMemo(_savedPath!);
     }
     setState(() {
@@ -93,24 +120,25 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Voice Memo',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: scheme.onSurface),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Record a message to play after your alarm challenge',
-            style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           if (_recording) _buildWaveform(),
@@ -124,17 +152,17 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444),
+                    color: context.semantics.danger,
                     borderRadius: BorderRadius.circular(40),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.stop_rounded, color: Colors.white, size: 18),
+                      Icon(Icons.stop_rounded, color: context.colors.onError, size: 18),
                       const SizedBox(width: 6),
                       Text(
                         'Stop  ${_seconds}s',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.colors.onError, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -152,15 +180,15 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF22C55E),
+          color: context.colors.primary,
           borderRadius: BorderRadius.circular(40),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.mic_rounded, color: Colors.white, size: 18),
+            Icon(Icons.mic_rounded, color: context.colors.onPrimary, size: 18),
             SizedBox(width: 6),
-            Text('Hold to Record', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text('Tap to Record', style: TextStyle(color: context.colors.onPrimary, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -182,7 +210,7 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
                 height: h,
                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E),
+                  color: context.colors.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               );
@@ -199,12 +227,12 @@ class _VoiceMemoRecorderState extends State<VoiceMemoRecorder>
         IconButton(
           icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
           onPressed: _playPause,
-          color: const Color(0xFF22C55E),
+          color: context.colors.primary,
         ),
-        const Text('Voice memo saved', style: TextStyle(fontSize: 13)),
+        Text('Voice memo saved', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
         const Spacer(),
         IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+          icon: Icon(Icons.delete_outline_rounded, color: context.semantics.danger),
           onPressed: _delete,
         ),
       ],

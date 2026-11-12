@@ -32,6 +32,8 @@ class AlarmModel {
     this.alarmVolume = 1.0,
     this.vibrationPattern = VibrationPatternType.standard,
     this.skipDate,
+    this.pausedUntil,
+    this.date,
   });
 
   final String id;
@@ -70,6 +72,38 @@ class AlarmModel {
   /// a day off), as a date. Once that date has passed it has no effect.
   final DateTime? skipDate;
 
+  /// Vacation mode for a repeating alarm: no occurrence rings before this
+  /// date; it resumes on its first repeat day on or after it.
+  final DateTime? pausedUntil;
+
+  /// Tags of alarms the app sets for itself (nap timer, location trigger).
+  /// They ring like any alarm but are kept out of the alarm list, backups,
+  /// streaks and notices, and are deleted once they have rung.
+  static const napTag = 'nap_timer';
+  static const locationTag = 'location_trigger';
+
+  bool get isSystem => tag == napTag || tag == locationTag;
+
+  /// The calendar day a one-off alarm rings on ("Thu, 30 Oct"). Null means
+  /// the next time the clock shows [time]. Ignored for repeating alarms.
+  final DateTime? date;
+
+  /// A dated one-off whose moment has passed: it will never ring again, so
+  /// it must not be scheduled (the plugin rings past times immediately).
+  bool isExpiredAt(DateTime now) {
+    final d = date;
+    if (d == null || repeatDays.isNotEmpty) return false;
+    return !DateTime(d.year, d.month, d.day, time.hour, time.minute)
+        .isAfter(now);
+  }
+
+  /// Whether a pause is still holding back occurrences.
+  bool isPausedAt(DateTime now) {
+    final until = pausedUntil;
+    if (until == null || repeatDays.isEmpty) return false;
+    return DateTime(until.year, until.month, until.day).isAfter(now);
+  }
+
   /// Ring volume ceiling, 0.0-1.0. Applied directly at ring start, and as the
   /// ceiling of the gentle-wake ramp when that's enabled.
   final double alarmVolume;
@@ -89,7 +123,10 @@ class AlarmModel {
   }
 
   String get repeatLabel {
-    if (repeatDays.isEmpty) return 'Once';
+    if (repeatDays.isEmpty) {
+      final d = date;
+      return d == null ? 'Once' : DateFormat('EEE, d MMM').format(d);
+    }
     if (repeatDays.length == 7) {
       return 'Daily';
     }
@@ -121,6 +158,11 @@ class AlarmModel {
     );
 
     if (repeatDays.isEmpty) {
+      final d = date;
+      if (d != null) {
+        // Fixed day: never rolled forward. Check isExpiredAt before use.
+        return DateTime(d.year, d.month, d.day, time.hour, time.minute);
+      }
       if (candidate.isBefore(from)) {
         candidate = _nextDay(candidate);
       }
@@ -130,7 +172,10 @@ class AlarmModel {
     while (true) {
       final weekday = candidate.weekday;
       final validDay = repeatDays.contains(weekday);
-      if (validDay && !candidate.isBefore(from) && !_isSkipped(candidate)) {
+      if (validDay &&
+          !candidate.isBefore(from) &&
+          !_isSkipped(candidate) &&
+          !_isPaused(candidate)) {
         return candidate;
       }
       candidate = _nextDay(candidate);
@@ -143,6 +188,12 @@ class AlarmModel {
         skip.year == occurrence.year &&
         skip.month == occurrence.month &&
         skip.day == occurrence.day;
+  }
+
+  bool _isPaused(DateTime occurrence) {
+    final until = pausedUntil;
+    return until != null &&
+        occurrence.isBefore(DateTime(until.year, until.month, until.day));
   }
 
   /// Whether a skip is set for an occurrence that hasn't happened yet.
@@ -197,6 +248,10 @@ class AlarmModel {
       'skipDate': skipDate == null
           ? null
           : '${skipDate!.year}-${skipDate!.month}-${skipDate!.day}',
+      'date': date == null ? null : '${date!.year}-${date!.month}-${date!.day}',
+      'pausedUntil': pausedUntil == null
+          ? null
+          : '${pausedUntil!.year}-${pausedUntil!.month}-${pausedUntil!.day}',
     };
   }
 
@@ -259,6 +314,8 @@ class AlarmModel {
               .firstOrNull ??
           VibrationPatternType.standard,
       skipDate: _parseDate(map['skipDate']),
+      pausedUntil: _parseDate(map['pausedUntil']),
+      date: _parseDate(map['date']),
     );
   }
 
@@ -296,6 +353,8 @@ class AlarmModel {
     double? alarmVolume,
     VibrationPatternType? vibrationPattern,
     Object? skipDate = _sentinel,
+    Object? pausedUntil = _sentinel,
+    Object? date = _sentinel,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -326,6 +385,10 @@ class AlarmModel {
       alarmVolume: alarmVolume ?? this.alarmVolume,
       vibrationPattern: vibrationPattern ?? this.vibrationPattern,
       skipDate: identical(skipDate, _sentinel) ? this.skipDate : skipDate as DateTime?,
+      pausedUntil: identical(pausedUntil, _sentinel)
+          ? this.pausedUntil
+          : pausedUntil as DateTime?,
+      date: identical(date, _sentinel) ? this.date : date as DateTime?,
     );
   }
 }

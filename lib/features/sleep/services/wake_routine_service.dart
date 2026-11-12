@@ -60,7 +60,10 @@ class WakeRoutineService {
     final yesterday = _yesterdayKey();
 
     final streak = prefs.getInt(_streakKey) ?? 0;
-    final newStreak = (last == yesterday) ? streak + 1 : 1;
+    // A second run on the same day keeps the streak; it used to reset to 1.
+    final newStreak = last == today
+        ? streak
+        : (last == yesterday ? streak + 1 : 1);
 
     await prefs.setString(_completedTodayKey, today);
     await prefs.setString(_lastCompletedDateKey, today);

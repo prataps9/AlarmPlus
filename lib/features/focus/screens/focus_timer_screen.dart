@@ -36,7 +36,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
           'FOCUS TIMER',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             letterSpacing: 3,
-            color: const Color(0xFF64748B),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -69,8 +69,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                     onPressed: _running ? _pause : _start,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(56),
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                     ),
                     child: Text(_running ? 'Pause' : 'Start'),
                   ),

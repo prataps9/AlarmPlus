@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MemoryChallengeWidget extends StatefulWidget {
   const MemoryChallengeWidget({super.key, required this.onPassed, required this.onFailed});
@@ -71,10 +72,11 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -103,7 +105,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
                   height: active ? 48 : 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i < _showIndex ? _colors[_sequence[i]] : const Color(0xFFE2E8F0),
+                    color: i < _showIndex ? _colors[_sequence[i]] : scheme.outlineVariant,
                   ),
                 );
               }),
@@ -111,7 +113,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
           ] else ...[
             Text(
               '${_userInput.length} / ${_sequence.length}',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             GridView.count(
@@ -129,7 +131,7 @@ class _MemoryChallengeWidgetState extends State<MemoryChallengeWidget> {
                   child: Center(
                     child: Text(
                       _labels[i],
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                      style: TextStyle(color: context.colors.onPrimary, fontWeight: FontWeight.w800, fontSize: 18),
                     ),
                   ),
                 ),

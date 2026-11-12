@@ -40,6 +40,18 @@ class VoiceMemoService {
     await _player.play();
   }
 
+  /// Fires when a memo finishes playing on its own.
+  static Stream<void> get playbackCompleted => _player.playerStateStream
+      .where((s) => s.processingState == ProcessingState.completed)
+      .map((_) {});
+
+  /// Whether the app may use the microphone, and whether the user can still
+  /// be asked (false once they chose "don't ask again").
+  static Future<({bool granted, bool canAsk})> microphoneStatus() async {
+    final status = await Permission.microphone.status;
+    return (granted: status.isGranted, canAsk: !status.isPermanentlyDenied);
+  }
+
   static Future<void> stopPlayback() async {
     await _player.stop();
   }

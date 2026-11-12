@@ -38,7 +38,8 @@ class SleepDiaryService {
     final all = await _loadAll();
     final now = DateTime.now();
     return List.generate(7, (i) {
-      final day = now.subtract(Duration(days: 6 - i));
+      // Calendar days, not 24-hour steps (a DST day is 23 or 25 hours).
+      final day = DateTime(now.year, now.month, now.day - (6 - i));
       return all[dateKey(day)];
     });
   }

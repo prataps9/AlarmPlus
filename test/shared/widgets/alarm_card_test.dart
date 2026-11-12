@@ -80,7 +80,8 @@ void main() {
     expect(find.byType(Dismissible), findsNothing);
   });
 
-  testWidgets('swipe-to-delete asks for confirmation first', (tester) async {
+  testWidgets('swipe deletes straight away (the list offers Undo)',
+      (tester) async {
     var deleted = 0;
 
     await tester.pumpWidget(
@@ -96,12 +97,38 @@ void main() {
     await tester.drag(find.byType(AlarmCard), const Offset(-500, 0));
     await tester.pumpAndSettle();
 
-    expect(find.text('Delete alarm?'), findsOneWidget);
-    expect(deleted, 0, reason: 'must not delete before confirming');
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(deleted, 1);
+  });
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+  testWidgets('long-press opens more actions', (tester) async {
+    var pressed = 0;
+    await tester.pumpWidget(
+      _host(AlarmCard(
+        alarm: _alarm(),
+        onToggle: (_) {},
+        onTap: () {},
+        onLongPress: () => pressed++,
+      )),
+    );
 
-    expect(deleted, 0);
+    await tester.longPress(find.byType(AlarmCard));
+    expect(pressed, 1);
+  });
+
+  testWidgets('a paused alarm says until when, instead of Skip next',
+      (tester) async {
+    final now = DateTime.now();
+    final until = DateTime(now.year, now.month, now.day + 5);
+    await tester.pumpWidget(
+      _host(AlarmCard(
+        alarm: _alarm().copyWith(pausedUntil: until),
+        onToggle: (_) {},
+        onSkipNext: (_) {},
+      )),
+    );
+
+    expect(find.textContaining('Paused until'), findsOneWidget);
+    expect(find.text('Skip next'), findsNothing);
   });
 }

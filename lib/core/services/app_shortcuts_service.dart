@@ -29,6 +29,12 @@ class AppShortcutsService {
     ShortcutItem(type: 'focus', localizedTitle: 'Focus timer', icon: 'ic_shortcut_focus'),
   ];
 
+  /// Drawable names the shortcuts use. They are resolved by name at runtime,
+  /// so each must exist in `res/drawable` and be listed in `res/raw/keep.xml`
+  /// (a test checks both).
+  static List<String> get iconNames =>
+      [for (final i in _items) if (i.icon != null) i.icon!];
+
   static Future<void> init() async {
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&

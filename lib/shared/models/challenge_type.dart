@@ -13,4 +13,7 @@ enum ChallengeType {
   voiceRepeat,
   colorClash,
   random,
+  // Appended (saved alarms store the name, but keep the order stable).
+  morningQuiz,
+  recall,
 }

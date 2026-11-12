@@ -107,8 +107,10 @@ class _BedtimeCardState extends State<BedtimeCard> {
         ),
       ),
     );
+    // Re-derive the bedtime only when the goal changed, so closing the sheet
+    // doesn't overwrite a bedtime set by hand on the setup screen.
     final alarm = _nextAlarm;
-    final bedtime = alarm == null
+    final bedtime = alarm == null || goal == _current.sleepGoalMinutes
         ? null
         : BedtimeSchedule.bedtimeFor(alarm, goal);
     await _save(_current.copyWith(

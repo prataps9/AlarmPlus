@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
+import 'package:alarm_plus/shared/widgets/press_scale.dart';
 
 /// A tappable row on Home that links to a sub-feature.
 ///
@@ -31,7 +32,7 @@ class ShortcutCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
-      child: Material(
+      child: PressScale(child: Material(
         color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(Radii.lg),
         child: InkWell(
@@ -75,7 +76,7 @@ class ShortcutCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

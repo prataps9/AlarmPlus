@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class StreakCalendarWidget extends StatelessWidget {
   const StreakCalendarWidget({super.key, required this.history});
@@ -8,6 +9,7 @@ class StreakCalendarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final startDate = today.subtract(const Duration(days: 89));
     final days = List.generate(90, (i) => startDate.add(Duration(days: i)));
@@ -42,7 +44,7 @@ class StreakCalendarWidget extends StatelessWidget {
               child: Center(
                 child: Text(
                   d,
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
                 ),
               ),
             );
@@ -64,13 +66,13 @@ class StreakCalendarWidget extends StatelessWidget {
 
                 Color cellColor;
                 if (isFuture) {
-                  cellColor = const Color(0xFFF1F5F9);
+                  cellColor = scheme.surfaceContainerHighest;
                 } else if (status == null) {
-                  cellColor = const Color(0xFFE2E8F0);
+                  cellColor = scheme.outlineVariant;
                 } else if (status) {
-                  cellColor = const Color(0xFF22C55E);
+                  cellColor = context.semantics.success;
                 } else {
-                  cellColor = const Color(0xFFEF4444);
+                  cellColor = context.semantics.danger;
                 }
 
                 return Expanded(
@@ -81,7 +83,7 @@ class StreakCalendarWidget extends StatelessWidget {
                       color: cellColor,
                       borderRadius: BorderRadius.circular(3),
                       border: isToday
-                          ? Border.all(color: const Color(0xFF1E40AF), width: 1.5)
+                          ? Border.all(color: scheme.onSurface, width: 1.5)
                           : null,
                     ),
                   ),
@@ -93,11 +95,11 @@ class StreakCalendarWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            _LegendDot(color: const Color(0xFF22C55E), label: 'Dismissed'),
+            _LegendDot(color: context.semantics.success, label: 'Dismissed'),
             const SizedBox(width: 12),
-            _LegendDot(color: const Color(0xFFEF4444), label: 'Missed'),
+            _LegendDot(color: context.semantics.danger, label: 'Missed'),
             const SizedBox(width: 12),
-            _LegendDot(color: const Color(0xFFE2E8F0), label: 'No alarm'),
+            _LegendDot(color: scheme.outlineVariant, label: 'No alarm'),
           ],
         ),
       ],
@@ -120,7 +122,7 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
         ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     );
   }

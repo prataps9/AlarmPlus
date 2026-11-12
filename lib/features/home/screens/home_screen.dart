@@ -24,7 +24,6 @@ import 'package:alarm_plus/features/home/widgets/shortcut_card.dart';
 import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/sleep/widgets/bedtime_card.dart';
-import 'package:alarm_plus/shared/utils/time_format.dart';
 import 'package:alarm_plus/features/alarm/widgets/next_alarm_capsule.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -65,6 +64,53 @@ class HomeScreen extends ConsumerWidget {
             NextAlarmCapsule(alarms: alarms),
             const SizedBox(height: 18),
             const ReliabilityBanner(),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                // Expanded (not Text + Spacer) so a large system font
+                // shrinks the label instead of pushing "View all" off-screen.
+                Expanded(
+                  child: Text(
+                    'UPCOMING ALARMS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(letterSpacing: 2.8),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AlarmsScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'View all',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._upcomingFirst(alarms)
+                .take(3)
+                .map(
+                  (alarm) => AlarmCard(
+                    alarm: alarm,
+                    onToggle: (value) => ref
+                        .read(alarmsMapProvider.notifier)
+                        .toggleAlarm(alarm.id, value),
+                    onSkipNext: (skip) => ref
+                        .read(alarmsMapProvider.notifier)
+                        .setSkipNext(alarm.id, skip: skip),
+                  ),
+                ),
+            const SizedBox(height: 16),
             // Streak / XP hero widget
             FutureBuilder<(AlarmStats, int)>(
               future: Future.wait([
@@ -125,80 +171,6 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
             ),
-            const SizedBox(height: 4),
-            Text(
-              'YOUR TODAY',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(letterSpacing: 2.8),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(Radii.xl),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x08000000),
-                    blurRadius: 14,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: _buildTodayTiles(context, alarms),
-              ),
-            ),
-            const SizedBox(height: 26),
-            Row(
-              children: [
-                // Expanded (not Text + Spacer) so a large system font
-                // shrinks the label instead of pushing "View all" off-screen.
-                Expanded(
-                  child: Text(
-                    'UPCOMING ALARMS',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(letterSpacing: 2.8),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AlarmsScreen(),
-                      ),
-                    );
-                  },
-                  child: Text(
-                    'View all',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ..._upcomingFirst(alarms)
-                .take(2)
-                .map(
-                  (alarm) => AlarmCard(
-                    alarm: alarm,
-                    onToggle: (value) => ref
-                        .read(alarmsMapProvider.notifier)
-                        .toggleAlarm(alarm.id, value),
-                    onSkipNext: (skip) => ref
-                        .read(alarmsMapProvider.notifier)
-                        .setSkipNext(alarm.id, skip: skip),
-                  ),
-                ),
             const SizedBox(height: 14),
             BedtimeCard(alarms: alarms),
             const SizedBox(height: 8),
@@ -320,62 +292,6 @@ class HomeScreen extends ConsumerWidget {
       if (!next.contains(r.alarm)) next.add(r.alarm);
     }
     return [...next, ...alarms.where((a) => !next.contains(a))];
-  }
-
-  List<Widget> _buildTodayTiles(BuildContext context, List<AlarmModel> alarms) {
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-
-    // Rings today, with skips, pauses and dates applied (a skipped or
-    // paused weekday alarm used to be listed anyway).
-    final todayAlarms = alarms.where((alarm) {
-      if (!alarm.isEnabled || alarm.isSystem) return false;
-      final from =
-          alarm.repeatDays.isEmpty && alarm.date == null ? now : startOfToday;
-      final next = alarm.nextDateTimeFrom(from);
-      return next.year == now.year &&
-          next.month == now.month &&
-          next.day == now.day;
-    }).toList()
-      ..sort(
-        (a, b) => (a.time.hour * 60 + a.time.minute)
-            .compareTo(b.time.hour * 60 + b.time.minute),
-      );
-
-    if (todayAlarms.isEmpty) {
-      return [
-        const _TimelineTile(
-          time: '--:--',
-          title: 'Rest day',
-          subtitle: 'No alarms scheduled for today',
-        ),
-      ];
-    }
-
-    final tiles = <Widget>[];
-    for (final alarm in todayAlarms.take(2)) {
-      final clock = TimeFormat.clock(alarm.time.hour, alarm.time.minute,
-          use24h: MediaQuery.alwaysUse24HourFormatOf(context));
-      tiles.add(
-        _TimelineTile(
-          time: clock.time,
-          title: alarm.label.isEmpty ? 'Wake Alarm' : alarm.label,
-          subtitle: clock.period == null
-              ? alarm.repeatLabel
-              : '${clock.period} · ${alarm.repeatLabel}',
-        ),
-      );
-    }
-
-    tiles.add(
-      const _TimelineTile(
-        time: '+25m',
-        title: 'Focus Sprint',
-        subtitle: 'Suggested after wake — tap Start Focus',
-      ),
-    );
-
-    return tiles;
   }
 }
 
@@ -528,60 +444,6 @@ class _StreakHeroWidget extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TimelineTile extends StatelessWidget {
-  const _TimelineTile({
-    required this.time,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final String time;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Text(
-            time,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 14),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onSurface,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -55,11 +55,7 @@ class _SunriseGradientState extends State<SunriseGradient>
 
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [color, color.withValues(alpha: 0.6)],
-            ),
+            color: color,
           ),
           child: child,
         );

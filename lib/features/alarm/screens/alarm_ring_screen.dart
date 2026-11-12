@@ -812,15 +812,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
               animation: _pulseController,
               builder: (context, _) => DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -0.3),
-                    radius: 0.95,
-                    colors: [
-                      accent.withValues(
-                          alpha: 0.10 + 0.14 * _pulseController.value),
-                      Colors.transparent,
-                    ],
-                  ),
+                  // Flat tint that breathes with the ring (no gradient).
+                  color: accent.withValues(
+                      alpha: 0.03 + 0.05 * _pulseController.value),
                 ),
               ),
             ),

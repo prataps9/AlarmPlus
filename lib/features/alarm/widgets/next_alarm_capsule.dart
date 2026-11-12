@@ -126,21 +126,14 @@ class _NextAlarmCapsuleState extends State<NextAlarmCapsule>
       builder: (context, child) => DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(32),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [night.surface, night.surfaceContainerHigh],
-          ),
+          color: night.surfaceContainerHigh,
           // A hairline so the pill still reads on a dark page.
-          border: Border.all(color: night.outline),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: urgent ? 0.2 + 0.2 * _glow.value : 0.14),
-              blurRadius: urgent ? 18 + 12 * _glow.value : 18,
-              spreadRadius: urgent ? 1 * _glow.value : 0,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          // Flat: a hairline, turning accent as the alarm gets close.
+          border: Border.all(
+            color: urgent
+                ? Color.lerp(night.outline, accent, 0.4 + 0.6 * _glow.value)!
+                : night.outline,
+          ),
         ),
         child: child,
       ),

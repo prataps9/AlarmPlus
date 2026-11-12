@@ -48,13 +48,7 @@ class ShareCardWidget extends StatelessWidget {
       width: width,
       height: height,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Palette.night, Palette.nightRaised],
-          ),
-        ),
+        decoration: const BoxDecoration(color: Palette.night),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(72, 96, 72, 72),
           child: Column(
@@ -144,9 +138,7 @@ class _NewBestBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Palette.orange400, Palette.orange700],
-        ),
+        color: Palette.orange400,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(

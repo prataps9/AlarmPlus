@@ -37,6 +37,22 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
+  test('no gradients: flat shades only', () {
+    final offenders = <String>[];
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (RegExp(r'(Linear|Radial|Sweep)Gradient\(').hasMatch(lines[i].split('//').first)) {
+          offenders.add('${file.path}:${i + 1}');
+        }
+      }
+    }
+    expect(offenders, isEmpty, reason: 'Use a flat theme colour, not a gradient.');
+  });
+
   test('screens do not hard-code colours', () {
     // Pure-black alpha shadows (0x..000000) are neutral and allowed, as are
     // Colors.transparent and Colors.black.

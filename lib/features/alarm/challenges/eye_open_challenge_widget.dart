@@ -177,14 +177,7 @@ class _EyeOpenChallengeWidgetState extends State<EyeOpenChallengeWidget> {
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.7),
-                  ],
-                ),
+                color: Colors.black.withValues(alpha: 0.5),
               ),
             ),
           ),

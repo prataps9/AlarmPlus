@@ -2,4 +2,5 @@
 <resources>
     <!-- Launch background; keep in sync with SplashScreen.background in Dart. -->
     <color name="splash_background">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#EA580C</color>
 </resources>

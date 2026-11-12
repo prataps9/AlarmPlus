@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
@@ -11,6 +10,7 @@ import 'package:alarm_plus/features/focus/services/nap_service.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_analytics_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/shared/widgets/alarm_card.dart';
+import 'package:alarm_plus/shared/widgets/staggered_list.dart';
 import 'package:alarm_plus/features/alarm/screens/alarms_screen.dart';
 import 'package:alarm_plus/features/alarm/widgets/reliability_banner.dart';
 import 'package:alarm_plus/features/focus/screens/focus_timer_screen.dart';
@@ -39,7 +39,7 @@ class HomeScreen extends ConsumerWidget {
 
     return SafeArea(
       child: alarmsAsync.when(
-        data: (alarms) => ListView(
+        data: (alarms) => StaggeredListView(
           padding: const EdgeInsets.fromLTRB(22, 14, 22, 30),
           children: [
             Row(
@@ -273,10 +273,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
-          ].animate(interval: 70.ms).fadeIn(duration: 240.ms).move(
-            begin: const Offset(0, 8),
-            end: Offset.zero,
-          ),
+          ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),

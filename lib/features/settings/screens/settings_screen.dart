@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:alarm_plus/shared/widgets/staggered_list.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
@@ -342,7 +343,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return SafeArea(
       bottom: false,
-      child: ListView(
+      child: StaggeredListView(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [

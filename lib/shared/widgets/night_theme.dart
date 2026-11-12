@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:alarm_plus/core/theme/app_theme.dart';
+
+/// Transparent status and navigation bars with icons that contrast with
+/// [brightness] (the page underneath).
+SystemUiOverlayStyle systemBarsFor(Brightness brightness) {
+  final icons =
+      brightness == Brightness.dark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    statusBarIconBrightness: icons,
+    systemNavigationBarIconBrightness: icons,
+  );
+}
 
 /// Puts a screen on the app's dark palette whatever the phone is set to.
 ///
@@ -17,6 +33,11 @@ class NightTheme extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      Theme(data: AppTheme.dark, child: child);
+  Widget build(BuildContext context) => Theme(
+        data: AppTheme.dark,
+        child: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: systemBarsFor(Brightness.dark),
+          child: child,
+        ),
+      );
 }

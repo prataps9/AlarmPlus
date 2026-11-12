@@ -758,7 +758,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Day Type Profile',
+                'Alarm type',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
@@ -1609,125 +1609,72 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     return normalized == 0 ? 12 : normalized;
   }
 
+  /// The big time opens the system time picker (dial or keyboard, follows
+  /// the phone's 24-hour setting). State stays 12-hour (_hour + _isAm).
   Widget _buildTimePicker(BuildContext context) {
-    // Scales down rather than overflowing on narrow screens / big text.
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: _buildTimePickerRow(context),
-    );
-  }
-
-  Widget _buildTimePickerRow(BuildContext context) {
-    // Follows the phone's 24-hour setting, like the alarm cards do. The
-    // state stays 12-hour (_hour + _isAm); only the picker changes.
+    final scheme = Theme.of(context).colorScheme;
     final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
-    final hour24 = _isAm ? _hour % 12 : _hour % 12 + 12;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (use24h)
-          _pickerNumber(
-            value: hour24,
-            min: 0,
-            max: 23,
-            onChanged: (value) => setState(() {
-              _isAm = value < 12;
-              _hour = _formatHour(value);
-            }),
-          )
-        else
-          _pickerNumber(
-            value: _hour,
-            min: 1,
-            max: 12,
-            onChanged: (value) => setState(() => _hour = value),
-          ),
-        const SizedBox(width: 16),
-        Text(
-          ':',
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontSize: 78,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(width: 16),
-        _pickerNumber(
-          value: _minute,
-          min: 0,
-          max: 59,
-          onChanged: (value) => setState(() => _minute = value),
-        ),
-        if (!use24h) ...[
-          const SizedBox(width: 20),
-          Column(
+    final clock = TimeFormat.clock(_hour24, _minute, use24h: use24h);
+    return Semantics(
+      button: true,
+      label: 'Alarm time, ${clock.time} ${clock.period ?? ''}. Tap to change',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.xl),
+        onTap: _pickTime,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+          child: Column(
             children: [
-              _periodButton(
-                label: 'AM',
-                active: _isAm,
-                onTap: () => setState(() => _isAm = true),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      clock.time,
+                      style: const TextStyle(
+                        fontSize: 72,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (clock.period != null) ...[
+                      const SizedBox(width: Spacing.sm),
+                      Text(
+                        clock.period!,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              _periodButton(
-                label: 'PM',
-                active: !_isAm,
-                onTap: () => setState(() => _isAm = false),
+              Text(
+                'Tap to change',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
-        ],
-      ],
-    );
-  }
-
-  Widget _pickerNumber({
-    required int value,
-    required int min,
-    required int max,
-    required ValueChanged<int> onChanged,
-  }) {
-    return Column(
-      children: [
-        IconButton(
-          onPressed: () {
-            final next = value + 1 > max ? min : value + 1;
-            onChanged(next);
-          },
-          icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 28),
-        ),
-        Text(
-          value.toString().padLeft(2, '0'),
-          style: const TextStyle(fontSize: 66, fontWeight: FontWeight.w700),
-        ),
-        IconButton(
-          onPressed: () {
-            final next = value - 1 < min ? max : value - 1;
-            onChanged(next);
-          },
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
-        ),
-      ],
-    );
-  }
-
-  Widget _periodButton({
-    required String label,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          color: active
-              ? Theme.of(context).colorScheme.onSurface
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
         ),
       ),
     );
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _hour24, minute: _minute),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _isAm = picked.hour < 12;
+      _hour = _formatHour(picked.hour);
+      _minute = picked.minute;
+    });
   }
 
   /// "Alarm set for 6:30 AM · in 8 hr 12 min" — so saving confirms

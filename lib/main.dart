@@ -72,6 +72,8 @@ Future<void> main() async {
     await WidgetCommandService.drainPending();
   });
   await runStartupStep('system events', BackgroundTasks.bindForegroundHandlers);
+  // Draw behind the status and navigation bars, like current Android apps.
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
   runApp(const AlarmPlusApp());
   unawaited(_afterFirstFrame());
 }
@@ -113,8 +115,11 @@ class _AppWithTheme extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       // One palette in two brightnesses; the phone's setting picks.
       themeMode: ThemeMode.system,
-      builder: (context, child) =>
-          CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        // Transparent bars; icon colour follows the theme underneath.
+        value: systemBarsFor(Theme.of(context).brightness),
+        child: CelebrationOverlayHost(child: child ?? const SizedBox.shrink()),
+      ),
       routes: {
           '/': (_) => const SplashScreen(),
           '/app': (_) => const MainScaffold(),

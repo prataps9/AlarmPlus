@@ -143,6 +143,19 @@ class MainActivity : FlutterActivity() {
                             runOnUiThread { result.success(ok) }
                         }
                     }
+                    "openScreenSaverSettings" -> {
+                        // Settings → Display → Screen saver, where Alarm+ can be picked.
+                        val opened = try {
+                            startActivity(Intent(android.provider.Settings.ACTION_DREAM_SETTINGS))
+                            true
+                        } catch (e: Exception) {
+                            try {
+                                startActivity(Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS))
+                                true
+                            } catch (e2: Exception) { false }
+                        }
+                        result.success(opened)
+                    }
                     "speak" -> {
                         val text = call.argument<String>("text")
                         val alarmStream = call.argument<Boolean>("alarmStream") ?: false

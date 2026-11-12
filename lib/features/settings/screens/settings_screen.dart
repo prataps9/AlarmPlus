@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:alarm_plus/core/services/native_controls.dart';
 import 'package:alarm_plus/shared/widgets/staggered_list.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_providers.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
@@ -79,6 +80,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String _query = '';
 
+  /// A stock-style single-choice sheet.
+  Future<T?> _pickOne<T>(
+    BuildContext context, {
+    required String title,
+    required List<T> options,
+    required T selected,
+    required String Function(T) label,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: RadioGroup<T>(
+          groupValue: selected,
+          onChanged: (v) => Navigator.pop(ctx, v),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Text(title, style: Theme.of(ctx).textTheme.titleLarge),
+              ),
+              for (final o in options)
+                RadioListTile<T>(value: o, title: Text(label(o))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // The tab stays alive while hidden: refresh what its tiles show (health,
@@ -131,6 +164,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Vibration',
                 onChanged: (v) => setVibrationEnabled(ref, v),
               ),
+            )),
+        _Entry('Silence after', 'auto stop ringing timeout missed minutes', () => _SettingTile(
+              icon: Icons.timer_off_rounded,
+              title: 'Silence after',
+              subtitle: AppSettings.silenceAfterLabel(AppSettings.silenceAfterMinutes),
+              trailing: chevron(),
+              onTap: () async {
+                final v = await _pickOne<int>(
+                  context,
+                  title: 'Silence after',
+                  options: AppSettings.silenceAfterChoices,
+                  selected: AppSettings.silenceAfterMinutes,
+                  label: AppSettings.silenceAfterLabel,
+                );
+                if (v == null) return;
+                await AppSettings.setSilenceAfterMinutes(v);
+                if (mounted) setState(() {});
+              },
+            )),
+        _Entry('Volume buttons', 'volume keys snooze side buttons', () => _SettingTile(
+              icon: Icons.volume_down_alt,
+              title: 'Volume buttons',
+              subtitle: '${AppSettings.volumeButtons.label} while ringing',
+              trailing: chevron(),
+              onTap: () async {
+                final v = await _pickOne<VolumeButtons>(
+                  context,
+                  title: 'Volume buttons',
+                  options: VolumeButtons.values,
+                  selected: AppSettings.volumeButtons,
+                  label: (v) => v.label,
+                );
+                if (v == null) return;
+                await AppSettings.setVolumeButtons(v);
+                if (mounted) setState(() {});
+              },
+            )),
+        _Entry('Flip to snooze', 'face down turn over sensor', () => _SettingTile(
+              icon: Icons.screen_rotation_alt_rounded,
+              title: 'Flip to snooze',
+              subtitle: 'Turn the phone face down to snooze',
+              trailing: _AnimatedToggle(
+                value: AppSettings.flipToSnooze,
+                label: 'Flip to snooze',
+                onChanged: (v) async {
+                  await AppSettings.setFlipToSnooze(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+            )),
+        _Entry('Screen saver', 'clock night stand charging dream daydream', () => _SettingTile(
+              icon: Icons.nightlight_round,
+              title: 'Screen saver',
+              subtitle: 'A dim bedside clock with your next alarm while charging',
+              trailing: chevron(),
+              onTap: () async {
+                try {
+                  await NativeControls.channel
+                      .invokeMethod<bool>('openScreenSaverSettings');
+                } catch (_) {}
+              },
             )),
         _Entry('Live Alarm Countdown', 'capsule notification lock screen live update skip', () =>
             FutureBuilder<bool>(

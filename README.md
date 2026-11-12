@@ -70,6 +70,13 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   Android's own text-to-speech on the alarm stream, and leaving the ring
   screen (Home/Recents) while it rings brings it back with a full-screen
   "still ringing" alert. Both are in Random and Quest mode.
+- **Stock-Clock alarm options** — Settings → Alarms: **Silence after**
+  (15–60 min or Never), **Volume buttons** (Snooze / Change volume / Do
+  nothing, handled natively by the ring service), **Flip to snooze** (lay the
+  phone face down; never in Hardcore or over an open challenge), and a
+  native **screen saver** (Settings → Display → Screen saver → Alarm+ clock):
+  a dim bedside clock with the date and next alarm that drifts to avoid
+  burn-in.
 - **Quick presets & turn all off/on** — a new alarm offers one-tap
   Weekdays 7:00 / Weekend 9:00 / Every day 6:30; Alarms tab → ⋮ turns every
   alarm off (or on) at once, with Undo that restores exactly what changed.

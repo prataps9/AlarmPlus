@@ -99,6 +99,21 @@
             android:name=".AlarmForegroundService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
+        <!-- Screen saver (Settings → Display → Screen saver): a dim clock with
+             the next alarm while charging, like the stock Clock. -->
+        <service
+            android:name=".AlarmScreenSaver"
+            android:exported="true"
+            android:label="Alarm+ clock"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/screen_saver" />
+        </service>
         <!-- Quick Settings tile for arming the next alarm from the shade. -->
         <service
             android:name=".AlarmTileService"

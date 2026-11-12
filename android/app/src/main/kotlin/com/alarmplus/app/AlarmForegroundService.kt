@@ -105,6 +105,21 @@ class AlarmForegroundService : Service() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var mediaSession: MediaSession? = null
 
+    /**
+     * Settings → Volume buttons: "snooze" (default), "volume" (the keys change
+     * the alarm volume, as with no app capturing them) or "nothing".
+     */
+    private var volumeMode: String = "snooze"
+
+    private fun readVolumeMode(): String {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        return prefs.getString("flutter.alarm.volume_buttons", null) ?: "snooze"
+    }
+
+    private fun onVolumeKey() {
+        if (volumeMode == "snooze") sendSnoozeToFlutter()
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -146,9 +161,11 @@ class AlarmForegroundService : Service() {
         stopMediaSession()
         acquireWakeLock()
         playNativeRingtoneIfSet(alarmId)
-        registerVolumeReceiver()
+        volumeMode = readVolumeMode()
+        // "Change volume": leave the keys to the system.
+        if (volumeMode != "volume") registerVolumeReceiver()
         registerActionReceiver()
-        startMediaSession()
+        if (volumeMode != "volume") startMediaSession()
 
         // START_STICKY restarts this service if the system kills it while an alarm is active
         return START_STICKY
@@ -386,11 +403,11 @@ class AlarmForegroundService : Service() {
             session.setPlaybackToRemote(
                 object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, 100, 50) {
                     override fun onAdjustVolume(direction: Int) {
-                        if (direction != 0) sendSnoozeToFlutter()
+                        if (direction != 0) onVolumeKey()
                     }
 
                     override fun onSetVolumeTo(volume: Int) {
-                        sendSnoozeToFlutter()
+                        onVolumeKey()
                     }
                 }
             )
@@ -425,7 +442,7 @@ class AlarmForegroundService : Service() {
                 if (event?.action == KeyEvent.ACTION_DOWN &&
                     (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
                      event.keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-                    sendSnoozeToFlutter()
+                    onVolumeKey()
                 }
             }
         }

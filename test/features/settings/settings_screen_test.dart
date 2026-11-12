@@ -56,6 +56,12 @@ void main() {
       expect(find.text(label), findsOneWidget, reason: label);
     }
     expect(find.text('Live Alarm Countdown'), findsOneWidget);
+    // Stock-Clock style alarm options.
+    for (final t in ['Silence after', 'Volume buttons', 'Flip to snooze', 'Screen saver']) {
+      expect(find.text(t), findsOneWidget, reason: t);
+    }
+    expect(find.text('30 minutes'), findsOneWidget);
+    expect(find.text('Snooze while ringing'), findsOneWidget);
     expect(find.text('Alarm Health Check'), findsOneWidget);
     expect(find.text("Pip's Wardrobe"), findsOneWidget);
     expect(find.text('Theme'), findsNothing,

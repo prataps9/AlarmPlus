@@ -31,10 +31,11 @@ bool canSnoozeAgain({required int used, required int maxSnoozes}) {
   return maxSnoozes <= 0 || used < maxSnoozes;
 }
 
-/// How long an unattended alarm rings before it is silenced and recorded
-/// as missed — Android's own Clock app defaults to 10 minutes; heavy
-/// sleepers get longer.
-const autoSilenceAfter = Duration(minutes: 30);
+/// The default for how long an unattended alarm rings before it is
+/// silenced and recorded as missed (Settings → Silence after changes it;
+/// see [AppSettings.silenceAfter]). Every choice is after the 10-minute
+/// guardian alert.
+const autoSilenceAfter = Duration(minutes: AppSettings.defaultSilenceAfter);
 
 /// Notification id for an alarm's wake-up check. Kept apart from the alarm
 /// and wind-down ids derived in [AlarmService].
@@ -101,6 +102,7 @@ class AlarmRingFlow {
       // Volume keys and the notification button snooze without looking at
       // the screen, which is exactly what Hardcore mode exists to stop.
       if (AlarmService.findByIntId(id)?.hardcoreMode == true) return null;
+
       await snoozeAlarm(id);
       return null;
     });
@@ -233,12 +235,15 @@ class AlarmRingFlow {
     await _showRingScreen(alarmId);
 
     _missedRecoveryTimers[alarmId]?.cancel();
-    _missedRecoveryTimers[alarmId] = Timer(autoSilenceAfter, () async {
-      _missedRecoveryTimers.remove(alarmId);
-      if (await Alarm.isRinging(alarmId).catchError((_) => false)) {
-        await _autoSilence(alarmId);
-      }
-    });
+    final silenceAfter = AppSettings.silenceAfter;
+    if (silenceAfter != null) {
+      _missedRecoveryTimers[alarmId] = Timer(silenceAfter, () async {
+        _missedRecoveryTimers.remove(alarmId);
+        if (await Alarm.isRinging(alarmId).catchError((_) => false)) {
+          await _autoSilence(alarmId);
+        }
+      });
+    }
   }
 
   /// Pushes the ring screen, waiting for the navigator if the alarm rang
@@ -305,7 +310,8 @@ class AlarmRingFlow {
     await SleepAnalyticsService.recordEvent(AlarmRingEvent(
       alarmId: alarm?.id ?? '',
       scheduledTime:
-          _ringStartTimes[alarmId] ?? DateTime.now().subtract(autoSilenceAfter),
+          _ringStartTimes[alarmId] ??
+              DateTime.now().subtract(AppSettings.silenceAfter ?? autoSilenceAfter),
       snoozeCount: _snoozeSessionCount[alarmId] ?? 0,
       wasMissed: true,
       wakeScore: 0,

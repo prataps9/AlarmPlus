@@ -7,6 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sensors_plus/sensors_plus.dart';
+
+import 'package:alarm_plus/core/services/app_settings.dart';
+import 'package:alarm_plus/features/alarm/services/flip_detector.dart';
 import 'package:alarm_plus/features/alarm/challenges/wake_brain_challenges.dart';
 import 'package:alarm_plus/features/alarm/challenges/morning_quiz.dart';
 import 'package:alarm_plus/features/alarm/challenges/photo_hash.dart';
@@ -95,6 +99,30 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
     _ringController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
     _loadPrefs();
+    _startFlipToSnooze();
+  }
+
+  StreamSubscription<AccelerometerEvent>? _flipSub;
+
+  /// Settings → Flip to snooze: laying the phone face down snoozes, like
+  /// Pixel and Galaxy alarms. Not in previews, Hardcore, or while a
+  /// challenge is open; the snooze limit still applies.
+  void _startFlipToSnooze() {
+    if (!AppSettings.flipToSnooze || _alarmId <= 0) return;
+    final detector = FlipDetector();
+    try {
+      _flipSub = accelerometerEventStream().listen((e) async {
+        if (!detector.add(e.z, DateTime.now())) return;
+        final alarm = AlarmService.findByIntId(_alarmId);
+        if (!mounted || _isDismissing || (alarm?.hardcoreMode ?? false)) return;
+        // A challenge dialog on top: flipping must not skip it.
+        if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
+        HapticFeedback.mediumImpact();
+        await AlarmRingFlow.snoozeAlarm(_alarmId);
+      }, onError: (_) {});
+    } catch (_) {
+      // No accelerometer on this device.
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -143,6 +171,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
 
   @override
   void dispose() {
+    _flipSub?.cancel();
     _gentleWakeActive = false;
     _pulseController.dispose();
     _ringController.dispose();

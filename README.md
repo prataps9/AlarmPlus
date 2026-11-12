@@ -59,6 +59,17 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
 - **Dark mode** — follows the phone's light/dark setting (no picker); the
   bedtime screens are always dark.
+- **Wake-your-brain challenges** — two challenges built to switch the mind
+  on, not just the thumb: **Wake-up Questions** asks things only an awake
+  person can answer, from the phone and the app (what day/date/month it is,
+  what time this alarm was set for, what it's called, your streak, when you
+  got up yesterday) mixed with a quick sum; a wrong answer swaps in a new
+  question (5 questions on Hardcore/boss mornings). **Remember & Recall**
+  shows 4 words, makes you do a sum, then asks you to pick the 4 words out of
+  8; any mistake starts over with new words. Questions are read aloud with
+  Android's own text-to-speech on the alarm stream, and leaving the ring
+  screen (Home/Recents) while it rings brings it back with a full-screen
+  "still ringing" alert. Both are in Random and Quest mode.
 - **Quick presets & turn all off/on** — a new alarm offers one-tap
   Weekdays 7:00 / Weekend 9:00 / Every day 6:30; Alarms tab → ⋮ turns every
   alarm off (or on) at once, with Undo that restores exactly what changed.

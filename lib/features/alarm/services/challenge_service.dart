@@ -41,6 +41,8 @@ class ChallengeService {
   /// time (a registered QR code or photo) or hardware that may be absent.
   static const pickable = [
     ChallengeType.math,
+    ChallengeType.morningQuiz,
+    ChallengeType.recall,
     ChallengeType.memoryPattern,
     ChallengeType.shakeToWake,
     ChallengeType.typing,
@@ -54,6 +56,8 @@ class ChallengeService {
   /// because the user is choosing each step deliberately.
   static const questPickable = [
     ChallengeType.math,
+    ChallengeType.morningQuiz,
+    ChallengeType.recall,
     ChallengeType.memoryPattern,
     ChallengeType.shakeToWake,
     ChallengeType.typing,
@@ -98,6 +102,10 @@ class ChallengeService {
         return 'Color Clash';
       case ChallengeType.random:
         return 'Random';
+      case ChallengeType.morningQuiz:
+        return 'Wake-up Questions';
+      case ChallengeType.recall:
+        return 'Remember & Recall';
     }
   }
 }

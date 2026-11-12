@@ -40,6 +40,59 @@ class AlarmForegroundService : Service() {
         const val EXTRA_HARDCORE = "hardcore"
         const val EXTRA_SNOOZE_MINUTES = "snooze_minutes"
         const val METHOD_CHANNEL = "alarmplus/alarm_controls"
+        private const val RETURN_NOTIFICATION_ID = 9998
+
+        /** True from the start of a real ring until the service stops. */
+        @Volatile
+        var isRinging: Boolean = false
+            private set
+
+        /**
+         * The user left the ring screen (Home, Recents, another app) while
+         * the alarm is still ringing: post a full-screen "finish your
+         * challenge" notification, so the ring screen comes back (over the
+         * lock screen it reopens directly; unlocked it shows as a heads-up).
+         */
+        fun postReturnReminder(context: Context) {
+            if (!isRinging) return
+            val open = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                )
+            }
+            val pi = PendingIntent.getActivity(
+                context, 3, open,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val n = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle("Your alarm is still ringing")
+                .setContentText("Tap to finish your wake-up challenge")
+                .setSmallIcon(R.drawable.ic_stat_alarm)
+                .setColor(0xFFDC2626.toInt())
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(pi, true)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .setTimeoutAfter(10 * 60 * 1000L)
+                .build()
+            try {
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.notify(RETURN_NOTIFICATION_ID, n)
+            } catch (e: SecurityException) {
+                // Notifications denied: nothing we can show.
+            }
+        }
+
+        fun cancelReturnReminder(context: Context) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancel(RETURN_NOTIFICATION_ID)
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -77,6 +130,7 @@ class AlarmForegroundService : Service() {
             return START_STICKY
         }
         alarmId = newAlarmId
+        isRinging = true
         hardcore = intent.getBooleanExtra(EXTRA_HARDCORE, false)
         snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 5)
 
@@ -125,6 +179,8 @@ class AlarmForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        isRinging = false
+        cancelReturnReminder(this)
         stopNativeRingtone()
         releaseWakeLock()
         unregisterVolumeReceiverSafe()

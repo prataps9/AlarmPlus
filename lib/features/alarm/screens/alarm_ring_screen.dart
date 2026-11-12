@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 
+import 'package:alarm_plus/features/alarm/challenges/wake_brain_challenges.dart';
+import 'package:alarm_plus/features/alarm/challenges/morning_quiz.dart';
 import 'package:alarm_plus/features/alarm/challenges/photo_hash.dart';
 import 'package:alarm_plus/features/alarm/challenges/photo_proof_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/squat_challenge_widget.dart';
@@ -319,7 +321,49 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
         );
       case ChallengeType.random:
         return _showChallenge(ChallengeService.randomChallenge());
+      case ChallengeType.morningQuiz:
+        final facts = await _quizFacts();
+        if (!mounted) return false;
+        final alarm = AlarmService.findByIntId(_alarmId);
+        return _showOverlayChallenge(
+          (onPass, _) => MorningQuizChallengeWidget(
+            facts: facts,
+            // Hardcore and boss mornings get more questions.
+            count: (alarm?.hardcoreMode ?? false) || _isBossMode ? 5 : 3,
+            onPassed: onPass,
+          ),
+        );
+      case ChallengeType.recall:
+        return _showOverlayChallenge(
+          (onPass, _) => RecallChallengeWidget(onPassed: onPass),
+        );
     }
+  }
+
+  /// What the wake-up questions may ask about: this alarm, the streak and
+  /// when you got up yesterday. Anything that can't be read is left out.
+  Future<QuizFacts> _quizFacts() async {
+    final alarm = AlarmService.findByIntId(_alarmId);
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    int? streak;
+    DateTime? yesterday;
+    try {
+      streak = (await SmartAlarmService.getStats()).currentStreak;
+      final now = DateTime.now();
+      final y = DateTime(now.year, now.month, now.day - 1);
+      for (final s in await SmartAlarmService.getWakeScoreHistory()) {
+        final d = s.date;
+        if (d.year == y.year && d.month == y.month && d.day == y.day) yesterday = d;
+      }
+    } catch (_) {}
+    return QuizFacts(
+      alarmHour: alarm?.time.hour,
+      alarmMinute: alarm?.time.minute,
+      alarmLabel: alarm?.label,
+      streak: streak,
+      yesterdayWake: yesterday,
+      use24h: use24h,
+    );
   }
 
   Future<bool> _showMathChallenge() async {

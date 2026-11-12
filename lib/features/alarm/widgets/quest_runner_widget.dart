@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:alarm_plus/features/alarm/challenges/wake_brain_challenges.dart';
+import 'package:alarm_plus/features/alarm/challenges/morning_quiz.dart';
 import 'package:alarm_plus/features/alarm/challenges/barcode_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/color_clash_challenge_widget.dart';
 import 'package:alarm_plus/features/alarm/challenges/eye_open_challenge_widget.dart';
@@ -217,6 +219,15 @@ class _QuestRunnerWidgetState extends State<QuestRunnerWidget> {
         );
       case ChallengeType.random:
         return _buildCurrentChallenge(ChallengeService.randomChallenge());
+      case ChallengeType.morningQuiz:
+        return MorningQuizChallengeWidget(
+          facts: QuizFacts(
+            use24h: MediaQuery.alwaysUse24HourFormatOf(context),
+          ),
+          onPassed: _onStepPassed,
+        );
+      case ChallengeType.recall:
+        return RecallChallengeWidget(onPassed: _onStepPassed);
     }
   }
 }
@@ -320,6 +331,10 @@ class _QuestStepBar extends StatelessWidget {
         return Icons.palette_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
+      case ChallengeType.morningQuiz:
+        return Icons.wb_twilight_rounded;
+      case ChallengeType.recall:
+        return Icons.psychology_rounded;
     }
   }
 }

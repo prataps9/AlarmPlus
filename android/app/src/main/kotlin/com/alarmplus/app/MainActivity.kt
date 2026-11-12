@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -27,6 +28,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private var ringtoneResult: MethodChannel.Result? = null
+
+    /** The ring screen is showing a real (not preview) ringing alarm. */
+    private var ringOnScreen = false
 
     /** The morning briefing's voice; created on first use, freed with the activity. */
     private var tts: TextToSpeech? = null
@@ -111,10 +115,13 @@ class MainActivity : FlutterActivity() {
                         result.success(uri?.toString())
                     }
                     "ringScreenShown" -> {
+                        ringOnScreen = true
                         setShowOverLockScreen(true)
                         result.success(null)
                     }
                     "ringScreenClosed" -> {
+                        ringOnScreen = false
+                        AlarmForegroundService.cancelReturnReminder(this)
                         setShowOverLockScreen(false)
                         dismissKeyguard()
                         result.success(null)
@@ -138,7 +145,8 @@ class MainActivity : FlutterActivity() {
                     }
                     "speak" -> {
                         val text = call.argument<String>("text")
-                        if (!text.isNullOrBlank()) speak(text)
+                        val alarmStream = call.argument<Boolean>("alarmStream") ?: false
+                        if (!text.isNullOrBlank()) speak(text, alarmStream)
                         result.success(null)
                     }
                     "liveAlarmSync" -> {
@@ -177,13 +185,25 @@ class MainActivity : FlutterActivity() {
      * morning briefing). The engine starts asynchronously, so the first
      * request waits for it.
      */
-    private fun speak(text: String) {
+    /**
+     * Per-utterance options: [alarmStream] plays it on the alarm stream (wake
+     * challenges), so it is heard at alarm volume over the ringing.
+     */
+    private fun speechParams(alarmStream: Boolean): Bundle? =
+        if (!alarmStream) null else Bundle().apply {
+            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_ALARM)
+        }
+
+    private var pendingAlarmStream = false
+
+    private fun speak(text: String, alarmStream: Boolean = false) {
         val engine = tts
         if (engine != null && ttsReady) {
-            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "briefing")
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, speechParams(alarmStream), "briefing")
             return
         }
         pendingSpeech = text
+        pendingAlarmStream = alarmStream
         if (engine != null) return
         tts = TextToSpeech(applicationContext) { status ->
             if (status != TextToSpeech.SUCCESS) {
@@ -202,10 +222,24 @@ class MainActivity : FlutterActivity() {
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
-                pendingSpeech?.let { t.speak(it, TextToSpeech.QUEUE_FLUSH, null, "briefing") }
+                pendingSpeech?.let {
+                    t.speak(it, TextToSpeech.QUEUE_FLUSH, speechParams(pendingAlarmStream), "briefing")
+                }
                 pendingSpeech = null
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back on the ring screen: the "still ringing" reminder is done.
+        AlarmForegroundService.cancelReturnReminder(this)
+    }
+
+    /** Home or Recents pressed while an alarm rings: bring it back. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (ringOnScreen) AlarmForegroundService.postReturnReminder(this)
     }
 
     override fun onDestroy() {

@@ -247,6 +247,10 @@ class _QuestBuilderScreenState extends State<QuestBuilderScreen> {
         return Icons.palette_rounded;
       case ChallengeType.random:
         return Icons.shuffle_rounded;
+      case ChallengeType.morningQuiz:
+        return Icons.wb_twilight_rounded;
+      case ChallengeType.recall:
+        return Icons.psychology_rounded;
     }
   }
 }

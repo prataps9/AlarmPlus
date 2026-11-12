@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
+import 'package:alarm_plus/features/alarm/models/alarm_presets.dart';
 import 'package:alarm_plus/features/alarm/models/upcoming_rings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_personality.dart';
 import 'package:alarm_plus/shared/widgets/skeleton.dart';
@@ -164,6 +165,25 @@ class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
       ));
   }
 
+  /// "Turn all off/on", with Undo that restores exactly what changed.
+  Future<void> _switchAll(bool on) async {
+    final notifier = ref.read(alarmsMapProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    HapticFeedback.mediumImpact();
+    final changed = await notifier.setAllEnabled(on);
+    if (changed.isEmpty) return;
+    final n = changed.length;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('$n alarm${n == 1 ? '' : 's'} turned ${on ? 'on' : 'off'}'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => notifier.setEnabled(changed, !on),
+        ),
+      ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final alarmsAsync = ref.watch(alarmsListProvider);
@@ -171,6 +191,10 @@ class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
     final hasRepeating =
         (alarmsAsync.valueOrNull ?? const []).any((a) => a.repeatDays.isNotEmpty);
     final hasAlarms = (alarmsAsync.valueOrNull ?? const []).isNotEmpty;
+    final own = (alarmsAsync.valueOrNull ?? const <AlarmModel>[])
+        .where((a) => !a.isSystem);
+    final anyOn = own.any((a) => a.isEnabled);
+    final anyOff = own.any((a) => !a.isEnabled);
 
     return Scaffold(
       appBar: AppBar(
@@ -183,12 +207,18 @@ class _AlarmsScreenState extends ConsumerState<AlarmsScreen> {
                   _showWeek(alarmsAsync.valueOrNull ?? const []);
                 }
                 if (v == 'pause') _pickPause();
+                if (v == 'all_off') _switchAll(false);
+                if (v == 'all_on') _switchAll(true);
                 if (v == 'resume') {
                   ref.read(alarmsMapProvider.notifier).pauseRepeatingUntil(null);
                 }
               },
               itemBuilder: (_) => [
                 const PopupMenuItem(value: 'week', child: Text('Next 7 days')),
+                if (anyOn)
+                  const PopupMenuItem(value: 'all_off', child: Text('Turn all off')),
+                if (anyOff)
+                  const PopupMenuItem(value: 'all_on', child: Text('Turn all on')),
                 if (hasRepeating)
                   PopupMenuItem(
                     value: 'pause',
@@ -734,6 +764,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
               ),
               const SizedBox(height: 24),
               _buildTimePicker(context),
+              if (!_isEditing) ...[
+                const SizedBox(height: 8),
+                _buildPresets(context),
+              ],
               const SizedBox(height: 18),
               TextField(
                 controller: _labelController,
@@ -1615,7 +1649,7 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
     final scheme = Theme.of(context).colorScheme;
     final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
     final clock = TimeFormat.clock(_hour24, _minute, use24h: use24h);
-    return Semantics(
+    return Center(child: Semantics(
       button: true,
       label: 'Alarm time, ${clock.time} ${clock.period ?? ''}. Tap to change',
       child: InkWell(
@@ -1634,9 +1668,10 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
                   children: [
                     Text(
                       clock.time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 72,
                         fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
                       ),
                     ),
                     if (clock.period != null) ...[
@@ -1660,6 +1695,38 @@ class _AddAlarmSheetState extends ConsumerState<_AddAlarmSheet> {
             ],
           ),
         ),
+      ),
+    ));
+  }
+
+  /// One-tap starting points for a new alarm (time + repeat days).
+  Widget _buildPresets(BuildContext context) {
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final p in AlarmPreset.all)
+            ActionChip(
+              label: Text(
+                '${p.label} · ${TimeFormat.clockLabel(p.hour, p.minute, use24h: use24h)}',
+              ),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _isAm = p.hour < 12;
+                  _hour = _formatHour(p.hour);
+                  _minute = p.minute;
+                  _date = null;
+                  _repeatDays
+                    ..clear()
+                    ..addAll(p.days);
+                });
+              },
+            ),
+        ],
       ),
     );
   }

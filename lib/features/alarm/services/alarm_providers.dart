@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alarm_plus/features/alarm/models/alarm_presets.dart';
 import 'package:alarm_plus/core/services/app_settings.dart';
 import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/shared/models/challenge_type.dart';
@@ -213,6 +214,25 @@ class AlarmsNotifier extends StateNotifier<Future<Map<String, AlarmModel>>> {
     map[id] = AlarmService.getAllAlarms().where((a) => a.id == id).firstOrNull ??
         alarm.copyWith(isEnabled: on);
     state = Future.value(Map.from(map));
+  }
+
+  /// Switches every one of the user's alarms [on] or off. Returns the ids
+  /// it changed, so the caller can offer Undo with [setEnabled].
+  Future<List<String>> setAllEnabled(bool on) async {
+    final map = await state;
+    final ids = idsToSwitch(
+      map.values.map((a) => (id: a.id, enabled: a.isEnabled, system: a.isSystem)),
+      on: on,
+    );
+    await setEnabled(ids, on);
+    return ids;
+  }
+
+  /// Switches the alarms with [ids] [on] or off.
+  Future<void> setEnabled(List<String> ids, bool on) async {
+    for (final id in ids) {
+      await toggleAlarm(id, on);
+    }
   }
 
   /// Skip, or un-skip, the next occurrence of a repeating alarm.

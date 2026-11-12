@@ -59,6 +59,9 @@ guardian alerts, and an optional hardcore anti-cheat mode for heavy sleepers.
   chosen date (Alarms tab → ⋮), with a banner and one-tap Resume.
 - **Dark mode** — follows the phone's light/dark setting (no picker); the
   bedtime screens are always dark.
+- **Quick presets & turn all off/on** — a new alarm offers one-tap
+  Weekdays 7:00 / Weekend 9:00 / Every day 6:30; Alarms tab → ⋮ turns every
+  alarm off (or on) at once, with Undo that restores exactly what changed.
 - **Undo & duplicate** — swiping an alarm away deletes it with an Undo
   snackbar; long-press an alarm to duplicate it (voice memo included).
 - **24-hour editor** — the alarm time picker follows the phone's 24-hour

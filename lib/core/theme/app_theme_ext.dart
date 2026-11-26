@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 
-/// Colors that carry meaning but have no slot in Material's [ColorScheme] —
-/// success/warning states, the streak flame ramp, and the chart series.
+/// Colours that carry meaning but have no slot in Material's [ColorScheme]:
+/// success and danger, the streak flame ramp, and the chart series.
 ///
-/// These live in a [ThemeExtension] so every one of them has a light *and* a
-/// dark value. Reading them via `context.semantics` is what keeps screens from
-/// hardcoding `Colors.white` and breaking in dark mode.
+/// Everything here is the accent (in different strengths), a neutral, or one
+/// of the two status colours, so the app keeps a single look. Each has a light
+/// and a dark value; read them via `context.semantics`.
 @immutable
 class AppSemantics extends ThemeExtension<AppSemantics> {
   const AppSemantics({
@@ -23,10 +23,13 @@ class AppSemantics extends ThemeExtension<AppSemantics> {
   });
 
   final Color success;
+
+  /// A caution that is not an error: the accent itself.
   final Color warning;
   final Color danger;
 
-  /// Streak flame tiers, mirroring the tiers the Android widget renders.
+  /// Streak flame tiers, mirroring the tiers the Android widget renders: the
+  /// accent gets stronger as the streak grows, grey when there is none.
   final Color streakGold;
   final Color streakHot;
   final Color streakWarm;
@@ -36,37 +39,37 @@ class AppSemantics extends ThemeExtension<AppSemantics> {
   final Color chartGrid;
 
   static const light = AppSemantics(
-    success: Palette.green600,
-    warning: Palette.amber500,
-    danger: Palette.red500,
-    streakGold: Palette.amber400,
-    streakHot: Palette.orange500,
-    streakWarm: Palette.red500,
-    streakCold: Palette.slate400,
+    success: Palette.green700,
+    warning: Palette.orange700,
+    danger: Palette.red600,
+    streakGold: Palette.orange700,
+    streakHot: Palette.orange700,
+    streakWarm: Palette.orange400,
+    streakCold: Palette.stone400,
     chartSeries: [
-      Palette.green500,
-      Palette.indigo500,
-      Palette.amber500,
-      Palette.pink500,
+      Palette.orange700,
+      Palette.stone600,
+      Palette.orange400,
+      Palette.stone400,
     ],
-    chartGrid: Palette.slate200,
+    chartGrid: Palette.stone200,
   );
 
   static const dark = AppSemantics(
-    success: Palette.green500,
-    warning: Palette.amber400,
-    danger: Palette.red500,
-    streakGold: Palette.amber400,
-    streakHot: Palette.orange500,
-    streakWarm: Palette.red500,
-    streakCold: Palette.slate500,
+    success: Palette.green400,
+    warning: Palette.orange400,
+    danger: Palette.red400,
+    streakGold: Palette.orange400,
+    streakHot: Palette.orange400,
+    streakWarm: Palette.orange700,
+    streakCold: Palette.stone500,
     chartSeries: [
-      Palette.green500,
-      Palette.indigo500,
-      Palette.amber400,
-      Palette.pink500,
+      Palette.orange400,
+      Palette.stone300,
+      Palette.orange700,
+      Palette.stone500,
     ],
-    chartGrid: Palette.slate700,
+    chartGrid: Palette.nightLine,
   );
 
   @override

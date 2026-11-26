@@ -108,6 +108,13 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release --build-name="${{ steps.version.outputs.version }}" --no-tree-shake-icons
 
+      # Refuse to publish an APK with a broken manifest/resources (see
+      # tool/check_apk.py). --skip-version: the tag may override pubspec.
+      - name: Check the built APK
+        run: |
+          pip install --quiet androguard
+          python tool/check_apk.py --skip-version build/app/outputs/flutter-apk/app-release.apk
+
       - name: Build release AAB
         run: flutter build appbundle --release --build-name="${{ steps.version.outputs.version }}" --no-tree-shake-icons
 

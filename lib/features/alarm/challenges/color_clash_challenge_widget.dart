@@ -146,24 +146,25 @@ class _ColorClashChallengeWidgetState extends State<ColorClashChallengeWidget> {
       ),
     );
 
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'Color Clash',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: scheme.onSurface),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Tap the colour of the INK, not the word',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(
@@ -178,7 +179,7 @@ class _ColorClashChallengeWidgetState extends State<ColorClashChallengeWidget> {
                   decoration: BoxDecoration(
                     color: i < _game.streak
                         ? const Color(0xFF22C55E)
-                        : const Color(0xFFE2E8F0),
+                        : scheme.outlineVariant,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -218,14 +219,14 @@ class _ColorClashChallengeWidgetState extends State<ColorClashChallengeWidget> {
                   onPressed: () => _tap(c),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
+                    side: BorderSide(color: scheme.outline, width: 1.5),
                   ),
                   child: Text(
                     c.word,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: Color(0xFF0F172A),
+                      color: scheme.onSurface,
                     ),
                   ),
                 ),

@@ -42,6 +42,12 @@ class NapService {
     return remaining.clamp(0, durationMin * 60);
   }
 
+  /// The nap's full length, for the countdown ring.
+  static Future<int> getDurationSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getInt(_durationKey) ?? 0) * 60;
+  }
+
   static Future<bool> checkMissedNap() async {
     final active = await isNapActive();
     if (!active) return false;

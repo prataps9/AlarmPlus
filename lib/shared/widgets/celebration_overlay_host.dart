@@ -117,9 +117,9 @@ class _CelebrationBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+          border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5),
           boxShadow: const [
             BoxShadow(color: Color(0x22000000), blurRadius: 16, offset: Offset(0, 6)),
           ],
@@ -135,7 +135,7 @@ class _CelebrationBanner extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),

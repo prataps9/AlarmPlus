@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:alarm_plus/core/theme/app_tokens.dart';
+
 /// Plain data for [ShareCardWidget] — kept separate from live app state so
 /// callers can pass in values already on hand (e.g. from a `DismissReward`)
 /// without this widget depending on any service directly.
@@ -46,13 +48,7 @@ class ShareCardWidget extends StatelessWidget {
       width: width,
       height: height,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-          ),
-        ),
+        decoration: const BoxDecoration(color: Palette.night),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(72, 96, 72, 72),
           child: Column(
@@ -66,12 +62,12 @@ class ShareCardWidget extends StatelessWidget {
                     height: 200,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF334155), width: 3),
+                      border: Border.all(color: Palette.nightLine, width: 3),
                     ),
                     child: const Icon(
                       Icons.local_fire_department_rounded,
                       size: 120,
-                      color: Color(0xFF22C55E),
+                      color: Palette.orange400,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -83,7 +79,7 @@ class ShareCardWidget extends StatelessWidget {
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 64,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: Palette.stone50,
                     ),
                   ),
                   if (_isNewBest) ...[
@@ -105,7 +101,7 @@ class ShareCardWidget extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(height: 2, width: 120, color: const Color(0xFF334155)),
+                  Container(height: 2, width: 120, color: Palette.nightLine),
                   const SizedBox(height: 20),
                   Text(
                     'ALARM+',
@@ -113,7 +109,7 @@ class ShareCardWidget extends StatelessWidget {
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
-                      color: const Color(0xFF22C55E),
+                      color: Palette.orange400,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -121,7 +117,7 @@ class ShareCardWidget extends StatelessWidget {
                     'Wake up. Level up.',
                     style: GoogleFonts.dmSans(
                       fontSize: 22,
-                      color: const Color(0xFF94A3B8),
+                      color: Palette.stone400,
                     ),
                   ),
                 ],
@@ -142,9 +138,7 @@ class _NewBestBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFBBF24), Color(0xFFF97316)],
-        ),
+        color: Palette.orange400,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -153,7 +147,7 @@ class _NewBestBadge extends StatelessWidget {
           fontSize: 22,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
-          color: const Color(0xFF0F172A),
+          color: Palette.night,
         ),
       ),
     );
@@ -171,16 +165,16 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Palette.nightRaised,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: Palette.nightLine),
       ),
       child: Text(
         '$label · $value',
         style: GoogleFonts.dmSans(
           fontSize: 28,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: Palette.stone50,
         ),
       ),
     );

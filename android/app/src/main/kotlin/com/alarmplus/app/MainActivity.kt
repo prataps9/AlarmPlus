@@ -3,14 +3,21 @@ package com.alarmplus.app
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
+import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
 
@@ -22,18 +29,58 @@ class MainActivity : FlutterActivity() {
 
     private var ringtoneResult: MethodChannel.Result? = null
 
+    /** The ring screen is showing a real (not preview) ringing alarm. */
+    private var ringOnScreen = false
+
+    /** The morning briefing's voice; created on first use, freed with the activity. */
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        }
+        // Show over the lock screen so a ringing alarm is visible at wake-up.
+        // The keyguard is deliberately not dismissed here: on a secure lock
+        // that put the PIN pad over the ring screen. Dart calls
+        // "ringScreenClosed" once the alarm is dealt with instead.
+        setShowOverLockScreen(true)
+    }
 
-        val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // A later alarm reopening the running activity (singleTop) after
+        // "ringScreenClosed" turned this off must still show over the lock.
+        setShowOverLockScreen(true)
+    }
+
+    private fun setShowOverLockScreen(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+            setTurnScreenOn(show)
+        } else {
+            @Suppress("DEPRECATION")
+            val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            if (show) window.addFlags(flags) else window.clearFlags(flags)
+        }
+    }
+
+    /** Leaves the lock screen: the user unlocks to carry on into the app. */
+    private fun dismissKeyguard() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val km = getSystemService(KEYGUARD_SERVICE) as? KeyguardManager ?: return
             km.requestDismissKeyguard(this, null)
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        // Widget/tile taps and the ring service look the engine up here; left
+        // cached after the activity is gone, they "delivered" commands to a
+        // destroyed engine and the taps were lost.
+        val cache = FlutterEngineCache.getInstance()
+        if (cache.get(ENGINE_ID) === flutterEngine) cache.remove(ENGINE_ID)
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -67,9 +114,152 @@ class MainActivity : FlutterActivity() {
                         val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                         result.success(uri?.toString())
                     }
+                    "ringScreenShown" -> {
+                        ringOnScreen = true
+                        setShowOverLockScreen(true)
+                        result.success(null)
+                    }
+                    "ringScreenClosed" -> {
+                        ringOnScreen = false
+                        AlarmForegroundService.cancelReturnReminder(this)
+                        setShowOverLockScreen(false)
+                        dismissKeyguard()
+                        result.success(null)
+                    }
+                    "cacheRingtone" -> {
+                        val uri = call.argument<String>("uri")
+                        if (uri.isNullOrEmpty()) {
+                            result.success(null)
+                        } else {
+                            Thread {
+                                val path = cacheRingtone(uri)
+                                runOnUiThread { result.success(path) }
+                            }.start()
+                        }
+                    }
+                    "syncGeofences" -> {
+                        val fences = call.argument<String>("fences") ?: "[]"
+                        GeofenceManager.sync(this, fences) { ok ->
+                            runOnUiThread { result.success(ok) }
+                        }
+                    }
+                    "openScreenSaverSettings" -> {
+                        // Settings → Display → Screen saver, where Alarm+ can be picked.
+                        val opened = try {
+                            startActivity(Intent(android.provider.Settings.ACTION_DREAM_SETTINGS))
+                            true
+                        } catch (e: Exception) {
+                            try {
+                                startActivity(Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS))
+                                true
+                            } catch (e2: Exception) { false }
+                        }
+                        result.success(opened)
+                    }
+                    "speak" -> {
+                        val text = call.argument<String>("text")
+                        val alarmStream = call.argument<Boolean>("alarmStream") ?: false
+                        if (!text.isNullOrBlank()) speak(text, alarmStream)
+                        result.success(null)
+                    }
+                    "liveAlarmSync" -> {
+                        LiveActivity.syncAlarm(this, call.argument<String>("ring"))
+                        result.success(null)
+                    }
+                    "startHealthTest" -> {
+                        val delay = call.argument<Int>("delaySeconds") ?: 60
+                        result.success(ReliabilityTest.start(this, delay))
+                    }
+                    "cancelHealthTest" -> {
+                        ReliabilityTest.cancel(this)
+                        result.success(null)
+                    }
+                    "healthTestResult" -> result.success(ReliabilityTest.result(this))
+                    "phoneMaker" -> result.success(ReliabilityTest.maker())
+                    "openAutostartSettings" -> {
+                        result.success(
+                            try {
+                                ReliabilityTest.openAutostartSettings(this)
+                            } catch (_: Exception) {
+                                null
+                            }
+                        )
+                    }
+                    "hasBackgroundLocation" -> {
+                        result.success(GeofenceManager.hasAccess(this))
+                    }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * Reads [text] aloud with the phone's own text-to-speech engine (the
+     * morning briefing). The engine starts asynchronously, so the first
+     * request waits for it.
+     */
+    /**
+     * Per-utterance options: [alarmStream] plays it on the alarm stream (wake
+     * challenges), so it is heard at alarm volume over the ringing.
+     */
+    private fun speechParams(alarmStream: Boolean): Bundle? =
+        if (!alarmStream) null else Bundle().apply {
+            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_ALARM)
+        }
+
+    private var pendingAlarmStream = false
+
+    private fun speak(text: String, alarmStream: Boolean = false) {
+        val engine = tts
+        if (engine != null && ttsReady) {
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, speechParams(alarmStream), "briefing")
+            return
+        }
+        pendingSpeech = text
+        pendingAlarmStream = alarmStream
+        if (engine != null) return
+        tts = TextToSpeech(applicationContext) { status ->
+            if (status != TextToSpeech.SUCCESS) {
+                // No engine on this phone: drop it, and try afresh next time.
+                runOnUiThread {
+                    pendingSpeech = null
+                    tts?.shutdown()
+                    tts = null
+                }
+            } else runOnUiThread {
+                val t = tts ?: return@runOnUiThread
+                ttsReady = true
+                t.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                pendingSpeech?.let {
+                    t.speak(it, TextToSpeech.QUEUE_FLUSH, speechParams(pendingAlarmStream), "briefing")
+                }
+                pendingSpeech = null
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back on the ring screen: the "still ringing" reminder is done.
+        AlarmForegroundService.cancelReturnReminder(this)
+    }
+
+    /** Home or Recents pressed while an alarm rings: bring it back. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (ringOnScreen) AlarmForegroundService.postReturnReminder(this)
+    }
+
+    override fun onDestroy() {
+        tts?.shutdown()
+        tts = null
+        ttsReady = false
+        super.onDestroy()
     }
 
     private fun pickRingtone(currentUri: String?, result: MethodChannel.Result) {
@@ -89,6 +279,39 @@ class MainActivity : FlutterActivity() {
             }
         }
         startActivityForResult(intent, REQ_PICK_RINGTONE)
+    }
+
+    /**
+     * Copies a picked content:// sound into app storage so the alarm plugin
+     * can play it from a file path, even when this process was dead at ring
+     * time. Returns the file's absolute path, or null if it can't be read.
+     */
+    private fun cacheRingtone(uriString: String): String? {
+        return try {
+            val uri = Uri.parse(uriString)
+            val digest = MessageDigest.getInstance("SHA-1")
+                .digest(uriString.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            val ext = contentResolver.getType(uri)
+                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+                ?: "snd"
+            val dir = File(filesDir, "ringtones").apply { mkdirs() }
+            val file = File(dir, "$digest.$ext")
+            if (file.exists() && file.length() > 0) return file.absolutePath
+
+            // Copy to a temp file first so a failed copy never leaves a
+            // truncated file that the size check above would reuse.
+            val tmp = File(dir, "$digest.$ext.tmp")
+            val input = contentResolver.openInputStream(uri) ?: return null
+            input.use { inp -> tmp.outputStream().use { out -> inp.copyTo(out) } }
+            if (tmp.length() <= 0 || !tmp.renameTo(file)) {
+                tmp.delete()
+                return null
+            }
+            file.absolutePath
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun getRingtoneTitle(uri: String?): String {

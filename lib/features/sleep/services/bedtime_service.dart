@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -51,18 +52,26 @@ class BedtimeService {
 
   static String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
+  /// Next wind-down reminder: bedtime minus the wind-down, as a wall-clock
+  /// time, today or tomorrow. Built from calendar fields; adding a 24-hour
+  /// Duration across a DST change put the (daily-repeating) reminder an hour
+  /// off for good.
+  @visibleForTesting
+  static DateTime reminderTime(BedtimeSchedule schedule, DateTime now) {
+    final bed = schedule.targetBedtime;
+    final minutes =
+        (bed.hour * 60 + bed.minute - schedule.windDownMinutes) % (24 * 60);
+    final h = minutes ~/ 60, m = minutes % 60;
+    final today = DateTime(now.year, now.month, now.day, h, m);
+    return today.isBefore(now)
+        ? DateTime(now.year, now.month, now.day + 1, h, m)
+        : today;
+  }
+
   static Future<void> _scheduleWindDownNotification(BedtimeSchedule schedule) async {
     await _notifs.cancel(_notifId);
 
-    final now = DateTime.now();
-    final bedHour = schedule.targetBedtime.hour;
-    final bedMin = schedule.targetBedtime.minute;
-    var bedtime = DateTime(now.year, now.month, now.day, bedHour, bedMin)
-        .subtract(Duration(minutes: schedule.windDownMinutes));
-
-    if (bedtime.isBefore(now)) {
-      bedtime = bedtime.add(const Duration(days: 1));
-    }
+    final bedtime = reminderTime(schedule, DateTime.now());
 
     final tzBedtime = tz.TZDateTime.from(bedtime, tz.local);
 

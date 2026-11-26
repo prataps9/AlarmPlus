@@ -17,6 +17,16 @@ import es.antonborri.home_widget.HomeWidgetProvider
  */
 class AlarmWidgetProvider : HomeWidgetProvider() {
 
+  override fun onReceive(context: Context, intent: Intent) {
+    super.onReceive(context, intent)
+    // Every WidgetSyncService.refresh() ends in this broadcast, placed widgets
+    // or not, so it is also the moment to let the Quick Settings tile re-read
+    // the same values (onUpdate only runs when a widget is placed).
+    if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+      AlarmTileService.requestRefresh(context)
+    }
+  }
+
   override fun onUpdate(
       context: Context,
       appWidgetManager: AppWidgetManager,
@@ -27,10 +37,10 @@ class AlarmWidgetProvider : HomeWidgetProvider() {
       val streak = widgetData.getInt("streak_days", 0)
       val nextAlarm = widgetData.getString("next_alarm", null) ?: "No alarm set"
       val flameColor = when {
-        streak >= 30 -> Color.parseColor("#FBBF24") // gold — on a roll
-        streak >= 7 -> Color.parseColor("#F97316") // orange
-        streak >= 3 -> Color.parseColor("#EF4444") // red-orange
-        else -> Color.parseColor("#94A3B8") // slate — just getting started
+        streak >= 30 -> Color.parseColor("#FB923C") // gold — on a roll
+        streak >= 7 -> Color.parseColor("#EA580C") // orange
+        streak >= 3 -> Color.parseColor("#FB923C") // red-orange
+        else -> Color.parseColor("#78716C") // slate — just getting started
       }
 
       val nextEnabled = widgetData.getBoolean("next_alarm_enabled", false)
@@ -49,7 +59,7 @@ class AlarmWidgetProvider : HomeWidgetProvider() {
         setInt(
             R.id.alarm_widget_toggle,
             "setColorFilter",
-            if (nextEnabled) Color.parseColor("#22C55E") else Color.parseColor("#64748B"))
+            if (nextEnabled) Color.parseColor("#4ADE80") else Color.parseColor("#57534E"))
         setOnClickPendingIntent(
             R.id.alarm_widget_toggle,
             actionIntent(context, AlarmWidgetActionReceiver.ACTION_TOGGLE, widgetId))
@@ -58,7 +68,7 @@ class AlarmWidgetProvider : HomeWidgetProvider() {
         setInt(
             R.id.alarm_widget_snooze,
             "setColorFilter",
-            if (ringing) Color.parseColor("#F97316") else Color.parseColor("#475569"))
+            if (ringing) Color.parseColor("#EA580C") else Color.parseColor("#57534E"))
         if (ringing) {
           setOnClickPendingIntent(
               R.id.alarm_widget_snooze,

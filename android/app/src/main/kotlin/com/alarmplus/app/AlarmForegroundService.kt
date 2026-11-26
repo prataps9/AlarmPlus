@@ -19,11 +19,12 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.view.KeyEvent
 import androidx.core.app.NotificationCompat
-import io.flutter.embedding.engine.FlutterEngineCache
+import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.MethodChannel
 
 class AlarmForegroundService : Service() {
@@ -39,6 +40,59 @@ class AlarmForegroundService : Service() {
         const val EXTRA_HARDCORE = "hardcore"
         const val EXTRA_SNOOZE_MINUTES = "snooze_minutes"
         const val METHOD_CHANNEL = "alarmplus/alarm_controls"
+        private const val RETURN_NOTIFICATION_ID = 9998
+
+        /** True from the start of a real ring until the service stops. */
+        @Volatile
+        var isRinging: Boolean = false
+            private set
+
+        /**
+         * The user left the ring screen (Home, Recents, another app) while
+         * the alarm is still ringing: post a full-screen "finish your
+         * challenge" notification, so the ring screen comes back (over the
+         * lock screen it reopens directly; unlocked it shows as a heads-up).
+         */
+        fun postReturnReminder(context: Context) {
+            if (!isRinging) return
+            val open = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                )
+            }
+            val pi = PendingIntent.getActivity(
+                context, 3, open,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val n = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle("Your alarm is still ringing")
+                .setContentText("Tap to finish your wake-up challenge")
+                .setSmallIcon(R.drawable.ic_stat_alarm)
+                .setColor(0xFFDC2626.toInt())
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(pi, true)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .setTimeoutAfter(10 * 60 * 1000L)
+                .build()
+            try {
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.notify(RETURN_NOTIFICATION_ID, n)
+            } catch (e: SecurityException) {
+                // Notifications denied: nothing we can show.
+            }
+        }
+
+        fun cancelReturnReminder(context: Context) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancel(RETURN_NOTIFICATION_ID)
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -51,26 +105,67 @@ class AlarmForegroundService : Service() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var mediaSession: MediaSession? = null
 
+    /**
+     * Settings → Volume buttons: "snooze" (default), "volume" (the keys change
+     * the alarm volume, as with no app capturing them) or "nothing".
+     */
+    private var volumeMode: String = "snooze"
+
+    private fun readVolumeMode(): String {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        return prefs.getString("flutter.alarm.volume_buttons", null) ?: "snooze"
+    }
+
+    private fun onVolumeKey() {
+        if (volumeMode == "snooze") sendSnoozeToFlutter()
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        // A null intent is a START_STICKY restart after the process died:
+        // the alarm it was ringing for is gone with it, and carrying on as
+        // alarm 0 left a permanent "Alarm ringing" notification.
+        if (intent == null || intent.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
         }
-        alarmId = intent?.getIntExtra(EXTRA_ALARM_ID, 0) ?: 0
-        hardcore = intent?.getBooleanExtra(EXTRA_HARDCORE, false) ?: false
-        snoozeMinutes = intent?.getIntExtra(EXTRA_SNOOZE_MINUTES, 5) ?: 5
+        val newAlarmId = intent.getIntExtra(EXTRA_ALARM_ID, 0)
+        if (newAlarmId <= 0) {
+            // startForegroundService() still has to be answered with
+            // startForeground(), even for a start that is ignored.
+            startForeground(NOTIFICATION_ID, buildNotification(alarmId))
+            if (alarmId <= 0) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            return START_STICKY
+        }
+        alarmId = newAlarmId
+        isRinging = true
+        hardcore = intent.getBooleanExtra(EXTRA_HARDCORE, false)
+        snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, 5)
 
         startForeground(NOTIFICATION_ID, buildNotification(alarmId))
+        // A repeat start (a second alarm, a notification tap, a cold-start
+        // replay) used to overwrite these without releasing them; the old
+        // looping ringtone kept sounding after Stop and the old media
+        // session kept turning volume keys into snoozes.
+        stopNativeRingtone()
+        releaseWakeLock()
+        unregisterVolumeReceiverSafe()
+        unregisterActionReceiverSafe()
+        stopMediaSession()
         acquireWakeLock()
         playNativeRingtoneIfSet(alarmId)
-        registerVolumeReceiver()
+        volumeMode = readVolumeMode()
+        // "Change volume": leave the keys to the system.
+        if (volumeMode != "volume") registerVolumeReceiver()
         registerActionReceiver()
-        startMediaSession()
+        if (volumeMode != "volume") startMediaSession()
 
         // START_STICKY restarts this service if the system kills it while an alarm is active
         return START_STICKY
@@ -78,8 +173,11 @@ class AlarmForegroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Only Hardcore alarms fight being swiped away; a normal alarm
-        // swiped away is the user's choice.
+        // swiped away is the user's choice. The Flutter engine went with the
+        // task, so nothing would ever stop the native ringtone: stop here.
         if (!hardcore) {
+            stopNativeRingtone()
+            stopSelf()
             super.onTaskRemoved(rootIntent)
             return
         }
@@ -98,6 +196,8 @@ class AlarmForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        isRinging = false
+        cancelReturnReminder(this)
         stopNativeRingtone()
         releaseWakeLock()
         unregisterVolumeReceiverSafe()
@@ -122,7 +222,11 @@ class AlarmForegroundService : Service() {
             // Route to the alarm stream, so the ringtone follows alarm volume
             // rather than media volume — a muted phone must still wake you.
             ringtone?.audioAttributes = alarmAudioAttributes()
-            ringtone?.isLooping = true
+            // Ringtone.setLooping is API 28; calling it below that throws
+            // NoSuchMethodError, which the catch below doesn't cover.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                ringtone?.isLooping = true
+            }
             requestAlarmAudioFocus()
             ringtone?.play()
         } catch (_: Exception) {}
@@ -210,7 +314,8 @@ class AlarmForegroundService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Alarm ringing")
             .setContentText("Open Alarm+ and beat the challenge to stop it")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setColor(0xFFDC2626.toInt())
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -218,6 +323,13 @@ class AlarmForegroundService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(fullScreenPi)
+            // Android 16 Live Updates: a red "Ringing" capsule in the status
+            // bar (Notification.EXTRA_REQUEST_PROMOTED_ONGOING and
+            // EXTRA_SHORT_CRITICAL_TEXT). Older versions ignore the extras.
+            .addExtras(Bundle().apply {
+                putBoolean("android.requestPromotedOngoing", true)
+                putString("android.shortCriticalText", "Ringing")
+            })
         if (!hardcore) {
             builder.addAction(
                 android.R.drawable.ic_media_pause,
@@ -230,6 +342,8 @@ class AlarmForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
+        // Channels are API 26+; minSdk is 24.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Active Alarm",
@@ -289,11 +403,11 @@ class AlarmForegroundService : Service() {
             session.setPlaybackToRemote(
                 object : VolumeProvider(VOLUME_CONTROL_ABSOLUTE, 100, 50) {
                     override fun onAdjustVolume(direction: Int) {
-                        if (direction != 0) sendSnoozeToFlutter()
+                        if (direction != 0) onVolumeKey()
                     }
 
                     override fun onSetVolumeTo(volume: Int) {
-                        sendSnoozeToFlutter()
+                        onVolumeKey()
                     }
                 }
             )
@@ -328,7 +442,7 @@ class AlarmForegroundService : Service() {
                 if (event?.action == KeyEvent.ACTION_DOWN &&
                     (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
                      event.keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-                    sendSnoozeToFlutter()
+                    onVolumeKey()
                 }
             }
         }
@@ -351,7 +465,7 @@ class AlarmForegroundService : Service() {
     // ── Notification action buttons → snooze / stop ──────────────────────────
 
     private fun registerActionReceiver() {
-        actionReceiver = object : BroadcastReceiver() {
+        val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     ACTION_SNOOZE_FROM_NOTIFICATION -> sendSnoozeToFlutter()
@@ -359,16 +473,21 @@ class AlarmForegroundService : Service() {
                 }
             }
         }
+        actionReceiver = receiver
         val filter = IntentFilter().apply {
             addAction(ACTION_SNOOZE_FROM_NOTIFICATION)
             addAction(ACTION_STOP_FROM_NOTIFICATION)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(actionReceiver, filter, RECEIVER_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(actionReceiver, filter)
-        }
+        // Only our own notification's PendingIntents send these. Exported,
+        // any app could broadcast them and snooze or stop the alarm.
+        // ContextCompat also protects pre-33 devices via a signature
+        // permission.
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     private fun unregisterActionReceiverSafe() {
@@ -390,10 +509,11 @@ class AlarmForegroundService : Service() {
 
     private fun invokeFlutterMethod(method: String, arg: Any?) {
         try {
-            val engine = FlutterEngineCache.getInstance().get("main_engine")
-            engine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                MethodChannel(messenger, METHOD_CHANNEL).invokeMethod(method, arg)
-            }
+            // Null once MainActivity has torn its engine down; a call into a
+            // destroyed engine would just vanish.
+            val engine = WidgetCommandBridge.liveEngine() ?: return
+            MethodChannel(engine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
+                .invokeMethod(method, arg)
         } catch (_: Exception) {}
     }
 }

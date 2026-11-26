@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/features/sleep/models/sleep_sound.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_sound_service.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class SleepSoundsScreen extends StatefulWidget {
   const SleepSoundsScreen({super.key});
@@ -62,7 +63,7 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1e293b),
+      backgroundColor: context.colors.surfaceContainer,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => StatefulBuilder(
@@ -75,21 +76,21 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: context.colors.outline,
                       borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 20),
               Row(children: [
                 Text(sound.icon, style: const TextStyle(fontSize: 32)),
                 const SizedBox(width: 12),
                 Text(sound.displayName,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: context.colors.onSurface,
                         fontWeight: FontWeight.w800,
                         fontSize: 22)),
               ]),
               const SizedBox(height: 20),
               Row(children: [
-                const Icon(Icons.volume_up_rounded, color: Colors.white54, size: 20),
+                Icon(Icons.volume_up_rounded, color: context.colors.onSurfaceVariant, size: 20),
                 Expanded(
                   child: Slider(
                     value: volume,
@@ -97,16 +98,16 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                       setSheetState(() => volume = v);
                       SleepSoundService.setVolume(v);
                     },
-                    activeColor: const Color(0xFF22C55E),
-                    inactiveColor: Colors.white12,
+                    activeColor: context.colors.primary,
+                    inactiveColor: context.colors.outlineVariant,
                   ),
                 ),
               ]),
               const SizedBox(height: 8),
-              const Align(
+              Align(
                   alignment: Alignment.centerLeft,
                   child: Text('Auto-stop',
-                      style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600))),
+                      style: TextStyle(color: context.colors.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w600))),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -116,10 +117,10 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                       label: Text(mins == 0 ? '∞' : '${mins}m'),
                       selected: selectedTimer == mins,
                       onSelected: (_) => setSheetState(() => selectedTimer = mins),
-                      selectedColor: const Color(0xFF22C55E),
-                      backgroundColor: Colors.white12,
+                      selectedColor: context.colors.primary,
+                      backgroundColor: context.colors.outlineVariant,
                       labelStyle: TextStyle(
-                          color: selectedTimer == mins ? Colors.white : Colors.white54,
+                          color: selectedTimer == mins ? context.colors.onSurface : context.colors.onSurfaceVariant,
                           fontWeight: FontWeight.w700),
                     ),
                 ],
@@ -136,8 +137,8 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                     setState(() {});
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.colors.primary,
+                    foregroundColor: context.colors.onPrimary,
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40)),
@@ -159,18 +160,18 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
     final playing = SleepSoundService.isPlaying();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f172a),
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0f172a),
+        backgroundColor: context.colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.onSurface.withValues(alpha: 0.7)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'SLEEP SOUNDS',
           style: TextStyle(
-              color: Colors.white,
+              color: context.colors.onSurface,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 3),
@@ -182,10 +183,10 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                 SleepSoundService.stop();
                 setState(() {});
               },
-              backgroundColor: const Color(0xFFEF4444),
-              icon: const Icon(Icons.stop_rounded, color: Colors.white),
-              label: const Text('Stop',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              backgroundColor: context.semantics.danger,
+              icon: Icon(Icons.stop_rounded, color: context.colors.onSurface),
+              label: Text('Stop',
+                  style: TextStyle(color: context.colors.onSurface, fontWeight: FontWeight.w700)),
             )
           : null,
       body: Column(
@@ -196,10 +197,10 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                  color: context.colors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
+                      color: context.colors.primary.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
@@ -211,14 +212,14 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                         children: [
                           Text(
                             'Now playing: ${current.displayName}',
-                            style: const TextStyle(
-                                color: Colors.white,
+                            style: TextStyle(
+                                color: context.colors.onSurface,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15),
                           ),
-                          const Text('Looping · Tap stop to end',
+                          Text('Looping · Tap stop to end',
                               style: TextStyle(
-                                  color: Colors.white54, fontSize: 12)),
+                                  color: context.colors.onSurfaceVariant, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -249,16 +250,16 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                     builder: (context, child) {
                       final borderColor = isActive
                           ? Color.lerp(
-                              const Color(0xFF22C55E),
-                              const Color(0xFF86EFAC),
+                              context.colors.primary,
+                              context.colors.primary,
                               _pulseController.value)!
-                          : const Color(0xFF1e293b);
+                          : context.colors.surfaceContainer;
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           color: isActive
-                              ? const Color(0xFF22C55E).withValues(alpha: 0.15)
-                              : const Color(0xFF1e293b),
+                              ? context.colors.primary.withValues(alpha: 0.15)
+                              : context.colors.surfaceContainer,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: borderColor,
@@ -278,18 +279,18 @@ class _SleepSoundsScreenState extends State<SleepSoundsScreen>
                           sound.displayName,
                           style: TextStyle(
                             color: isActive
-                                ? const Color(0xFF22C55E)
-                                : Colors.white70,
+                                ? context.colors.primary
+                                : context.colors.onSurface.withValues(alpha: 0.7),
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
                         ),
                         if (isActive)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 4),
                             child: Text('Playing',
                                 style: TextStyle(
-                                    color: Color(0xFF22C55E),
+                                    color: context.colors.primary,
                                     fontSize: 11)),
                           ),
                       ],
@@ -326,7 +327,7 @@ class _WaveBars extends StatelessWidget {
               height: height,
               margin: const EdgeInsets.symmetric(horizontal: 1.5),
               decoration: BoxDecoration(
-                color: const Color(0xFF22C55E),
+                color: context.colors.primary,
                 borderRadius: BorderRadius.circular(2),
               ),
             );

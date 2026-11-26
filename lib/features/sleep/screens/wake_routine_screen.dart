@@ -7,6 +7,7 @@ import 'package:alarm_plus/features/missions/models/wake_routine_step.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/sleep/services/wake_routine_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class WakeRoutineScreen extends StatefulWidget {
   const WakeRoutineScreen({super.key});
@@ -24,6 +25,7 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
   int _stepIndex = 0;
   int _secondsLeft = 0;
   int _completedCount = 0;
+  bool _finishing = false;
   bool _stepDone = false;
 
   // Breath phase: 0=inhale, 1=hold, 2=exhale
@@ -99,6 +101,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
   }
 
   void _advance({required bool completed}) {
+    // A double tap on the last "Done" ran _finish twice (and paid twice).
+    if (_finishing) return;
     _countdownTimer?.cancel();
     if (completed) {
       _completedCount++;
@@ -108,16 +112,21 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
       setState(() => _stepIndex++);
       _startStep();
     } else {
+      _finishing = true;
       _finish();
     }
   }
 
   Future<void> _finish() async {
-    final bonus = WakeRoutineService.calculateAwakeBonus(
+    var bonus = WakeRoutineService.calculateAwakeBonus(
       _completedCount,
       _steps.length,
     );
     await WakeRoutineService.markRoutineCompleted();
+    // Paid once a day; replaying the routine doesn't pay again.
+    if (bonus > 0 && !await SmartAlarmService.claimDailyXp('wake_routine')) {
+      bonus = 0;
+    }
     if (bonus > 0) {
       await SmartAlarmService.addXp(bonus);
     }
@@ -132,9 +141,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
       enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surfaceContainer,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
         child: Column(
@@ -148,8 +157,12 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              '$_completedCount / ${_steps.length} steps · +$bonus XP',
-              style: const TextStyle(fontSize: 16, color: Color(0xFF64748B)),
+              '$_completedCount / ${_steps.length} steps'
+              '${bonus > 0 ? ' · +$bonus XP' : ''}',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 28),
             SizedBox(
@@ -162,8 +175,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF22C55E),
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.primary,
+                  foregroundColor: context.colors.onPrimary,
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(40),
@@ -181,9 +194,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                 Navigator.pop(ctx);
                 Navigator.of(context).pushNamed('/morning-checkin');
               },
-              child: const Text(
+              child: Text(
                 'Sleep Check-In',
-                style: TextStyle(color: Color(0xFF6366F1)),
+                style: TextStyle(color: context.colors.primary),
               ),
             ),
             TextButton(
@@ -191,9 +204,11 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                 Navigator.pop(ctx);
                 Navigator.of(context).pop();
               },
-              child: const Text(
+              child: Text(
                 'Skip missions',
-                style: TextStyle(color: Color(0xFF94A3B8)),
+                style: TextStyle(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -205,23 +220,24 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
   @override
   Widget build(BuildContext context) {
     final progress = (_stepIndex) / _steps.length;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'WAKE ROUTINE',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             letterSpacing: 3,
-            color: Color(0xFF64748B),
+            color: scheme.onSurfaceVariant,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+          icon: Icon(Icons.close, color: scheme.onSurfaceVariant),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -235,9 +251,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF22C55E),
+                backgroundColor: scheme.outlineVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  context.colors.primary,
                 ),
                 minHeight: 6,
               ),
@@ -245,9 +261,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
             const SizedBox(height: 6),
             Text(
               'Step ${_stepIndex + 1} of ${_steps.length}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF94A3B8),
+                color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -264,10 +280,10 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
             Center(
               child: Text(
                 _currentStep.title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: scheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -277,9 +293,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
             Center(
               child: Text(
                 _currentStep.instruction,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF64748B),
+                  color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -300,14 +316,14 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                     onPressed: () => _advance(completed: false),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 52),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      side: BorderSide(color: scheme.outlineVariant),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Skip',
-                      style: TextStyle(color: Color(0xFF94A3B8)),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
                 ),
@@ -317,8 +333,8 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                   child: ElevatedButton(
                     onPressed: _stepDone ? () => _advance(completed: true) : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colors.primary,
+                      foregroundColor: context.colors.onPrimary,
                       minimumSize: const Size(double.infinity, 52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40),
@@ -354,16 +370,17 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
               size: const Size(140, 140),
               painter: _RingPainter(
                 progress: 1.0 - _timerController.value,
-                color: const Color(0xFF22C55E),
+                color: context.colors.primary,
+                trackColor: Theme.of(context).colorScheme.outlineVariant,
               ),
             ),
           ),
           Text(
             '$_secondsLeft',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -386,9 +403,9 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.2),
+                  color: context.colors.primary.withValues(alpha: 0.2),
                   border: Border.all(
-                    color: const Color(0xFF22C55E),
+                    color: context.colors.primary,
                     width: 3,
                   ),
                 ),
@@ -399,15 +416,18 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
         const SizedBox(height: 16),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         Text(
           '$_breathPhaseSeconds s',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -415,17 +435,22 @@ class _WakeRoutineScreenState extends State<WakeRoutineScreen>
 }
 
 class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.progress, required this.color});
+  const _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+  });
 
   final double progress;
   final Color color;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 8;
     final trackPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     final progressPaint = Paint()
@@ -445,5 +470,6 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.trackColor != trackColor;
 }

@@ -155,8 +155,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       onPressed: _busy || pending ? null : _buy,
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(56),
-                        backgroundColor: Palette.green500,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(Radii.pill),
                         ),
@@ -166,11 +166,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ),
                       child: _busy
-                          ? const SizedBox.square(
+                          ? SizedBox.square(
                               dimension: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : Text(pending
@@ -256,11 +256,11 @@ class _BenefitRow extends StatelessWidget {
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
         color: highlighted
-            ? Palette.green500.withValues(alpha: 0.10)
+            ? scheme.primary.withValues(alpha: 0.10)
             : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(Radii.lg),
         border: Border.all(
-          color: highlighted ? Palette.green500 : scheme.outlineVariant,
+          color: highlighted ? scheme.primary : scheme.outlineVariant,
           width: highlighted ? 1.6 : 1,
         ),
       ),
@@ -271,10 +271,10 @@ class _BenefitRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Palette.green500.withValues(alpha: 0.15),
+              color: scheme.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(benefit.icon, color: Palette.green600, size: 22),
+            child: Icon(benefit.icon, color: scheme.primary, size: 22),
           ),
           const SizedBox(width: Spacing.md),
           Expanded(

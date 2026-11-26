@@ -1,36 +1,49 @@
 import 'package:flutter/material.dart';
 
-/// Raw design values. Nothing in here knows about light/dark — these are the
-/// pigments, and [AppTheme] decides how they're used in each brightness.
+/// The app's whole palette: warm stone neutrals, ONE accent (orange), and two
+/// status colours (red for danger, green for "OK"). Nothing else is allowed in
+/// UI code; `test/core/theme/theme_discipline_test.dart` fails the build if a
+/// screen reaches for another colour.
 ///
-/// Screens should almost never reference this file directly: read roles from
-/// `Theme.of(context).colorScheme` or `AppSemantics` instead, so dark mode
-/// keeps working. The exceptions are [Spacing], [Radii] and [Motion], which
-/// are brightness-independent and safe to use anywhere.
+/// Nothing in here knows about light/dark: [AppTheme] decides how each is used
+/// per brightness. Screens should read roles from
+/// `Theme.of(context).colorScheme` (or `context.semantics`) rather than this
+/// file, so the light and dark looks stay in step. The exceptions are
+/// [Spacing], [Radii] and [Motion], which are safe to use anywhere.
 class Palette {
   const Palette._();
 
-  // Slate ramp — the app's neutral scale.
-  static const slate50 = Color(0xFFF8FAFC);
-  static const slate100 = Color(0xFFF1F5F9);
-  static const slate200 = Color(0xFFE2E8F0);
-  static const slate300 = Color(0xFFCBD5E1);
-  static const slate400 = Color(0xFF94A3B8);
-  static const slate500 = Color(0xFF64748B);
-  static const slate600 = Color(0xFF475569);
-  static const slate700 = Color(0xFF334155);
-  static const slate800 = Color(0xFF1E293B);
-  static const slate900 = Color(0xFF0F172A);
+  // Warm neutrals, light to dark.
+  static const stone50 = Color(0xFFFAFAF9);
+  static const stone100 = Color(0xFFF5F5F4);
+  static const stone200 = Color(0xFFE7E5E4);
+  static const stone300 = Color(0xFFD6D3D1);
+  static const stone400 = Color(0xFFA8A29E);
+  static const stone500 = Color(0xFF78716C);
+  static const stone600 = Color(0xFF57534E);
+  static const stone900 = Color(0xFF1C1917);
 
-  // Brand + semantic hues.
-  static const green500 = Color(0xFF22C55E);
-  static const green600 = Color(0xFF16A34A);
-  static const amber400 = Color(0xFFFBBF24);
-  static const amber500 = Color(0xFFF59E0B);
-  static const orange500 = Color(0xFFF97316);
-  static const red500 = Color(0xFFEF4444);
-  static const indigo500 = Color(0xFF6366F1);
-  static const pink500 = Color(0xFFEC4899);
+  // Dark theme surfaces (warm near-black, in three steps).
+  static const night = Color(0xFF141211);
+  static const nightRaised = Color(0xFF1F1B19);
+  static const nightHigh = Color(0xFF2A2522);
+  static const nightLine = Color(0xFF3A3430);
+
+  // The single accent. [orange700] is the light-theme accent: the lightest
+  // orange that still reads at 4.5:1 with white text. [orange400] is the dark
+  // theme accent, with near-black text on it.
+  static const orange100 = Color(0xFFFFEDD5);
+  static const orange200 = Color(0xFFFED7AA);
+  static const orange400 = Color(0xFFFB923C);
+  static const orange700 = Color(0xFFC2410C);
+  static const orange900 = Color(0xFF7C2D12);
+  static const orangeDeep = Color(0xFF3B1A0A);
+
+  // Status colours: the only other hues in the app.
+  static const red600 = Color(0xFFDC2626);
+  static const red400 = Color(0xFFF87171);
+  static const green700 = Color(0xFF15803D); // 5:1 on white, safe as text
+  static const green400 = Color(0xFF4ADE80);
 }
 
 /// 4pt spacing scale. Use these instead of literal EdgeInsets numbers so

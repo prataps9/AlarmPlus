@@ -35,19 +35,19 @@ enum MascotAccessory { none, crown, shades, nightcap, headphones }
 enum MascotOutfit {
   classic(
     label: 'Classic',
-    body: Palette.green500,
+    body: Palette.orange400,
     accessory: MascotAccessory.none,
     isPremium: false,
   ),
   sunrise(
     label: 'Sunrise Shades',
-    body: Palette.orange500,
+    body: Color(0xFFF59E0B),
     accessory: MascotAccessory.shades,
     isPremium: true,
   ),
   royal(
     label: 'Royal Riser',
-    body: Palette.indigo500,
+    body: Color(0xFF6366F1),
     accessory: MascotAccessory.crown,
     isPremium: true,
   ),
@@ -59,7 +59,7 @@ enum MascotOutfit {
   ),
   groove(
     label: 'Morning Groove',
-    body: Palette.pink500,
+    body: Color(0xFFEC4899),
     accessory: MascotAccessory.headphones,
     isPremium: true,
   );

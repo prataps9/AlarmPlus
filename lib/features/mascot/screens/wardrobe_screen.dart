@@ -91,7 +91,7 @@ class _OutfitTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.lg),
         side: BorderSide(
-          color: selected ? Palette.green500 : scheme.outlineVariant,
+          color: selected ? scheme.primary : scheme.outlineVariant,
           width: selected ? 2.4 : 1,
         ),
       ),
@@ -129,7 +129,7 @@ class _OutfitTile extends StatelessWidget {
                 child: Icon(
                   locked ? Icons.lock_rounded : Icons.check_circle_rounded,
                   size: 20,
-                  color: locked ? scheme.onSurfaceVariant : Palette.green500,
+                  color: locked ? scheme.onSurfaceVariant : scheme.primary,
                 ),
               ),
             if (locked)
@@ -140,15 +140,15 @@ class _OutfitTile extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Palette.amber400,
+                    color: scheme.primary,
                     borderRadius: BorderRadius.circular(Radii.pill),
                   ),
-                  child: const Text(
+                  child: Text(
                     'PRO',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
-                      color: Palette.slate900,
+                      color: scheme.onPrimary,
                     ),
                   ),
                 ),

@@ -2,23 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:alarm_plus/core/theme/app_tokens.dart';
 
-/// Fixed colors that ignore the active brightness.
-///
-/// Prefer `Theme.of(context).colorScheme` or `context.semantics` — anything
-/// reading these will not adapt to dark mode.
-@Deprecated('Use ColorScheme roles or AppSemantics instead; see core/theme/')
-class AppColors {
-  static const Color primary = Palette.slate900;
-  static const Color secondary = Palette.green500;
-  static const Color slate600 = Palette.slate600;
-  static const Color slate700 = Palette.slate700;
-  static const Color slate200 = Palette.slate200;
-  static const Color slate300 = Palette.slate300;
-  static const Color slate400 = Palette.slate400;
-  static const Color slate100 = Palette.slate100;
-  static const Color slate50 = Palette.slate50;
-}
-
 // Durations
 class AppDurations {
   static const Duration focusTimerDefault = Duration(minutes: 25);

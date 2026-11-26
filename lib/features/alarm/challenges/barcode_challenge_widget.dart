@@ -90,13 +90,7 @@ class _BarcodeChallengeWidgetState extends State<BarcodeChallengeWidget> {
             bottom: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Colors.black87, Colors.transparent],
-                ),
-              ),
+              decoration: const BoxDecoration(color: Colors.black54),
               child: Text(
                 isLockedMode
                     ? 'Walk to your spot and scan the QR code!'

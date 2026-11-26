@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:alarm/alarm.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'package:alarm_plus/core/services/live_alarm_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
+import 'package:alarm_plus/features/alarm/models/alarm_model.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_ring_flow.dart';
 import 'package:alarm_plus/features/alarm/services/alarm_service.dart';
 import 'package:alarm_plus/shared/utils/time_format.dart';
@@ -32,20 +37,17 @@ class WidgetSyncService {
 
   static Future<void> refresh() async {
     if (kIsWeb) return;
+    // Same trigger points as the widget: anything that changes the next ring.
+    unawaited(LiveAlarmService.sync());
     try {
       await HomeWidget.setAppGroupId(_iosAppGroupId);
       final stats = await SmartAlarmService.getStats();
+      final next = nextWidgetAlarm(AlarmService.getAllAlarms(), DateTime.now());
       await HomeWidget.saveWidgetData<int>('streak_days', stats.currentStreak);
-      await HomeWidget.saveWidgetData<String>('next_alarm', _nextAlarmLabel());
+      await HomeWidget.saveWidgetData<String>('next_alarm', _label(next));
       // Drives the widget's toggle tint and the Quick Settings tile state.
-      await HomeWidget.saveWidgetData<bool>(
-        'next_alarm_enabled',
-        AlarmService.getAllAlarms().any((a) => a.isEnabled),
-      );
-      await HomeWidget.saveWidgetData<bool>(
-        'alarm_ringing',
-        AlarmRingFlow.currentRingingId != 0,
-      );
+      await HomeWidget.saveWidgetData<bool>('next_alarm_enabled', next != null);
+      await HomeWidget.saveWidgetData<bool>('alarm_ringing', await _isRinging());
       await HomeWidget.updateWidget(
         androidName: _androidWidgetName,
         iOSName: _iosWidgetName,
@@ -58,15 +60,40 @@ class WidgetSyncService {
     }
   }
 
-  static String _nextAlarmLabel() {
-    final now = DateTime.now();
-    final enabled = AlarmService.getAllAlarms().where((a) => a.isEnabled).toList();
-    if (enabled.isEmpty) return 'No alarm set';
-
-    enabled.sort(
+  /// The alarm the widget and tile show and toggle: the soonest enabled one,
+  /// skipping hidden system alarms (nap, arrival) and dated one-offs whose
+  /// moment has passed. Those used to win the sort and label the widget with
+  /// an alarm the user can't see or that will never ring.
+  static AlarmModel? nextWidgetAlarm(
+    Iterable<AlarmModel> alarms,
+    DateTime now,
+  ) {
+    final candidates = [
+      for (final a in alarms)
+        if (a.isEnabled && !a.isSystem && !a.isExpiredAt(now)) a,
+    ];
+    if (candidates.isEmpty) return null;
+    candidates.sort(
       (a, b) => a.nextDateTimeFrom(now).compareTo(b.nextDateTimeFrom(now)),
     );
-    final next = enabled.first;
+    return candidates.first;
+  }
+
+  /// Asks the alarm plugin rather than trusting [AlarmRingFlow.currentRingingId]
+  /// alone: that id outlives a snooze, which left the widget's Snooze button
+  /// live while nothing rang and dead during the re-ring.
+  static Future<bool> _isRinging() async {
+    final id = AlarmRingFlow.currentRingingId;
+    if (id == 0) return false;
+    try {
+      return await Alarm.isRinging(id);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static String _label(AlarmModel? next) {
+    if (next == null) return 'No alarm set';
     return TimeFormat.clockLabel(
       next.time.hour,
       next.time.minute,

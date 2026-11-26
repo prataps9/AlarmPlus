@@ -4,6 +4,7 @@ import 'package:alarm_plus/features/sleep/models/sleep_entry.dart';
 import 'package:alarm_plus/features/sleep/services/sleep_diary_service.dart';
 import 'package:alarm_plus/core/services/smart_alarm_service.dart';
 import 'package:alarm_plus/features/missions/screens/morning_missions_screen.dart';
+import 'package:alarm_plus/core/theme/app_theme_ext.dart';
 
 class MorningCheckInScreen extends StatefulWidget {
   const MorningCheckInScreen({super.key});
@@ -27,6 +28,7 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (_mood == 0 || _sleepRating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please rate your mood and sleep')),
@@ -34,16 +36,26 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
       return;
     }
     setState(() => _saving = true);
+    final now = DateTime.now();
+    final notes = _notesController.text.trim();
+    // Merge into today's diary entry: writing a fresh one replaced it and
+    // lost its voice memo, deep-sleep estimate, bedtime and wake time.
+    final existing = await SleepDiaryService.getEntryForDate(now);
     final entry = SleepEntry(
-      date: SleepDiaryService.dateKey(DateTime.now()),
+      date: SleepDiaryService.dateKey(now),
       sleepQuality: _sleepRating,
       morningMood: _mood,
-      notes: _notesController.text.trim().isEmpty
-          ? null
-          : _notesController.text.trim(),
+      notes: notes.isEmpty ? existing?.notes : notes,
+      bedtime: existing?.bedtime,
+      wakeTime: existing?.wakeTime,
+      deepSleepEstimate: existing?.deepSleepEstimate,
+      voiceMemoPath: existing?.voiceMemoPath,
     );
     await SleepDiaryService.saveEntry(entry);
-    await SmartAlarmService.addXp(10);
+    // Paid once a day, not on every check-in.
+    if (await SmartAlarmService.claimDailyXp('morning_check_in')) {
+      await SmartAlarmService.addXp(10);
+    }
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed(MorningMissionsScreen.routeName);
   }
@@ -51,7 +63,7 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0f172a),
+      backgroundColor: context.colors.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
@@ -63,28 +75,28 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
                 TextButton(
                   onPressed: () => Navigator.of(context)
                       .pushReplacementNamed(MorningMissionsScreen.routeName),
-                  child: const Text('Skip',
-                      style: TextStyle(color: Colors.white54)),
+                  child: Text('Skip',
+                      style: TextStyle(color: context.colors.onSurfaceVariant)),
                 ),
               ]),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Morning\nCheck-In',
                 style: TextStyle(
-                    color: Colors.white,
+                    color: context.colors.onSurface,
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
                     height: 1.1),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Quick log for your sleep diary',
-                style: TextStyle(color: Colors.white54, fontSize: 15),
+                style: TextStyle(color: context.colors.onSurfaceVariant, fontSize: 15),
               ),
               const SizedBox(height: 36),
-              const Text('How do you feel?',
+              Text('How do you feel?',
                   style: TextStyle(
-                      color: Colors.white70,
+                      color: context.colors.onSurface.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                       fontSize: 16)),
               const SizedBox(height: 14),
@@ -94,9 +106,9 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
                 onSelect: (v) => setState(() => _mood = v),
               ),
               const SizedBox(height: 28),
-              const Text('Rate your sleep last night',
+              Text('Rate your sleep last night',
                   style: TextStyle(
-                      color: Colors.white70,
+                      color: context.colors.onSurface.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w600,
                       fontSize: 16)),
               const SizedBox(height: 14),
@@ -105,12 +117,12 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
               TextField(
                 controller: _notesController,
                 maxLines: 2,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: context.colors.onSurface),
                 decoration: InputDecoration(
                   hintText: 'Optional note...',
-                  hintStyle: const TextStyle(color: Colors.white30),
+                  hintStyle: TextStyle(color: context.colors.outline),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.07),
+                  fillColor: context.colors.onSurface.withValues(alpha: 0.07),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -123,18 +135,18 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
                 child: ElevatedButton(
                   onPressed: _saving ? null : _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.colors.primary,
+                    foregroundColor: context.colors.onPrimary,
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(40)),
                   ),
                   child: _saving
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
+                              color: context.colors.onSurface, strokeWidth: 2))
                       : const Text('Done  +10 XP',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
@@ -165,13 +177,13 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
             height: 58,
             decoration: BoxDecoration(
               color: isSelected
-                  ? Colors.white.withValues(alpha: 0.15)
-                  : Colors.white.withValues(alpha: 0.06),
+                  ? context.colors.onSurface.withValues(alpha: 0.15)
+                  : context.colors.onSurface.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected
-                    ? Colors.white.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.1),
+                    ? context.colors.onSurface.withValues(alpha: 0.6)
+                    : context.colors.onSurface.withValues(alpha: 0.1),
                 width: isSelected ? 2 : 1,
               ),
             ),
@@ -196,8 +208,8 @@ class _MorningCheckInScreenState extends State<MorningCheckInScreen> {
             child: Icon(
               _sleepRating >= value ? Icons.star_rounded : Icons.star_outline_rounded,
               color: _sleepRating >= value
-                  ? const Color(0xFFFBBF24)
-                  : Colors.white24,
+                  ? context.colors.primary
+                  : context.colors.outline,
               size: 40,
             ),
           ),
